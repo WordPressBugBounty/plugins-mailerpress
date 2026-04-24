@@ -1,0 +1,61 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "mailerpress/form-input",
+  "version": "0.1.0",
+  "title": "Form Input",
+  "category": "widgets",
+  "icon": "smiley",
+  "description": "",
+  "example": {},
+  "attributes": {
+    "required": {
+      "type": "boolean",
+      "default": false
+    },
+    "margin": {
+      "bottom": {
+        "type": "string",
+        "default": "16px"
+      }
+    },
+    "label": {
+      "type": "string",
+      "default": "text"
+    },
+    "type": {
+      "type": "string",
+      "default": "text"
+    },
+    "fontSize": {
+      "type": "string",
+      "default": "small"
+    },
+    "borderRadius": {
+      "type": ["string", "object"],
+      "default": "0px"
+    },
+    "placeholder": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "inserter": false,
+    "spacing": {
+      "padding": true,
+      "margin": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true,
+      "textAlign": true
+    },
+    "html": false,
+    "filter": true
+  },
+  "textdomain": "mailerpress",
+  "editorScript": "file:../../../build/dist/js/editor-blocks.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css"
+}

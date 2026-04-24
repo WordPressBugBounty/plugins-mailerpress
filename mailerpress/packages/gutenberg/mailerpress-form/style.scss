@@ -1,0 +1,66 @@
+/**
+ * The following styles get applied both on the front of your site
+ * and in the editor.
+ *
+ * Replace them with your own styles or remove the file completely.
+ */
+
+.mailerpress-optin-form {
+
+  button[type="submit"] {
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  &__field {
+    flex: 1;
+    width: 100%;
+
+    input {
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid;
+      border-radius: 0;
+      line-height: initial;
+      min-height: initial;
+    }
+
+    label {
+      margin-bottom: 8px;
+      display: block;
+    }
+  }
+
+  &__submit {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    height: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.has-button-and-input-color {
+  label {
+    color: var(--button-and-input-color);
+  }
+
+  input {
+    border: 1px solid var(--button-and-input-color);
+    border-radius: 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  button {
+    background-color: var(--button-and-input-color);
+    border: none;
+    border-radius: 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "mailerpress/mailerpress-form",
+  "version": "0.1.0",
+  "title": "Subscription Form",
+  "category": "mailerpress",
+  "icon": "smiley",
+  "description": "",
+  "example": {},
+  "attributes": {
+    "success_message": {
+      "type": "string",
+      "default": "Thank you for your registration."
+    },
+    "error_message": {
+      "type": "string",
+      "default": "Oops! Something went wrong. Please try again."
+    },
+    "list": {
+      "type": "string",
+      "default": ""
+    },
+    "tags": {
+      "type": "array",
+      "default": []
+    },
+    "double_optin": {
+      "type": "boolean",
+      "default": true
+    },
+    "buttonAndBorderColor": {
+      "type": "string",
+      "default": "#000"
+    },
+    "layout": {
+      "allowVerticalAlignment": true
+    },
+    "textColor": {
+      "type": "string",
+      "default": "#fff"
+    },
+    "borderRadius": {
+      "type": "string",
+      "default": "0px"
+    }
+  },
+  "supports": {
+    "shadow" : true,
+    "align": [
+      "wide",
+      "full"
+    ],
+    "color": {
+      "text": true,
+      "background": true
+    },
+    "spacing": {
+      "padding": true,
+      "margin": true,
+      "blockGap": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true
+    },
+    "html": true
+  },
+  "textdomain": "mailerpress",
+  "editorScript": "file:../../../build/dist/js/editor-blocks.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css",
+  "viewScript": "file:./view.js"
+}

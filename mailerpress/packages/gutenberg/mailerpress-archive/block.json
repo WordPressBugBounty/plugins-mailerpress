@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "mailerpress/campaign-archive",
+  "version": "0.1.0",
+  "title": "Campaign Archive",
+  "category": "mailerpress",
+  "icon": "email",
+  "description": "Display a list of sent email campaigns",
+  "example": {},
+  "attributes": {
+    "year": {
+      "type": "string",
+      "default": ""
+    },
+    "limit": {
+      "type": "number",
+      "default": -1
+    },
+    "order": {
+      "type": "string",
+      "default": "DESC"
+    },
+    "showDate": {
+      "type": "boolean",
+      "default": true
+    },
+    "datePosition": {
+      "type": "string",
+      "default": "right"
+    },
+    "showSeparator": {
+      "type": "boolean",
+      "default": true
+    },
+    "separatorWidth": {
+      "type": "number",
+      "default": 1
+    },
+    "separatorColor": {
+      "type": "string",
+      "default": "#eeeeee"
+    },
+    "itemSpacing": {
+      "type": "number",
+      "default": 8
+    },
+    "dateColor": {
+      "type": "string",
+      "default": "#666666"
+    }
+  },
+  "supports": {
+    "align": ["wide", "full"],
+    "color": {
+      "text": true,
+      "background": true,
+      "link": true
+    },
+    "spacing": {
+      "padding": true,
+      "margin": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true
+    },
+    "html": false
+  },
+  "textdomain": "mailerpress",
+  "editorScript": "file:../../../build/dist/js/editor-blocks.js",
+  "render": "file:./render.php"
+}

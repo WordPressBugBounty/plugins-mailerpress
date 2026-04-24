@@ -1,0 +1,441 @@
+{
+  "php": {
+    "name": "PHP Mail",
+    "warning": {
+      "type": "warning",
+      "message": "PHP Mail has very limited deliverability and is not recommended for bulk sending. Consider using a professional email service (Brevo, SendGrid, Postmark) for better deliverability and to avoid IP blacklisting."
+    },
+    "profiles": [
+      {
+        "id": "php_micro",
+        "name": "Micro",
+        "label": "Micro (Shared hosting - very limited)",
+        "description": "For very weak shared hosting",
+        "config": {
+          "numberEmail": 10,
+          "frequency": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "rate_limit": 1
+        },
+        "throughput": {
+          "perHour": 60,
+          "perDay": 1440
+        },
+        "recommended": false
+      },
+      {
+        "id": "php_prudent",
+        "name": "Prudent",
+        "label": "Prudent (Recommended for shared hosting)",
+        "description": "Safe configuration for standard shared hosting",
+        "config": {
+          "numberEmail": 25,
+          "frequency": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "rate_limit": 2
+        },
+        "throughput": {
+          "perHour": 150,
+          "perDay": 3600
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "php_standard",
+        "name": "Standard",
+        "label": "Standard (VPS only - risky)",
+        "description": "Only for basic VPS, not recommended",
+        "config": {
+          "numberEmail": 50,
+          "frequency": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "rate_limit": 3
+        },
+        "throughput": {
+          "perHour": 300,
+          "perDay": 7200
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "brevo": {
+    "name": "Brevo",
+    "info": {
+      "type": "info",
+      "message": "Brevo is an excellent choice for beginners. Free plan includes 300 emails/day. Very good deliverability."
+    },
+    "profiles": [
+      {
+        "id": "brevo_prudent",
+        "name": "Prudent",
+        "label": "Prudent (Free plan - 300 emails/day)",
+        "description": "Perfect for small campaigns on free plan",
+        "config": {
+          "numberEmail": 50,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 10
+        },
+        "throughput": {
+          "perHour": 600,
+          "perDay": 14400
+        },
+        "recommended": false
+      },
+      {
+        "id": "brevo_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended)",
+        "description": "Optimal configuration for most use cases",
+        "config": {
+          "numberEmail": 100,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 20
+        },
+        "throughput": {
+          "perHour": 1200,
+          "perDay": 28800
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "brevo_performance",
+        "name": "Performance",
+        "label": "Performance (Premium plans)",
+        "description": "High volume sending for premium plans",
+        "config": {
+          "numberEmail": 200,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 30
+        },
+        "throughput": {
+          "perHour": 2400,
+          "perDay": 57600
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "sendgrid": {
+    "name": "SendGrid",
+    "info": {
+      "type": "info",
+      "message": "SendGrid is very reliable and supports up to 10,000 requests/second. Current implementation sends 1 email per request. Future optimization: Implement batch sending (up to 1,000 emails/request) for 1000x higher throughput."
+    },
+    "profiles": [
+      {
+        "id": "sendgrid_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended)",
+        "description": "Optimal for most SendGrid plans",
+        "config": {
+          "numberEmail": 100,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 25
+        },
+        "throughput": {
+          "perHour": 2000,
+          "perDay": 48000
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "sendgrid_performance",
+        "name": "Performance",
+        "label": "Performance (Pro plans)",
+        "description": "High volume for Pro+ plans",
+        "config": {
+          "numberEmail": 200,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 50
+        },
+        "throughput": {
+          "perHour": 4000,
+          "perDay": 96000
+        },
+        "recommended": false
+      },
+      {
+        "id": "sendgrid_high_performance",
+        "name": "High Performance",
+        "label": "High Performance (Premier plans)",
+        "description": "Very high volume for Premier plans",
+        "config": {
+          "numberEmail": 300,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 50
+        },
+        "throughput": {
+          "perHour": 3600,
+          "perDay": 86400
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "postmark": {
+    "name": "Postmark",
+    "info": {
+      "type": "info",
+      "message": "Postmark offers premium quality deliverability for transactional emails. Excellent reputation and support."
+    },
+    "profiles": [
+      {
+        "id": "postmark_prudent",
+        "name": "Prudent",
+        "label": "Prudent (10k plan)",
+        "description": "For 10,000 emails/month plans",
+        "config": {
+          "numberEmail": 50,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 10
+        },
+        "throughput": {
+          "perHour": 600,
+          "perDay": 14400
+        },
+        "recommended": false
+      },
+      {
+        "id": "postmark_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended)",
+        "description": "Optimal for 50k-100k plans",
+        "config": {
+          "numberEmail": 100,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 20
+        },
+        "throughput": {
+          "perHour": 1200,
+          "perDay": 28800
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "postmark_performance",
+        "name": "Performance",
+        "label": "Performance (100k+ plans)",
+        "description": "High volume for 100k+ plans",
+        "config": {
+          "numberEmail": 200,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 30
+        },
+        "throughput": {
+          "perHour": 2400,
+          "perDay": 57600
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "mailgun": {
+    "name": "Mailgun",
+    "info": {
+      "type": "info",
+      "message": "Mailgun is robust and flexible, excellent for high volumes. Good balance between features and cost."
+    },
+    "profiles": [
+      {
+        "id": "mailgun_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended)",
+        "description": "Optimal for most Mailgun plans",
+        "config": {
+          "numberEmail": 100,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 25
+        },
+        "throughput": {
+          "perHour": 2000,
+          "perDay": 48000
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "mailgun_performance",
+        "name": "Performance",
+        "label": "Performance (Foundation+ plans)",
+        "description": "High volume for premium plans",
+        "config": {
+          "numberEmail": 200,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 40
+        },
+        "throughput": {
+          "perHour": 4000,
+          "perDay": 96000
+        },
+        "recommended": false
+      },
+      {
+        "id": "mailgun_high_performance",
+        "name": "High Performance",
+        "label": "High Performance (Scale plans)",
+        "description": "Very high volume for Scale plans",
+        "config": {
+          "numberEmail": 300,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 50
+        },
+        "throughput": {
+          "perHour": 3600,
+          "perDay": 86400
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "amazonses": {
+    "name": "Amazon SES",
+    "info": {
+      "type": "info",
+      "message": "Amazon SES is highly scalable and cost-effective. Default limit: 14 emails/second. Request limit increases through AWS support for higher volumes."
+    },
+    "profiles": [
+      {
+        "id": "amazonses_starter",
+        "name": "Starter",
+        "label": "Starter (New accounts - 14 emails/sec)",
+        "description": "For new SES accounts with default limits",
+        "config": {
+          "numberEmail": 100,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 14
+        },
+        "throughput": {
+          "perHour": 1200,
+          "perDay": 28800
+        },
+        "recommended": false
+      },
+      {
+        "id": "amazonses_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended)",
+        "description": "Optimal for most SES accounts",
+        "config": {
+          "numberEmail": 150,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 20
+        },
+        "throughput": {
+          "perHour": 1800,
+          "perDay": 43200
+        },
+        "recommended": true,
+        "isDefault": true
+      },
+      {
+        "id": "amazonses_performance",
+        "name": "Performance",
+        "label": "Performance (Increased limits)",
+        "description": "For accounts with approved limit increases",
+        "config": {
+          "numberEmail": 200,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 30
+        },
+        "throughput": {
+          "perHour": 4000,
+          "perDay": 96000
+        },
+        "recommended": false
+      },
+      {
+        "id": "amazonses_high_performance",
+        "name": "High Performance",
+        "label": "High Performance (Enterprise)",
+        "description": "For high-volume enterprise accounts",
+        "config": {
+          "numberEmail": 300,
+          "frequency": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "rate_limit": 50
+        },
+        "throughput": {
+          "perHour": 6000,
+          "perDay": 144000
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-01-23",
+    "notes": [
+      "All configurations are optimized for WordPress + ActionScheduler",
+      "ChunkWorker processes 1 chunk per minute maximum",
+      "Minimum recommended interval is 3 minutes to avoid overloading ActionScheduler",
+      "Rate limits are applied during chunk processing (emails per second)",
+      "Frequency determines spacing between chunks (throughput control)",
+      "For slow servers: reduce numberEmail and increase interval"
+    ],
+    "calculation": {
+      "throughput_per_hour": "(numberEmail * 60) / interval_minutes",
+      "throughput_per_day": "throughput_per_hour * 24",
+      "chunk_duration_seconds": "numberEmail / rate_limit",
+      "actionscheduler_load": "60 / interval_minutes (runs per hour)"
+    }
+  }
+}

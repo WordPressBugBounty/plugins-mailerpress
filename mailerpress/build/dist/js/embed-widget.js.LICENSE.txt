@@ -1,0 +1,7 @@
+/**
+ * MailerPress Embed Widget
+ * Standalone embeddable form system for external websites
+ *
+ * @version 1.0.0
+ * @license GPL-2.0-or-later
+ */

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "mailerpress/form-button",
+  "version": "0.1.0",
+  "title": "Form submit",
+  "category": "widgets",
+  "icon": "smiley",
+  "description": "",
+  "example": {},
+  "attributes": {
+    "content": {
+      "type": "string",
+      "default": "Subscribe",
+      "selector": "span"
+    },
+    "buttonWidth": {
+      "type": "number",
+      "default": 100
+    },
+    "padding": {
+      "type": "string",
+      "default": "8px"
+    },
+    "fontSize": {
+      "type": "string",
+      "default": "small"
+    },
+    "borderRadius": {
+      "type": ["string", "object"],
+      "default": "0px"
+    }
+  },
+  "supports": {
+    "inserter": false,
+    "color": {
+      "text": true,
+      "background": true
+    },
+    "align": ["wide", "full"],
+    "spacing": {
+      "padding": true,
+      "margin": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true,
+      "textAlign": true
+    },
+    "html": true,
+    "filter": true
+  },
+  "textdomain": "mailerpress",
+  "editorScript": "file:../../../build/dist/js/editor-blocks.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css"
+}

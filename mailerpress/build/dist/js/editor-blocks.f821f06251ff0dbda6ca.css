@@ -1,0 +1,6 @@
+.mailerpress-optin-form button[type=submit]{box-sizing:border-box;cursor:pointer}.mailerpress-optin-form__field{flex:1;width:100%}.mailerpress-optin-form__field input{border:1px solid;border-radius:0;box-sizing:border-box;line-height:normal;min-height:auto;padding:8px}.mailerpress-optin-form__field label{display:block;margin-bottom:8px}.mailerpress-optin-form__submit{box-sizing:border-box;display:flex;height:100%;justify-content:center;width:100%}.has-button-and-input-color label{color:var(--button-and-input-color)}.has-button-and-input-color input{border:1px solid var(--button-and-input-color);border-radius:0}.has-button-and-input-color input:focus{outline:none}.has-button-and-input-color button{background-color:var(--button-and-input-color);border:none;border-radius:0}.has-button-and-input-color button:focus{outline:none}
+
+.wp-block-mailerpress-form-input input{width:100%}.wp-block-mailerpress-form-input.has-input-radius input{border-radius:var(--input-radius)}
+.wp-block-create-block-mailerpress-form-input{border:1px dotted red}
+
+.mailerpress-optin-submit{height:100%}
