@@ -34,6 +34,10 @@ class WooCommerceConditionProvider
 
 		switch ($field) {
 			case 'wc_total_spent':
+				// Use current order total from context if available (e.g. triggered by product purchase)
+				if (isset($context['order_total'])) {
+					return (float) $context['order_total'];
+				}
 				return (float) \call_user_func('wc_get_customer_total_spent', $userId);
 
 			case 'wc_order_count':
@@ -126,6 +130,14 @@ class WooCommerceConditionProvider
 		$field = $rule['field'] ?? '';
 		$operator = $rule['operator'] ?? '==';
 		$value = $rule['value'] ?? null;
+
+		// Only handle specific fields that need custom evaluation logic
+		// Other wc_* fields (like wc_total_spent) are handled via the getFieldValue filter
+		// and standard operator comparison in ConditionEvaluator
+		$handledFields = ['wc_has_purchased_product', 'wc_purchased_in_category', 'wc_has_reviewed_order'];
+		if (!in_array($field, $handledFields, true)) {
+			return null;
+		}
 
 		$user = call_user_func('get_userdata', $userId);
 		if (!$user) {

@@ -44,11 +44,14 @@ class Tables
     public const MAILERPRESS_SEGMENTS = 'mailerpress_segments';
     public const MAILERPRESS_CUSTOM_FIELD_DEFINITIONS = 'mailerpress_cpt_definitions';
     public const MAILERPRESS_EMAIL_LOGS = 'mailerpress_email_logs';
-    public const MAILERPRESS_EMBED_API_KEYS = 'mailerpress_embed_api_keys';
-    public const MAILERPRESS_EMBED_RATE_LIMIT = 'mailerpress_embed_rate_limit';
+    public const MAILERPRESS_EMBED_API_KEYS = 'mailerpress_embed_api_keys'; // Tables created by FREE, used by PRO
+    public const MAILERPRESS_EMBED_RATE_LIMIT = 'mailerpress_embed_rate_limit'; // Tables created by FREE, used by PRO
+    public const MAILERPRESS_API_KEYS = 'mailerpress_api_keys'; // Full REST API keys
     public const MAILERPRESS_AB_TESTS = 'mailerpress_ab_tests';
     public const MAILERPRESS_AB_TEST_PARTICIPANTS = 'mailerpress_ab_test_participants';
+    public const MAILERPRESS_WEBHOOK_LOGS = 'mailerpress_webhook_logs';
     public const MAILERPRESS_MIGRATIONS = 'mailerpress_migrations';
+    public const MAILERPRESS_SYNC_CONNECTORS = 'mailerpress_sync_connectors';
 
     public static function getAll(): array
     {
@@ -91,9 +94,12 @@ class Tables
             self::get(self::MAILERPRESS_EMAIL_LOGS),
             self::get(self::MAILERPRESS_EMBED_API_KEYS),
             self::get(self::MAILERPRESS_EMBED_RATE_LIMIT),
+            self::get(self::MAILERPRESS_API_KEYS),
             self::get(self::MAILERPRESS_AB_TESTS),
             self::get(self::MAILERPRESS_AB_TEST_PARTICIPANTS),
+            self::get(self::MAILERPRESS_WEBHOOK_LOGS),
             self::get(self::MAILERPRESS_MIGRATIONS),
+            self::get(self::MAILERPRESS_SYNC_CONNECTORS),
         ];
     }
 

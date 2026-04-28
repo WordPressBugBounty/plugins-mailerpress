@@ -85,15 +85,19 @@ class Manager
                 // Normalize to use forward slashes for consistency
                 $relativePath = str_replace('\\', '/', $relativePath);
 
-                // In force mode, always validate against actual DB state
+                // In force mode, validate against actual DB state
                 if ($this->forceMode) {
-                    // Validate if migration is actually needed by checking DB state
+                    // First check tracker: if completed with same file hash, skip entirely
+                    // This avoids unnecessary re-execution and side effects from raw SQL migrations
+                    if ($this->tracker->isExecuted($relativePath, $file)) {
+                        continue;
+                    }
+
+                    // Tracker says migration needs to run — validate against actual DB state
                     if (!$this->validator->shouldExecuteMigration($file, $relativePath)) {
-                        // Still mark as completed in tracker if not already
-                        if (!$this->tracker->isExecuted($relativePath, $file)) {
-                            $this->tracker->startMigration($migrationName, $relativePath, $file);
-                            $this->tracker->completeMigration($relativePath, 0, $file);
-                        }
+                        // DB state is already correct — mark as completed in tracker
+                        $this->tracker->startMigration($migrationName, $relativePath, $file);
+                        $this->tracker->completeMigration($relativePath, 0, $file);
                         continue;
                     }
                 } else {
@@ -353,8 +357,15 @@ class Manager
                     continue;
                 }
 
-                // For existing installations, mark as completed without executing
+                // For existing installations, only mark as completed if the DB state
+                // already satisfies the migration. If the migration is actually needed
+                // (e.g. a table doesn't exist yet), skip so it runs in the main loop.
                 try {
+                    if ($this->validator->shouldExecuteMigration($file, $relativePath)) {
+                        // Migration is needed — don't mark as completed, let it run normally
+                        continue;
+                    }
+
                     $fileHash = file_exists($file) ? hash_file('sha256', $file) : null;
 
                     // Insert as completed (simulating that it already ran)

@@ -43,6 +43,10 @@
     "borderRadius": {
       "type": "string",
       "default": "0px"
+    },
+    "redirect_url": {
+      "type": "string",
+      "default": ""
     }
   },
   "supports": {

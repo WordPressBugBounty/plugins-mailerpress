@@ -1,0 +1,155 @@
+/**
+ * MailerPress My Lists Form - Minimal Styles
+ * Theme-agnostic base styles - users can add custom CSS for styling
+ */
+
+/* Wrapper - no visual styling, just structure */
+.mailerpress-my-lists-wrapper {
+    box-sizing: border-box;
+}
+
+/* Form layout */
+.mailerpress-my-lists-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Name fields - 2 columns on desktop */
+.mailerpress-my-lists-name-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.mailerpress-my-lists-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mailerpress-my-lists-field label {
+    display: block;
+}
+
+.mailerpress-my-lists-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Lists section */
+.mailerpress-my-lists-lists {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mailerpress-my-lists-lists-label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Hidden lists */
+.mailerpress-list-hidden {
+    display: none;
+}
+
+/* Show more button */
+.mailerpress-show-more-lists {
+    background: none;
+    border: none;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    font-size: 0.9em;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    text-align: left;
+}
+
+.mailerpress-show-more-lists:hover {
+    opacity: 1;
+}
+
+.mailerpress-my-lists-list-item label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    margin: 0;
+}
+
+.mailerpress-my-lists-checkbox {
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mailerpress-my-lists-list-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.mailerpress-my-lists-list-content {
+    flex: 1;
+}
+
+.mailerpress-my-lists-list-name {
+    display: block;
+}
+
+.mailerpress-my-lists-list-description {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* No lists message */
+.mailerpress-my-lists-no-lists {
+    text-align: center;
+    padding: 1rem;
+    margin: 0;
+}
+
+/* Submit button wrapper */
+.mailerpress-my-lists-submit-wrapper {
+    display: flex;
+}
+
+.mailerpress-my-lists-submit {
+    cursor: pointer;
+}
+
+.mailerpress-my-lists-submit:disabled,
+.mailerpress-my-lists-submit.mailerpress-my-lists-loading {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Messages */
+.mailerpress-my-lists-message {
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+}
+
+/* Not logged in state */
+.mailerpress-my-lists-not-logged-in {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.mailerpress-my-lists-not-logged-in p {
+    margin: 0 0 1rem 0;
+}
+
+/* Responsive - single column on mobile */
+@media (max-width: 768px) {
+    .mailerpress-my-lists-name-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .mailerpress-my-lists-submit {
+        width: 100%;
+    }
+}

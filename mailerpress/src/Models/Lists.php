@@ -18,14 +18,22 @@ class Lists
 
         // Check if table exists before querying (cached in memory)
         $table_exists = Tables::exists($table_name);
-        
+
         if (!$table_exists) {
             // Table doesn't exist yet, return empty array
             // This can happen during initial installation before migrations run
             return [];
         }
 
-        $lists = $wpdb->get_results("SELECT * FROM {$table_name}", ARRAY_A);
+        $contact_list_table = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
+
+        $lists = $wpdb->get_results(
+            "SELECT t.*, COUNT(c.contact_id) as contact_count
+            FROM {$table_name} t
+            LEFT JOIN {$contact_list_table} c ON c.list_id = t.list_id
+            GROUP BY t.list_id",
+            ARRAY_A
+        );
 
         return $lists ?: [];
     }

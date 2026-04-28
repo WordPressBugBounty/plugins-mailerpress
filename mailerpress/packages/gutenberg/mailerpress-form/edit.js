@@ -168,6 +168,14 @@ export default function Edit({attributes, setAttributes, clientId}) {
                         onChange={(value) => setAttributes({error_message: value})}
                         value={attributes.error_message}
                     />
+                    <TextControl
+                        help={__('Redirect the user to this URL after a successful subscription. Leave empty to show the success message instead.', 'mailerpress')}
+                        label={__('Redirect URL', 'mailerpress')}
+                        __next40pxDefaultSize
+                        onChange={(value) => setAttributes({redirect_url: value})}
+                        value={attributes.redirect_url}
+                        placeholder="https://example.com/thank-you"
+                    />
                 </PanelBody>
                 <PanelBody title={__('Dimensions', 'mailerpress')}>
                     <BorderRadiusControl

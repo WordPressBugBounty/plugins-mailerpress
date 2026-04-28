@@ -20,6 +20,9 @@ class TemplateDirectoryParser
             new \RecursiveDirectoryIterator($directory, \RecursiveDirectoryIterator::SKIP_DOTS)
         );
 
+        // Collect all valid file paths during import
+        $importedPaths = [];
+
         foreach ($iterator as $file) {
             if ($file->isFile() && $file->getExtension() === 'json') {
                 $file_path = $file->getPathname();
@@ -31,6 +34,35 @@ class TemplateDirectoryParser
                 }
 
                 $this->importTemplate($data, $file_path);
+                $importedPaths[] = $file_path;
+            }
+        }
+
+        // Clean up orphaned internal templates whose source file no longer exists
+        $this->cleanupOrphanedTemplates($directory, $importedPaths);
+    }
+
+    /**
+     * Delete internal templates from DB whose source file was removed from the filesystem.
+     */
+    private function cleanupOrphanedTemplates(string $directory, array $validPaths): void
+    {
+        global $wpdb;
+        $table = Tables::get(Tables::MAILERPRESS_TEMPLATES);
+
+        // Get all internal templates with a path starting with this directory
+        $likePattern = $wpdb->esc_like($directory) . '%';
+        $orphaned = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, path FROM {$table} WHERE internal = 1 AND path LIKE %s",
+                $likePattern
+            )
+        );
+
+        foreach ($orphaned as $template) {
+            if (!empty($template->path) && !in_array($template->path, $validPaths, true)) {
+                // File was removed — delete from DB
+                $wpdb->delete($table, ['id' => $template->id], ['%d']);
             }
         }
     }

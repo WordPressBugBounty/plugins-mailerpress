@@ -200,16 +200,229 @@ class DynamicOrderRenderer
     }
 
     /**
+     * Replace value in block HTML while preserving any <span> label prefix.
+     * The frontend renders: <span style="color:#888">Label</span> value
+     * This method keeps the span and only replaces the text after it.
+     */
+    protected function replaceValuePreservingLabel(string $blockContent, string $newValue, string $blockName): string
+    {
+        // Try to find a <span> label inside a <div> with font-family
+        $replaced = preg_replace_callback(
+            '/(<div[^>]*font-family[^>]*>)(.*?)(<\/div>)/is',
+            function ($matches) use ($newValue) {
+                $divOpen = $matches[1];
+                $innerContent = $matches[2];
+                $divClose = $matches[3];
+
+                // Check if there's a <span> label
+                if (preg_match('/^(\s*<span[^>]*>.*?<\/span>\s*)/is', $innerContent, $spanMatch)) {
+                    // Keep the span, replace everything after it
+                    return $divOpen . $spanMatch[1] . ' ' . $newValue . $divClose;
+                }
+
+                // No span label, replace entire content
+                return $divOpen . $newValue . $divClose;
+            },
+            $blockContent,
+            1,
+            $count
+        );
+
+        if ($count > 0 && $replaced !== null && $replaced !== $blockContent) {
+            return $replaced;
+        }
+
+        // Fallback: try any <div>...<span>...</span> value</div> pattern
+        $replaced = preg_replace_callback(
+            '/(<div[^>]*>)(.*?)(<\/div>)/is',
+            function ($matches) use ($newValue) {
+                $divOpen = $matches[1];
+                $innerContent = $matches[2];
+                $divClose = $matches[3];
+
+                if (preg_match('/^(\s*<span[^>]*>.*?<\/span>\s*)/is', $innerContent, $spanMatch)) {
+                    return $divOpen . $spanMatch[1] . ' ' . $newValue . $divClose;
+                }
+
+                return $divOpen . $newValue . $divClose;
+            },
+            $blockContent,
+            1,
+            $count2
+        );
+
+        if ($count2 > 0 && $replaced !== null && $replaced !== $blockContent) {
+            return $replaced;
+        }
+
+        // Last fallback: use the standard replacement
+        return $this->replaceTextInBlockHTML($blockContent, $newValue, $blockName);
+    }
+
+    /**
+     * Replace address value in block HTML while preserving any <p> title prefix.
+     * The frontend renders: <p style="...">Title</p>address_lines
+     * This method keeps the <p> title and only replaces the address text after it.
+     */
+    protected function replaceAddressPreservingTitle(string $blockContent, string $addressHtml, string $blockName): string
+    {
+        // MJML compiles mj-text to: <td ...><div style="font-family:...">CONTENT</div></td>
+        // The CONTENT may include a <p> title followed by address text/HTML.
+        // Strategy: if a <p> title exists, keep it and replace everything after it.
+        // If no <p> title, replace all text content inside the div.
+
+        // Check if there's a <p> title tag (used for "Billing Address" / "Shipping Address")
+        if (preg_match('/<p[^>]*>.*?<\/p>/is', $blockContent)) {
+            // Replace everything after the closing </p> up to the closing </div>
+            // This preserves the <p> title and replaces the address preview text
+            $replaced = preg_replace(
+                '/(<p[^>]*>.*?<\/p>)([\s\S]*?)(<\/div>\s*<\/td>)/i',
+                '$1' . $addressHtml . '$3',
+                $blockContent,
+                1,
+                $count
+            );
+
+            if ($count > 0 && $replaced !== null) {
+                return $replaced;
+            }
+        }
+
+        // No <p> title found — replace content inside the font-family div
+        $replaced = preg_replace_callback(
+            '/(<div[^>]*font-family[^>]*>)([\s\S]*?)(<\/div>)/i',
+            function ($matches) use ($addressHtml) {
+                return $matches[1] . $addressHtml . $matches[3];
+            },
+            $blockContent,
+            1,
+            $count2
+        );
+
+        if ($count2 > 0 && $replaced !== null && $replaced !== $blockContent) {
+            return $replaced;
+        }
+
+        return $this->replaceTextInBlockHTML($blockContent, $addressHtml, $blockName);
+    }
+
+    /**
+     * Generate product card HTML for "card" display mode.
+     * Generates HTML entirely from BLOCK_CONFIG + real order data (no template cloning needed).
+     * Replaces the entire block content inside the mj-text compiled output.
+     */
+    protected function generateOrderItemCards(string $blockContent, array $order, array $config = []): string
+    {
+        $items = $order['order_items'] ?? [];
+        $currency = \esc_html($order['order_currency'] ?? 'EUR');
+
+        if (empty($items)) {
+            return $blockContent;
+        }
+
+        // Extract styling config
+        $showImage = ($config['showImage'] ?? true) !== false;
+        $imageSize = $config['imageSize'] ?? '80px';
+        $imageRadius = $config['imageRadius'] ?? '8px';
+        $productNameColor = $config['productNameColor'] ?? '#333333';
+        $productNameFontSize = $config['productNameFontSize'] ?? '14px';
+        $productNameFontWeight = $config['productNameFontWeight'] ?? 'bold';
+        $metaColor = $config['metaColor'] ?? '#666666';
+        $metaFontSize = $config['metaFontSize'] ?? '13px';
+        $cardBgColor = $config['cardBackgroundColor'] ?? '#ffffff';
+        $cardPadding = $config['cardPadding'] ?? '8px';
+        $cardBorderRadius = $config['cardBorderRadius'] ?? '0px';
+        $showSeparator = ($config['showSeparator'] ?? true) !== false;
+        $separatorColor = $config['separatorColor'] ?? '#e0e0e0';
+        $separatorStyle = $config['separatorStyle'] ?? 'solid';
+        $separatorWidth = $config['separatorWidth'] ?? '1px';
+        $imageSizeNum = (int) $imageSize;
+
+        // Build product cards HTML
+        $cardsHtml = '';
+        foreach ($items as $index => $item) {
+            $productName = \esc_html($item['product_name'] ?? '');
+            $quantity = (int)($item['quantity'] ?? 0);
+            $itemTotal = \number_format((float)($item['total'] ?? 0), 2, '.', '');
+            $itemPrice = $quantity > 0
+                ? \number_format((float)($item['total'] ?? 0) / (float)$quantity, 2, '.', '')
+                : '0.00';
+
+            $thumbnailUrl = $item['thumbnail_url'] ?? '';
+            if (empty($thumbnailUrl)) {
+                $thumbnailUrl = 'https://placehold.co/120x120/f0f0f0/999999?text=No+image';
+            }
+            $thumbnailUrl = \esc_url($thumbnailUrl);
+
+            $cardsHtml .= '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:' . $cardBgColor . ';border-radius:' . $cardBorderRadius . ';"><tbody><tr>';
+
+            if ($showImage) {
+                $cardsHtml .= '<td style="padding:' . $cardPadding . ';width:' . ($imageSizeNum + 16) . 'px;vertical-align:middle;">';
+                $cardsHtml .= '<img src="' . $thumbnailUrl . '" alt="' . $productName . '" width="' . $imageSizeNum . '" style="width:' . $imageSize . ';height:auto;border-radius:' . $imageRadius . ';display:block;" />';
+                $cardsHtml .= '</td>';
+            }
+
+            $cardsHtml .= '<td style="padding:' . $cardPadding . ';vertical-align:middle;">';
+            $cardsHtml .= '<div style="font-size:' . $productNameFontSize . ';font-weight:' . $productNameFontWeight . ';color:' . $productNameColor . ';padding-bottom:4px;">' . $productName . '</div>';
+            $cardsHtml .= '<div style="font-size:' . $metaFontSize . ';color:' . $metaColor . ';padding-bottom:2px;">' . \esc_html(\__('Qty:', 'mailerpress')) . ' ' . $quantity . ' &times; ' . $itemPrice . ' ' . $currency . '</div>';
+            $cardsHtml .= '<div style="font-size:' . $metaFontSize . ';font-weight:bold;color:' . $productNameColor . ';">' . $itemTotal . ' ' . $currency . '</div>';
+            $cardsHtml .= '</td>';
+
+            $cardsHtml .= '</tr></tbody></table>';
+
+            // Separator between items (not after last)
+            if ($showSeparator && $index < count($items) - 1) {
+                $cardsHtml .= '<div style="border-top:' . $separatorWidth . ' ' . $separatorStyle . ' ' . $separatorColor . ';margin:4px 0;"></div>';
+            }
+        }
+
+        // The blockContent is the preview HTML between START and END comments.
+        // Simply return the generated cards HTML to replace it entirely.
+        return $cardsHtml;
+    }
+
+    /**
+     * Replace text content inside an element that has a specific CSS class.
+     */
+    protected function replaceContentByClass(string $html, string $className, string $newContent): string
+    {
+        // Match elements with the given class, then replace text inside innermost div
+        $pattern = '/(<[^>]*class="[^"]*' . preg_quote($className, '/') . '[^"]*"[^>]*>)(.*?)(<\/(?:td|div|p|span)[^>]*>)/is';
+
+        $replaced = preg_replace_callback(
+            $pattern,
+            function ($matches) use ($newContent) {
+                $openTag = $matches[1];
+                $innerContent = $matches[2];
+                $closeTag = $matches[3];
+
+                // If there's a nested div with font-family, replace inside that
+                if (preg_match('/(<div[^>]*>)(.*?)(<\/div>)/is', $innerContent, $divMatch)) {
+                    $newInner = str_replace($divMatch[0], $divMatch[1] . $newContent . $divMatch[3], $innerContent);
+                    return $openTag . $newInner . $closeTag;
+                }
+
+                return $openTag . $newContent . $closeTag;
+            },
+            $html,
+            1
+        );
+
+        return ($replaced !== null && $replaced !== $html) ? $replaced : $html;
+    }
+
+    /**
      * Format order date, ensuring it's not accidentally set to order_id
      */
     protected function formatOrderDate(?string $date, ?int $orderId = null): string
     {
+        $wpDateFormat = get_option('date_format') . ' ' . get_option('time_format');
+
         // If date is empty, try to fetch from WooCommerce if order_id is available
         if (empty($date) && $orderId && function_exists('wc_get_order')) {
             $wcOrder = wc_get_order($orderId);
             if ($wcOrder && $wcOrder->get_date_created()) {
-                $date = $wcOrder->get_date_created()->format('Y-m-d H:i:s');
-                return $date;
+                return $wcOrder->get_date_created()->format($wpDateFormat);
             }
         }
 
@@ -222,29 +435,22 @@ class DynamicOrderRenderer
             if (function_exists('wc_get_order')) {
                 $wcOrder = wc_get_order($orderId);
                 if ($wcOrder && $wcOrder->get_date_created()) {
-                    $correctDate = $wcOrder->get_date_created()->format('Y-m-d H:i:s');
-                    return $correctDate;
+                    return $wcOrder->get_date_created()->format($wpDateFormat);
                 }
             }
             return '';
         }
 
-        // Validate date format (should be Y-m-d H:i:s)
-        if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/', $date)) {
-            return $date;
-        }
-
-        // Try to parse and reformat
+        // Try to parse and reformat using WordPress date format
         try {
             $dateTime = new \DateTime($date);
-            return $dateTime->format('Y-m-d H:i:s');
+            return $dateTime->format($wpDateFormat);
         } catch (\Exception $e) {
             // If parsing fails, try to fetch from WooCommerce
             if ($orderId && function_exists('wc_get_order')) {
                 $wcOrder = wc_get_order($orderId);
                 if ($wcOrder && $wcOrder->get_date_created()) {
-                    $correctDate = $wcOrder->get_date_created()->format('Y-m-d H:i:s');
-                    return $correctDate;
+                    return $wcOrder->get_date_created()->format($wpDateFormat);
                 }
             }
             return '';
@@ -260,7 +466,7 @@ class DynamicOrderRenderer
         if (!empty($orderData['order_id'])) {
             $hasOrderNumber = !empty($orderData['order_number']);
             $hasOrderItems = !empty($orderData['order_items']) && is_array($orderData['order_items']) && count($orderData['order_items']) > 0;
-            $hasOrderDate = !empty($orderData['order_date']) && preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/', $orderData['order_date']);
+            $hasOrderDate = !empty($orderData['order_date']);
 
             if (!$hasOrderNumber || !$hasOrderItems || !$hasOrderDate) {
                 $this->orderData = $this->fetchOrderData($orderData['order_id'], $orderData);
@@ -348,8 +554,15 @@ class DynamicOrderRenderer
                 'customer_last_name' => $order->get_billing_last_name(),
                 'customer_id' => $customerId,
                 'order_total' => $order->get_total(),
+                'order_subtotal' => $order->get_subtotal(),
+                'order_total_tax' => $order->get_total_tax(),
+                'order_shipping_total' => $order->get_shipping_total(),
+                'order_shipping_tax' => $order->get_shipping_tax(),
+                'order_shipping_method' => $order->get_shipping_method(),
+                'order_discount_total' => $order->get_discount_total(),
+                'order_discount_tax' => $order->get_discount_tax(),
                 'order_currency' => $order->get_currency(),
-                'order_date' => $order->get_date_created() ? $order->get_date_created()->format('Y-m-d H:i:s') : '',
+                'order_date' => $order->get_date_created() ? $order->get_date_created()->format(get_option('date_format') . ' ' . get_option('time_format')) : '',
                 'billing_address' => $billingAddress,
                 'shipping_address' => $shippingAddress,
                 'order_items' => $orderItems,
@@ -397,6 +610,7 @@ class DynamicOrderRenderer
                     $orderStartComment = $block[1];
                     $orderInnerHtml = $block[2];
                     $orderEndComment = $block[3];
+
                     // Check if HTML contains order placeholders
                     $hasPlaceholders = preg_match('/\{\{order_\w+\}\}/', $orderInnerHtml);
 
@@ -425,17 +639,21 @@ class DynamicOrderRenderer
                     // This ensures all placeholders are replaced even if blocks weren't found
                     $renderedContent = $this->replacePlaceholders($renderedContent);
 
+                    // Remove font-size:0px from MJML wrapper elements (td, div).
+                    // MJML compiles <mj-text> with font-size:0px on wrapper <td> and <div>,
+                    // which hides content in card mode where we generate raw HTML tables.
+                    $renderedContent = preg_replace('/(<(?:td|div)[^>]*style="[^"]*?)font-size:\s*0px;?\s*/i', '$1', $renderedContent);
 
                     // Wrap back the original container
                     $replacementBlock = $orderStartComment . $containerOpenTag . $renderedContent . $containerCloseTag . $orderEndComment;
                     $this->html = str_replace($fullMatch, $replacementBlock, $this->html);
                 } catch (\Exception $e) {
-                   // Continue with next block or return original HTML for this block
+                    // Continue with next block or return original HTML for this block
                 }
             }
             return $this->html;
         } catch (\Exception $e) {
-           // Return original HTML to prevent breaking the email
+            // Return original HTML to prevent breaking the email
             return $this->html;
         }
     }
@@ -477,7 +695,10 @@ class DynamicOrderRenderer
             'order items table',
             'order billing address',
             'order shipping address',
+            'billing address',
+            'shipping address',
             'customer name',
+            'subscription details',
         ];
 
         // Log order data for debugging
@@ -546,25 +767,22 @@ class DynamicOrderRenderer
                 switch ($normalizedBlockName) {
                     case 'order number':
                         $value = $order['order_number'] ?? '';
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, \esc_html($value), $blockName);
+                        // Use label-preserving replacement (keeps <span> label if present)
+                        $newBlockContent = $this->replaceValuePreservingLabel($blockContent, \esc_html($value), $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
                     case 'order total':
-                        $total = $order['order_total'] ?? '0';
-                        $currency = $order['order_currency'] ?? 'EUR';
-                        $value = $total . ' ' . $currency;
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, \esc_html($value), $blockName);
+                        // Generate detailed order total HTML with breakdown
+                        $newBlockContent = $this->renderOrderTotalBlock($blockContent, $order, $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
                     case 'order date':
                         // Get date from order data, ensuring it's properly formatted
                         $value = $this->formatOrderDate($order['order_date'] ?? '', $order['order_id'] ?? null);
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, \esc_html($value), $blockName);
+                        // Use label-preserving replacement (keeps <span> label if present)
+                        $newBlockContent = $this->replaceValuePreservingLabel($blockContent, \esc_html($value), $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
@@ -594,8 +812,8 @@ class DynamicOrderRenderer
                         ];
                         $value = $statusLabels[$status] ?? $status;
 
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, \esc_html($value), $blockName);
+                        // Use label-preserving replacement (keeps <span> label if present)
+                        $newBlockContent = $this->replaceValuePreservingLabel($blockContent, \esc_html($value), $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
@@ -618,6 +836,15 @@ class DynamicOrderRenderer
                             $fullBlockContent = $blockMatches[0] ?? $blockContent;
                             $blockConfig = $this->extractOrderItemsBlockConfig($fullBlockContent);
                         }
+
+                        // Check if card display mode is set — use card renderer instead of table
+                        $displayMode = $blockConfig['displayMode'] ?? 'table';
+                        if ($displayMode === 'card') {
+                            $newBlockContent = $this->generateOrderItemCards($blockContent, $order, $blockConfig);
+                            return $getStartComment() . $newBlockContent . "<!-- END {$blockName} -->";
+                        }
+
+                        // Table mode (legacy) — continue with existing table rendering logic
 
                         // Helper function to create container td attributes with padding from config
                         $getContainerTdAttrs = function ($defaultAttrs = '') use ($blockConfig) {
@@ -712,7 +939,7 @@ class DynamicOrderRenderer
                                     $wrappedContent = '<tr><td ' . $tdAttrs . '><table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#333333;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:14px;line-height:1.5;table-layout:auto;width:100%;border:none;"><tbody>' . $orderItemsTableRows . '</tbody></table></td></tr>';
 
                                     $replaced = $openTag . $wrappedContent . '</tbody>';
-                               }
+                                }
                             }
                         }
 
@@ -995,6 +1222,7 @@ class DynamicOrderRenderer
                         }
                         break;
 
+                    case 'billing address':
                     case 'order billing address':
                         if (!isset($order['billing_address'])) {
                             break;
@@ -1026,17 +1254,24 @@ class DynamicOrderRenderer
                         if (!empty($billing['country'])) {
                             $addressParts[] = $billing['country'];
                         }
+                        if (!empty($billing['phone'])) {
+                            $addressParts[] = $billing['phone'];
+                        }
+                        if (!empty($billing['email'])) {
+                            $addressParts[] = $billing['email'];
+                        }
 
                         $address = \implode("\n", $addressParts);
 
                         // Convert newlines to <br> for HTML and escape
                         $addressHtml = \nl2br(\esc_html($address));
 
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, $addressHtml, $blockName);
+                        // Use title-preserving replacement (keeps <p> title if present)
+                        $newBlockContent = $this->replaceAddressPreservingTitle($blockContent, $addressHtml, $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
+                    case 'shipping address':
                     case 'order shipping address':
                         if (!isset($order['shipping_address'])) {
                             break;
@@ -1074,8 +1309,13 @@ class DynamicOrderRenderer
                         // Convert newlines to <br> for HTML and escape
                         $addressHtml = \nl2br(\esc_html($address));
 
-                        // Use regex-based text replacement
-                        $newBlockContent = $this->replaceTextInBlockHTML($blockContent, $addressHtml, $blockName);
+                        // Use title-preserving replacement (keeps <p> title if present)
+                        $newBlockContent = $this->replaceAddressPreservingTitle($blockContent, $addressHtml, $blockName);
+                        return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
+                        break;
+
+                    case 'subscription details':
+                        $newBlockContent = $this->renderSubscriptionDetailsBlock($blockContent, $order, $blockName);
                         return "<!-- START {$blockName} -->{$newBlockContent}<!-- END {$blockName} -->";
                         break;
 
@@ -1136,58 +1376,11 @@ class DynamicOrderRenderer
             }
         }
 
-        // Also replace example values that might be in the HTML from preview
-        // Example order number patterns like "#12345" or "12345"
-        if (!empty($order['order_number']) && preg_match('/#?\d{4,}/', $html)) {
-            // Replace example order numbers (like #12345) with actual order number
-            $html = preg_replace('/#?\d{4,}/', $order['order_number'], $html, 1);
-        }
-
-        // Replace example order total (like "149.99 EUR")
-        if (!empty($order['order_total']) && !empty($order['order_currency'])) {
-            $exampleTotalPattern = '/\d+\.\d{2}\s+EUR/i';
-            $actualTotal = $order['order_total'] . ' ' . $order['order_currency'];
-            if (preg_match($exampleTotalPattern, $html)) {
-                $html = preg_replace($exampleTotalPattern, $actualTotal, $html, 1);
-            }
-        }
-
-        // Replace example customer names (like "John Doe")
+        // Replace known example placeholder names (safe — very specific patterns)
         if (!empty($order['customer_first_name']) || !empty($order['customer_last_name'])) {
             $customerName = \trim(($order['customer_first_name'] ?? '') . ' ' . ($order['customer_last_name'] ?? ''));
             if (!empty($customerName) && preg_match('/John\s+Doe/i', $html)) {
                 $html = preg_replace('/John\s+Doe/i', $customerName, $html);
-            }
-        }
-
-        // Replace example dates (like "2024-01-15 14:30:00")
-        if (!empty($order['order_date']) && preg_match('/2024-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/', $html)) {
-            $html = preg_replace('/2024-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/', $order['order_date'], $html, 1);
-        }
-
-        // Fix any order_id that might have been mistakenly placed in order_date field
-        // This can happen if order_date was accidentally set to order_id
-        if (!empty($order['order_id'])) {
-            $orderIdStr = (string)$order['order_id'];
-            $orderDate = $this->formatOrderDate($order['order_date'] ?? '', $order['order_id']);
-
-            // Replace order_id that appears in date-like contexts (within divs that should contain dates)
-            // Look for patterns like: <div...>338</div> where 338 is order_id but should be date
-            if (preg_match('/<div[^>]*class="[^"]*order-date[^"]*"[^>]*>.*?\b' . preg_quote($orderIdStr, '/') . '\b.*?<\/div>/is', $html)) {
-                $html = preg_replace(
-                    '/(<div[^>]*class="[^"]*order-date[^"]*"[^>]*>.*?)\b' . preg_quote($orderIdStr, '/') . '\b(.*?<\/div>)/is',
-                    '$1' . \esc_html($orderDate) . '$2',
-                    $html
-                );
-            }
-
-            // Also replace in node-type-order-date blocks
-            if (preg_match('/<[^>]*node-type-order-date[^>]*>.*?\b' . preg_quote($orderIdStr, '/') . '\b.*?<\/[^>]*>/is', $html)) {
-                $html = preg_replace(
-                    '/(<[^>]*node-type-order-date[^>]*>.*?)\b' . preg_quote($orderIdStr, '/') . '\b(.*?<\/[^>]*>)/is',
-                    '$1' . \esc_html($orderDate) . '$2',
-                    $html
-                );
             }
         }
 
@@ -1251,7 +1444,7 @@ class DynamicOrderRenderer
     /**
      * Extract JSON from a string starting with {
      * Uses brace counting to handle nested objects and strings correctly
-     * 
+     *
      * @param string $str String that starts with JSON object
      * @return string The complete JSON string
      */
@@ -1313,7 +1506,7 @@ class DynamicOrderRenderer
     /**
      * Extract block configuration from START comment
      * New format: <!-- START order items table: BLOCK_CONFIG:{"showHeader":false,...} -->
-     * 
+     *
      * @param string $configString The BLOCK_CONFIG string from the comment
      * @return array The extracted configuration
      */
@@ -1355,7 +1548,7 @@ class DynamicOrderRenderer
     /**
      * Extract block configuration from HTML content
      * Improved version with better mj-raw and comment handling
-     * 
+     *
      * @param string $blockContent The block content to search in (can be full block match or just content)
      */
     protected function extractOrderItemsBlockConfig(string $blockContent): array
@@ -1715,8 +1908,12 @@ class DynamicOrderRenderer
                     \esc_attr($productName)
                 );
             } else {
-                // Placeholder if no image
-                $thumbnailHtml = '<div style="width: 60px; height: 60px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">' . \esc_html(\__('No image', 'mailerpress')) . '</div>';
+                $thumbnailUrl = 'https://placehold.co/120x120/f0f0f0/999999?text=No+image';
+                $thumbnailHtml = sprintf(
+                    '<img src="%s" alt="%s" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; display: block;" />',
+                    \esc_url($thumbnailUrl),
+                    \esc_attr($productName)
+                );
             }
 
             $rows .= sprintf(
@@ -1761,5 +1958,274 @@ class DynamicOrderRenderer
         }
 
         return $rows;
+    }
+
+    /**
+     * Render order total block with breakdown (subtotal, shipping, tax, etc.)
+     */
+    protected function renderOrderTotalBlock(string $blockContent, array $order, string $blockName): string
+    {
+        // Extract order totals
+        $subtotal = $order['order_subtotal'] ?? '0';
+        $shipping = $order['order_shipping_total'] ?? '0';
+        $tax = $order['order_total_tax'] ?? '0';
+        $discount = $order['order_discount_total'] ?? '0';
+        $total = $order['order_total'] ?? '0';
+        $currency = $order['order_currency'] ?? 'EUR';
+
+        // Check if the block HTML contains multiple divs (breakdown format)
+        $hasBreakdown = substr_count($blockContent, '<div') > 2;
+
+        // If no breakdown in HTML, use simple replacement
+        if (!$hasBreakdown) {
+            $value = $total . ' ' . $currency;
+            return $this->replaceValuePreservingLabel($blockContent, \esc_html($value), $blockName);
+        }
+
+        $paymentMethod = $order['payment_method_title'] ?? '';
+        $shippingMethod = $order['order_shipping_method'] ?? '';
+
+        // Extract colors from existing HTML
+        preg_match_all('/color:\s*#?([a-f0-9]{3,6})/i', $blockContent, $colorMatches);
+        $labelColor = isset($colorMatches[0][0]) ? $colorMatches[0][0] : 'color:#636363';
+        $valueColor = isset($colorMatches[0][1]) ? $colorMatches[0][1] : 'color:#636363';
+
+        $borderColor = '#e5e5e5';
+        $rowStyle = 'display:flex;justify-content:space-between;padding:8px 0;';
+
+        // Build the breakdown HTML (WooCommerce default style)
+        $html = '';
+
+        // Top border
+        $html .= sprintf('<div style="border-top:1px solid %s;"></div>', $borderColor);
+
+        // Subtotal
+        $html .= sprintf(
+            '<div style="%s"><span style="%s;font-weight:normal">%s</span><span style="%s">%s</span></div>',
+            $rowStyle,
+            $labelColor,
+            \esc_html(\__('Subtotal:', 'mailerpress')),
+            $valueColor,
+            \esc_html($subtotal . ' ' . $currency)
+        );
+
+        // Discount (only if > 0)
+        if (floatval($discount) > 0) {
+            $html .= sprintf(
+                '<div style="%s"><span style="%s;font-weight:normal">%s</span><span style="%s">%s</span></div>',
+                $rowStyle,
+                $labelColor,
+                \esc_html(\__('Discount:', 'mailerpress')),
+                $valueColor,
+                \esc_html('-' . $discount . ' ' . $currency)
+            );
+        }
+
+        // Shipping (include method name if available, like "Shipping: Flat rate")
+        $shippingLabel = \__('Shipping:', 'mailerpress');
+        if (!empty($shippingMethod)) {
+            $shippingLabel = sprintf(\__('Shipping: %s', 'mailerpress'), $shippingMethod);
+        }
+        $html .= sprintf(
+            '<div style="%s"><span style="%s;font-weight:normal">%s</span><span style="%s">%s</span></div>',
+            $rowStyle,
+            $labelColor,
+            \esc_html($shippingLabel),
+            $valueColor,
+            \esc_html($shipping . ' ' . $currency)
+        );
+
+        // Tax
+        if (floatval($tax) > 0) {
+            $html .= sprintf(
+                '<div style="%s"><span style="%s;font-weight:normal">%s</span><span style="%s">%s</span></div>',
+                $rowStyle,
+                $labelColor,
+                \esc_html(\__('Tax:', 'mailerpress')),
+                $valueColor,
+                \esc_html($tax . ' ' . $currency)
+            );
+        }
+
+        // Total (bold)
+        $html .= sprintf(
+            '<div style="%s"><span style="%s;font-weight:bold">%s</span><span style="%s;font-weight:bold">%s</span></div>',
+            $rowStyle,
+            $labelColor,
+            \esc_html(\__('Total:', 'mailerpress')),
+            $valueColor,
+            \esc_html($total . ' ' . $currency)
+        );
+
+        // Payment method
+        if (!empty($paymentMethod)) {
+            $html .= sprintf(
+                '<div style="%s"><span style="%s;font-weight:normal">%s</span><span style="%s">%s</span></div>',
+                $rowStyle,
+                $labelColor,
+                \esc_html(\__('Payment method:', 'mailerpress')),
+                $valueColor,
+                \esc_html($paymentMethod)
+            );
+        }
+
+        // Bottom border
+        $html .= sprintf('<div style="border-bottom:1px solid %s;"></div>', $borderColor);
+
+        // Strategy: Replace ALL content between the opening <td> and closing </td>
+        // This ensures we remove any duplicate divs and replace with clean HTML
+
+        // First, try to find and preserve the div wrapper with font-family styling
+        if (preg_match('/(<div[^>]*font-family[^>]*>)/', $blockContent, $divMatch)) {
+            // We found a styled div, use it as wrapper
+            $wrapper = $divMatch[1];
+            $newBlockContent = preg_replace(
+                '/(<td[^>]*>).*?(<\/td>)/is',
+                '$1' . $wrapper . $html . '</div>$2',
+                $blockContent,
+                1
+            );
+        } else {
+            // No styled div found, create a simple wrapper
+            $newBlockContent = preg_replace(
+                '/(<td[^>]*>).*?(<\/td>)/is',
+                '$1<div>' . $html . '</div>$2',
+                $blockContent,
+                1
+            );
+        }
+
+        return $newBlockContent;
+    }
+
+    /**
+     * Render the subscription details block with real subscription data.
+     */
+    protected function renderSubscriptionDetailsBlock(string $blockContent, array $order, string $blockName): string
+    {
+        $subscriptionId = $order['subscription_id'] ?? '';
+        $nextPaymentDate = $order['next_payment_date'] ?? '';
+        $billingPeriod = $order['billing_period'] ?? '';
+        $billingInterval = $order['billing_interval'] ?? '';
+
+        // If no subscription data and we have an order_id, try to fetch it
+        if (empty($subscriptionId) && !empty($order['order_id']) && function_exists('wcs_get_subscriptions_for_order')) {
+            $wcOrder = function_exists('wc_get_order') ? wc_get_order($order['order_id']) : null;
+            $subscription = null;
+
+            if ($wcOrder) {
+                $subscriptions = wcs_get_subscriptions_for_order($wcOrder, ['order_type' => 'any']);
+                $subscription = !empty($subscriptions) ? reset($subscriptions) : null;
+            }
+
+            if (!$subscription && class_exists('WC_Subscription') && $wcOrder instanceof \WC_Subscription) {
+                $subscription = $wcOrder;
+            }
+
+            if ($subscription instanceof \WC_Subscription) {
+                $subscriptionId = (string) $subscription->get_id();
+                $nextPayment = $subscription->get_date('next_payment');
+                $nextPaymentDate = $nextPayment
+                    ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($nextPayment))
+                    : '';
+                $billingPeriod = $subscription->get_billing_period();
+                $billingInterval = (string) $subscription->get_billing_interval();
+            }
+        }
+
+        // Translate billing period
+        $periodLabels = [
+            'day'   => \__('day', 'mailerpress'),
+            'week'  => \__('week', 'mailerpress'),
+            'month' => \__('month', 'mailerpress'),
+            'year'  => \__('year', 'mailerpress'),
+        ];
+        $periodLabel = $periodLabels[$billingPeriod] ?? $billingPeriod;
+
+        // Extract styling from the original block content
+        preg_match_all('/color:\s*#?([a-f0-9]{3,6})/i', $blockContent, $colorMatches);
+        $labelColor = isset($colorMatches[0][0]) ? $colorMatches[0][0] : 'color:#6b7280';
+        $valueColor = isset($colorMatches[0][1]) ? $colorMatches[0][1] : 'color:#1f2937';
+
+        preg_match('/padding:([^;]+)\s+0/', $blockContent, $paddingMatches);
+        $lineSpacing = $paddingMatches[1] ?? '6px';
+
+        $hasSeparators = strpos($blockContent, 'border-bottom') !== false;
+        $borderStyle = $hasSeparators ? 'border-bottom:1px solid #e5e7eb;' : '';
+
+        // Detect which fields are present in the preview HTML
+        $hasSubscriptionId = strpos($blockContent, '{{subscription_id}}') !== false
+            || strpos($blockContent, \__('Subscription:', 'mailerpress')) !== false;
+        $hasRecurrence = strpos($blockContent, '{{billing_period}}') !== false
+            || strpos($blockContent, \__('Recurrence:', 'mailerpress')) !== false;
+        $hasNextPayment = strpos($blockContent, '{{next_payment_date}}') !== false
+            || strpos($blockContent, \__('Next payment:', 'mailerpress')) !== false;
+
+        // Build the HTML
+        $html = '';
+
+        if ($hasSubscriptionId && !empty($subscriptionId)) {
+            $html .= sprintf(
+                '<div style="display:flex;justify-content:space-between;padding:%s 0;%s"><span style="%s;font-weight:normal">%s</span><span style="%s;font-weight:normal">#%s</span></div>',
+                $lineSpacing,
+                $borderStyle,
+                $labelColor,
+                \esc_html(\__('Subscription:', 'mailerpress')),
+                $valueColor,
+                \esc_html($subscriptionId)
+            );
+        }
+
+        if ($hasRecurrence && !empty($billingPeriod)) {
+            $recurrenceText = !empty($billingInterval) && (int) $billingInterval > 1
+                ? sprintf('%s %s', \esc_html($billingInterval), \esc_html($periodLabel))
+                : \esc_html($periodLabel);
+
+            $html .= sprintf(
+                '<div style="display:flex;justify-content:space-between;padding:%s 0;%s"><span style="%s;font-weight:normal">%s</span><span style="%s;font-weight:normal">%s</span></div>',
+                $lineSpacing,
+                $borderStyle,
+                $labelColor,
+                \esc_html(\__('Recurrence:', 'mailerpress')),
+                $valueColor,
+                $recurrenceText
+            );
+        }
+
+        if ($hasNextPayment && !empty($nextPaymentDate)) {
+            $html .= sprintf(
+                '<div style="display:flex;justify-content:space-between;padding:%s 0;%s"><span style="%s;font-weight:normal">%s</span><span style="%s;font-weight:normal">%s</span></div>',
+                $lineSpacing,
+                '',
+                $labelColor,
+                \esc_html(\__('Next payment:', 'mailerpress')),
+                $valueColor,
+                \esc_html($nextPaymentDate)
+            );
+        }
+
+        if (empty($html)) {
+            return $blockContent;
+        }
+
+        // Replace the content using the same approach as renderOrderTotalBlock
+        if (preg_match('/(<div[^>]*font-family[^>]*>)/', $blockContent, $divMatch)) {
+            $wrapper = $divMatch[1];
+            $newBlockContent = preg_replace(
+                '/(<td[^>]*>).*?(<\/td>)/is',
+                '$1' . $wrapper . $html . '</div>$2',
+                $blockContent,
+                1
+            );
+        } else {
+            $newBlockContent = preg_replace(
+                '/(<td[^>]*>).*?(<\/td>)/is',
+                '$1<div>' . $html . '</div>$2',
+                $blockContent,
+                1
+            );
+        }
+
+        return $newBlockContent;
     }
 }

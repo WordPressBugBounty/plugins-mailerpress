@@ -10,6 +10,7 @@ use MailerPress\Models\Contacts as ContactsModel;
 
 class AddTagStepHandler implements StepHandlerInterface
 {
+    use ResolvesContact;
     public function supports(string $key): bool
     {
         return $key === 'add_tag';
@@ -53,39 +54,13 @@ class AddTagStepHandler implements StepHandlerInterface
             return StepResult::failed('Invalid tag ID');
         }
 
-        // Récupérer le contact_id depuis le user_id
-        // Note: For MailerPress contacts that are not WordPress users, user_id is actually contact_id
-        $userId = $job->getUserId();
+        $contact = $this->resolveContact($job, $context);
 
-        if (!$userId) {
-            return StepResult::failed('No user ID found');
-        }
-
-        $contactsModel = new ContactsModel();
-        $contact = null;
-        $contactId = null;
-
-        // Check if userId is actually a contact_id (for MailerPress contacts without WordPress user)
-        $contactById = $contactsModel->get($userId);
-
-        if ($contactById) {
-            // userId is actually a contact_id - this is a MailerPress contact without WordPress user
-            $contact = $contactById;
-            $contactId = (int) $contact->contact_id;
-        } else {
-            // userId is a WordPress user ID - try to find the contact by email
-            $user = \get_userdata($userId);
-            if ($user && $user->user_email) {
-                $contact = $contactsModel->getContactByEmail($user->user_email);
-                if ($contact) {
-                    $contactId = (int) $contact->contact_id;
-                }
-            }
-        }
-
-        if (!$contact || !$contactId) {
+        if (!$contact) {
             return StepResult::failed('Contact not found');
         }
+
+        $contactId = (int) $contact->contact_id;
 
         // Table de liaison contact-tags
         $tagsTable = Tables::get(Tables::CONTACT_TAGS);

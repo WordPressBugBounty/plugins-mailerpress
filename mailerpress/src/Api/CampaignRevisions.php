@@ -111,7 +111,30 @@ class CampaignRevisions
             ORDER BY created_at DESC
         ", $campaign_id), ARRAY_A);
 
-        return $revisions ?: [];
+        if (empty($revisions)) {
+            return [];
+        }
+
+        $user_ids = array_unique(array_column($revisions, 'created_by'));
+        $users_map = [];
+        if (!empty($user_ids)) {
+            $users = get_users(['include' => $user_ids]);
+            foreach ($users as $user) {
+                $users_map[$user->ID] = [
+                    'name' => $user->display_name,
+                    'avatar' => get_avatar_url($user->ID, ['size' => 64, 'default' => 'mystery']),
+                ];
+            }
+        }
+
+        foreach ($revisions as &$revision) {
+            $uid = (int) $revision['created_by'];
+            $revision['author_name'] = $users_map[$uid]['name'] ?? __('Unknown', 'mailerpress');
+            $revision['author_avatar'] = $users_map[$uid]['avatar'] ?? '';
+        }
+        unset($revision);
+
+        return $revisions;
     }
 
     // Restore a revision

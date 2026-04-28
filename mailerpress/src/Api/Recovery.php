@@ -125,7 +125,7 @@ class Recovery
      * Retry all failed/retry chunks for a specific batch
      */
     #[Endpoint(
-        'recovery/batch/{batch_id}/retry',
+        'recovery/batch/(?P<batch_id>\d+)/retry',
         methods: 'POST',
         permissionCallback: [Permissions::class, 'canManageCampaign']
     )]
@@ -133,7 +133,7 @@ class Recovery
     {
         global $wpdb;
 
-        $batch_id = (int) $request->get_param('batch_id');
+        $batch_id = (int) $request['batch_id'];
 
         if (!$batch_id) {
             return new WP_REST_Response([
@@ -146,14 +146,14 @@ class Recovery
 
         // Récupérer chunks failed/retry
         $failed_chunks = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$chunksTable} WHERE batch_id = %d AND status IN ('failed', 'retry')",
+            "SELECT * FROM {$chunksTable} WHERE batch_id = %d AND status IN ('failed', 'retry', 'processing')",
             $batch_id
         ));
 
         if (empty($failed_chunks)) {
             return new WP_REST_Response([
                 'success' => true,
-                'message' => 'No failed chunks to retry',
+                'message' => 'No failed or stuck chunks to retry',
                 'chunks_retried' => 0,
             ], 200);
         }
@@ -189,7 +189,7 @@ class Recovery
      * Retry a specific chunk
      */
     #[Endpoint(
-        'recovery/chunk/{chunk_id}/retry',
+        'recovery/chunk/(?P<chunk_id>\d+)/retry',
         methods: 'POST',
         permissionCallback: [Permissions::class, 'canManageCampaign']
     )]
@@ -197,7 +197,7 @@ class Recovery
     {
         global $wpdb;
 
-        $chunk_id = (int) $request->get_param('chunk_id');
+        $chunk_id = (int) $request['chunk_id'];
 
         if (!$chunk_id) {
             return new WP_REST_Response([
@@ -294,7 +294,7 @@ class Recovery
      * Reset a batch completely (reset all chunks to pending)
      */
     #[Endpoint(
-        'recovery/batch/{batch_id}/reset',
+        'recovery/batch/(?P<batch_id>\d+)/reset',
         methods: 'POST',
         permissionCallback: [Permissions::class, 'canManageCampaign']
     )]
@@ -302,7 +302,7 @@ class Recovery
     {
         global $wpdb;
 
-        $batch_id = (int) $request->get_param('batch_id');
+        $batch_id = (int) $request['batch_id'];
 
         if (!$batch_id) {
             return new WP_REST_Response([

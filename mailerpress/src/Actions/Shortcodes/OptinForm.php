@@ -98,7 +98,7 @@ class OptinForm
         $showFirstName = $this->stringToBool($atts['show_first_name']);
         $showLastName = $this->stringToBool($atts['show_last_name']);
 
-        $buttonText = esc_html($atts['button_text']);
+        $buttonText = sanitize_text_field( $atts['button_text'] );
         $buttonColor = sanitize_hex_color($atts['button_color']) ?: '#000';
         $textColor = sanitize_hex_color($atts['text_color']) ?: '#fff';
         $borderRadius = esc_attr($atts['border_radius']);
@@ -237,7 +237,7 @@ class OptinForm
                         type="submit"
                         class="<?php echo esc_attr(implode(' ', $buttonClasses)); ?>"
                         <?php if (!empty($buttonStyle)): ?>style="<?php echo esc_attr($buttonStyle); ?>" <?php endif; ?>>
-                        <?php echo $buttonText; ?>
+                        <?php echo esc_html( $buttonText ); ?>
                     </button>
                 </div>
 

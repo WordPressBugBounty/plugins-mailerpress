@@ -27,11 +27,14 @@ class SmtpService extends AbstractEmailService
         $encryption = $this->config['conf']['encryption'] ?? 'tls';
         $username = $this->config['conf']['auth_id'] ?? '';
         $password = $this->config['conf']['auth_password'] ?? '';
+        $autoTls = $this->config['conf']['auto_tls'] ?? false;
+        $auth = $this->config['conf']['auth'] ?? true;
+        $verifyPeer = $this->config['conf']['verify_peer'] ?? true;
 
         try {
 
             // Validation de la configuration
-            if (empty($host)) {
+            if ( empty( $host ) ) {
                 $errorMessage = __('SMTP host is required. Please configure your SMTP settings.', 'mailerpress');
                 $this->logEmail($emailData, 'smtp', false, $errorMessage);
                 if (!empty($emailData['isTest'])) {
@@ -40,7 +43,9 @@ class SmtpService extends AbstractEmailService
                 return false;
             }
 
-            if (empty($username) || empty($password)) {
+            // Only enforce credentials when authentication is explicitly enabled.
+            // Local servers (MailHog, MailPit, etc.) typically run without auth.
+            if ( $auth && ( empty( $username ) || empty( $password ) ) ) {
                 $errorMessage = __('SMTP authentication credentials are required. Please provide a username and password.', 'mailerpress');
                 $this->logEmail($emailData, 'smtp', false, $errorMessage);
                 if (!empty($emailData['isTest'])) {
@@ -49,16 +54,56 @@ class SmtpService extends AbstractEmailService
                 return false;
             }
 
-            $dsn = sprintf(
-                '%s://%s:%s@%s:%s',
-                $encryption === 'ssl' ? 'smtps' : 'smtp',
-                urlencode($username),
-                urlencode($password),
-                $host,
-                $port
-            );
+            // Build DSN query params based on encryption mode and auto_tls setting.
+            // Symfony defaults auto_tls=true (opportunistic STARTTLS), which can break
+            // servers that advertise STARTTLS but fail certificate validation (e.g. IP-based hosts).
+            $dsnParams = '';
+            if ( 'ssl' !== $encryption ) {
+                if ( 'none' === $encryption ) {
+                    // Always disable opportunistic STARTTLS for plaintext connections,
+                    // regardless of the auto_tls toggle — the user explicitly chose "None".
+                    $dsnParams = '?auto_tls=false';
+                } elseif ( 'tls' === $encryption && ! $autoTls ) {
+                    // Require STARTTLS; fail if the server tries to downgrade to plaintext.
+                    $dsnParams = '?require_tls=true';
+                }
+            }
 
-            $transport = Transport::fromDsn($dsn);
+            $scheme = ( 'ssl' === $encryption ) ? 'smtps' : 'smtp';
+
+            if ( $auth && ! empty( $username ) && ! empty( $password ) ) {
+                $dsn = sprintf(
+                    '%s://%s:%s@%s:%s%s',
+                    $scheme,
+                    urlencode( $username ),
+                    urlencode( $password ),
+                    $host,
+                    $port,
+                    $dsnParams
+                );
+            } else {
+                // No authentication — local dev servers (MailHog, MailPit, etc.)
+                $dsn = sprintf(
+                    '%s://%s:%s%s',
+                    $scheme,
+                    $host,
+                    $port,
+                    $dsnParams
+                );
+            }
+
+            $transport = Transport::fromDsn( $dsn );
+
+            // Disable TLS peer verification when requested (self-signed certs on local/dev servers).
+            if ( ! $verifyPeer && $transport instanceof \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport ) {
+                $transport->setStreamOptions( [
+                    'ssl' => [
+                        'verify_peer'       => false,
+                        'verify_peer_name'  => false,
+                        'allow_self_signed' => true,
+                    ],
+                ] );
+            }
             $mailer = new Mailer($transport);
 
             $email = (new Email())

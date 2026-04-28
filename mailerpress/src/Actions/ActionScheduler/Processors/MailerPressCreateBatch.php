@@ -41,6 +41,8 @@ class MailerPressCreateBatch
             return;
         }
 
+        $servicesData = get_option('mailerpress_email_services', []);
+        $espKey = $servicesData['default_service'] ?? '';
         $wpdb->insert(
             Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES),
             [
@@ -50,6 +52,7 @@ class MailerPressCreateBatch
                 'sender_to' => $config['fromTo'],
                 'subject' => $config['subject'],
                 'campaign_id' => $campaign_id,
+                'esp_key' => $espKey,
             ]
         );
 

@@ -25,8 +25,8 @@ class Tags
         $tagTable = Tables::get(Tables::MAILERPRESS_TAGS);
         $contactTags = Tables::get(Tables::CONTACT_TAGS);
         $search = $request->get_param('search');
-        $per_page = isset($_GET['perPages']) ? (int)(wp_unslash($_GET['perPages'])) : 20; // Items per page (default is 10)
-        $page = isset($_GET['paged']) ? (int)(wp_unslash($_GET['paged'])) : 1; // Current page
+        $per_page = (int)($request->get_param('perPages') ?? 20);
+        $page = (int)($request->get_param('paged') ?? 1);
         $offset = ($page - 1) * $per_page;
 
         // Filters
@@ -235,7 +235,6 @@ class Tags
             __('Failed to delete the tags.', 'mailerpress'),
             [
                 'status' => 500,
-                'error' => $wpdb->last_error
             ]
         );
     }

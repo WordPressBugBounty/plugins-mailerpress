@@ -11,11 +11,11 @@ class AsCleaner
     #[Action('mailerpress_as_clean')]
     public function clean(): void
     {
-        $this->cleanEntries('daemon/mailerpress/mailerpress_sync_lists', 15 * DAY_IN_SECONDS);
-        $this->cleanEntries('daemon/mailerpress/process_queue_worker', 15 * DAY_IN_SECONDS);
-        $this->cleanEntries('daemon/mailerpress/batch', 15 * DAY_IN_SECONDS);
-        $this->cleanEntries('mailerpress', 15 * DAY_IN_SECONDS);
-        $this->cleanEntries('mailerpress_workflows', 15 * DAY_IN_SECONDS);
+        $this->cleanEntries('daemon/mailerpress/mailerpress_sync_lists', 3 * DAY_IN_SECONDS);
+        $this->cleanEntries('daemon/mailerpress/process_queue_worker', 3 * DAY_IN_SECONDS);
+        $this->cleanEntries('daemon/mailerpress/batch', 3 * DAY_IN_SECONDS);
+        $this->cleanEntries('mailerpress', 3 * DAY_IN_SECONDS);
+        $this->cleanEntries('mailerpress_workflows', 3 * DAY_IN_SECONDS);
     }
 
     private function cleanEntries(string $group, int $seconds = 86400): void

@@ -117,6 +117,13 @@ class Users
             return new \WP_Error('unauthorized_meta_key', 'Meta key not allowed', ['status' => 403]);
         }
 
+        // Sanitize meta value before storing
+        if (is_array($meta_value)) {
+            $meta_value = map_deep($meta_value, 'sanitize_text_field');
+        } elseif (is_string($meta_value)) {
+            $meta_value = sanitize_text_field($meta_value);
+        }
+
         update_user_meta($user_id, $meta_name, $meta_value);
 
         return rest_ensure_response([

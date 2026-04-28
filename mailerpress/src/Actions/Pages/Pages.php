@@ -122,17 +122,27 @@ class Pages
         $action = isset($_GET['action']) ? sanitize_text_field(wp_unslash($_GET['action'])) : '';
         $content = '';
 
+        $is_preview = $this->isBuilderPreview();
+
         switch ($action) {
             case self::ACTION_CONFIRM:
+                if ( $is_preview ) {
+                    $content = $renderer->render('double-option-confirmation', [
+                        'contact' => null,
+                        'title'   => ! empty( $atts['confirm_title'] )
+                            ? esc_html( $atts['confirm_title'] )
+                            : esc_html__( 'We have added you to our list. You will receive our next newsletter.', 'mailerpress' ),
+                    ]);
+                    break;
+                }
                 $contact = isset($_GET['cid']) ? $this->contacts->getByAccessToken(sanitize_text_field(wp_unslash($_GET['cid']))) : null;
                 if ($contact) {
                     $this->contacts->subscribe($contact->contact_id);
 
                     // Check for redirect URL from settings
                     $redirect_url = '';
-                    $signup_confirmation = get_option('mailerpress_signup_confirmation');
-                    if ($signup_confirmation) {
-                        $confirmation_data = is_string($signup_confirmation) ? json_decode($signup_confirmation, true) : $signup_confirmation;
+                    $confirmation_data = mailerpress_get_signup_confirmation_option();
+                    if ($confirmation_data) {
                         if (!empty($confirmation_data['confirmRedirectUrl'])) {
                             $redirect_url = $confirmation_data['confirmRedirectUrl'];
 
@@ -169,8 +179,8 @@ class Pages
                 break;
 
             case self::ACTION_MANAGE:
-                if (empty($_GET['mp_preview'])) {
-                    $contact = isset($_GET['cid']) ? $this->contacts->getByAccessToken(wp_unslash($_GET['cid'])) : null;
+                if ( ! $is_preview ) {
+                    $contact = isset($_GET['cid']) ? $this->contacts->getByAccessToken(sanitize_text_field(wp_unslash($_GET['cid']))) : null;
                 } else {
                     $admin_email = get_option('admin_email');
                     $user = get_user_by('email', $admin_email);
@@ -194,6 +204,13 @@ class Pages
                 break;
 
             case self::ACTION_UNSUBSCRIBE:
+                if ( $is_preview ) {
+                    $content = $renderer->render('double-option-confirmation', [
+                        'contact' => null,
+                        'title'   => esc_html__( 'You have successfully unsubscribed from our emails.', 'mailerpress' ),
+                    ]);
+                    break;
+                }
                 $contact = isset($_GET['data']) ? $this->contacts->getContactByToken(sanitize_text_field(wp_unslash($_GET['data']))) : null;
                 $batchId = !empty($_GET['batchId']) ? sanitize_text_field(wp_unslash($_GET['batchId'])) : null;
                 if ($contact) {
@@ -221,7 +238,7 @@ class Pages
 
             case self::ACTION_CONFIRM_UNSUBSCRIBE:
                 // If redirect_url is provided, redirect instead of showing template
-                if (!empty($atts['redirect_url']) && empty($_GET['mp_preview'])) {
+                if ( ! empty( $atts['redirect_url'] ) && ! $is_preview ) {
                     $redirect_url = esc_url_raw($atts['redirect_url']);
 
                     // Perform redirect (safe redirect to prevent open redirect)
@@ -230,7 +247,7 @@ class Pages
                 }
 
                 // Otherwise, show the template as before
-                if (empty($_GET['mp_preview'])) {
+                if ( ! $is_preview ) {
                     // Build unsubscribe URL with query parameters
                     $unsubscribe_params = [
                         'action' => 'unsubscribe',
@@ -277,10 +294,63 @@ class Pages
                 break;
 
             default:
+                if ( $is_preview ) {
+                    $content = $this->renderPreviewDashboard( get_permalink() );
+                }
                 break;
         }
 
         return $content;
+    }
+
+    /**
+     * Returns true when any known page-builder preview/edit mode is active.
+     *
+     * Supported builders:
+     *  - Gutenberg / WordPress core  : is_preview() or ?preview=true
+     *  - Manual override             : ?mp_preview=1
+     *  - Elementor                   : ?elementor-preview=<post_id>
+     *  - Bricks Builder              : ?bricks=run
+     *  - Divi Visual Builder         : ?et_fb=1
+     */
+    private function isBuilderPreview(): bool
+    {
+        return is_preview()
+            || ! empty( $_GET['mp_preview'] )
+            || ! empty( $_GET['elementor-preview'] )
+            || ( isset( $_GET['bricks'] ) && 'run' === $_GET['bricks'] )
+            || ! empty( $_GET['et_fb'] );
+    }
+
+    private function renderPreviewDashboard( string $base_url ): string
+    {
+        $actions = [
+            self::ACTION_CONFIRM             => esc_html__( 'Subscription confirmed', 'mailerpress' ),
+            self::ACTION_UNSUBSCRIBE         => esc_html__( 'Unsubscribed', 'mailerpress' ),
+            self::ACTION_CONFIRM_UNSUBSCRIBE => esc_html__( 'Confirm unsubscribe', 'mailerpress' ),
+            self::ACTION_MANAGE              => esc_html__( 'Manage subscription', 'mailerpress' ),
+        ];
+
+        $items = '';
+        foreach ( $actions as $action_key => $label ) {
+            $url    = esc_url( add_query_arg( [ 'action' => $action_key, 'mp_preview' => '1' ], $base_url ) );
+            $items .= sprintf(
+                '<li><a href="%s">%s</a></li>',
+                $url,
+                esc_html( $label )
+            );
+        }
+
+        return sprintf(
+            '<div class="mailerpress-shortcode-preview-notice" style="border:1px solid #c3c4c7;border-left:4px solid #72aee6;padding:16px 20px;background:#fff;font-family:sans-serif;">'
+            . '<p style="margin:0 0 8px;font-weight:600;">%s</p>'
+            . '<p style="margin:0 0 12px;color:#50575e;">%s</p>'
+            . '<ul style="margin:0;padding-left:20px;">%s</ul>'
+            . '</div>',
+            esc_html__( 'MailerPress Dynamic Page — Preview mode', 'mailerpress' ),
+            esc_html__( 'This shortcode renders different content depending on the URL parameters sent in email links. Click a state below to preview it:', 'mailerpress' ),
+            $items
+        );
     }
 
 
@@ -324,7 +394,7 @@ class Pages
             if (
                 isset($_GET['action']) &&
                 $_GET['action'] === 'confirm_unsubscribe' &&
-                empty($_GET['mp_preview']) && // only validate if not a preview
+                ! $this->isBuilderPreview() && // only validate if not a preview
                 (
                     empty($_GET['cid']) ||
                     empty($_GET['data']) ||
@@ -335,7 +405,10 @@ class Pages
                 status_header(404);
                 nocache_headers();
 
-                include get_query_template('404');
+                $template_404 = get_query_template( '404' );
+                if ( $template_404 ) {
+                    include $template_404;
+                }
                 exit;
             }
         }
@@ -345,12 +418,15 @@ class Pages
             $post->post_type === Kernel::getContainer()->get('cpt-page-slug') ||
             has_shortcode($post->post_content, 'mailerpress_pages')
         )) {
-            if (!empty($_GET['action']) && $_GET['action'] === 'manage' && empty($_GET['cid']) && empty($_GET['mp_preview'])) {
+            if ( ! empty( $_GET['action'] ) && $_GET['action'] === 'manage' && empty( $_GET['cid'] ) && ! $this->isBuilderPreview() ) {
                 $wp_query->set_404();
                 status_header(404);
                 nocache_headers();
 
-                include get_query_template('404');
+                $template_404 = get_query_template( '404' );
+                if ( $template_404 ) {
+                    include $template_404;
+                }
                 exit;
             }
         } {
@@ -367,7 +443,10 @@ class Pages
                 status_header(404);
                 nocache_headers();
 
-                include get_query_template('404');
+                $template_404 = get_query_template( '404' );
+                if ( $template_404 ) {
+                    include $template_404;
+                }
                 exit;
             }
         }

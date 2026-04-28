@@ -114,7 +114,18 @@ class Patterns
     public function delete(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         $id = (int)$request->get_param('id');
+        $pattern_post_type = Kernel::getContainer()->get('cpt-pattern-slug');
+
         if (!empty($id)) {
+            // Security: verify the post belongs to the pattern post type
+            $post = get_post($id);
+            if (!$post || $post->post_type !== $pattern_post_type) {
+                return new \WP_REST_Response(
+                    esc_html__('Pattern not found.', 'mailerpress'),
+                    404
+                );
+            }
+
             $result = wp_delete_post($id);
             if (!is_wp_error($result)) {
                 return new \WP_REST_Response(

@@ -22,4 +22,13 @@ class Campaigns
 
         return $wpdb->get_row($sql);
     }
+
+    public function count(): int
+    {
+        global $wpdb;
+
+        $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM $table");
+    }
 }

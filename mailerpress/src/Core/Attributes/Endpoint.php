@@ -73,7 +73,12 @@ class Endpoint
             return $this->permissionCallback;
         }
 
-        // Default to allowing all requests
-        return '__return_true';
+        // Default to requiring authentication (deny by default)
+        return function (\WP_REST_Request $request): bool|\WP_Error {
+            if (!is_user_logged_in()) {
+                return new \WP_Error('rest_forbidden', 'Authentication required.', ['status' => 401]);
+            }
+            return true;
+        };
     }
 }

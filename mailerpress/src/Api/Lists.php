@@ -90,7 +90,7 @@ class Lists
         $table = Tables::get(Tables::MAILERPRESS_LIST); // returns the full table name, e.g., wp_mailerpress_list
 
         $results = $wpdb->get_results(
-            "SELECT list_id as id, name FROM {$table}",
+            "SELECT list_id as id, name, is_default FROM {$table}",
             ARRAY_A
         );
 
@@ -298,10 +298,7 @@ class Lists
         return new \WP_Error(
             'delete_failed',
             __('Failed to delete the lists.', 'mailerpress'),
-            [
-                'status' => 500,
-                'error' => $wpdb->last_error
-            ]
+            ['status' => 500]
         );
     }
 

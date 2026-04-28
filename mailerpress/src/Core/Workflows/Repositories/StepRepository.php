@@ -24,7 +24,7 @@ class StepRepository
     {
         $query = $this->wpdb->prepare("SELECT * FROM {$this->table} WHERE automation_id = %d", $automationId);
         $results = $this->wpdb->get_results($query, ARRAY_A);
-        
+
         return array_map(fn($data) => new Step($data), $results);
     }
 
@@ -32,23 +32,23 @@ class StepRepository
     {
         $query = $this->wpdb->prepare("SELECT * FROM {$this->table} WHERE step_id = %s", $stepId);
         $result = $this->wpdb->get_row($query, ARRAY_A);
-        
+
         return $result ? new Step($result) : null;
     }
 
     public function findTriggerByKey(int $automationId, string $key): ?Step
     {
         $query = $this->wpdb->prepare(
-            "SELECT * FROM {$this->table} 
-             WHERE automation_id = %d 
-             AND type = 'TRIGGER' 
-             AND `key` = %s 
+            "SELECT * FROM {$this->table}
+             WHERE automation_id = %d
+             AND type = 'TRIGGER'
+             AND `key` = %s
              LIMIT 1",
             $automationId,
             $key
         );
         $result = $this->wpdb->get_row($query, ARRAY_A);
-        
+
         return $result ? new Step($result) : null;
     }
 
@@ -59,7 +59,7 @@ class StepRepository
             $stepId
         );
         $results = $this->wpdb->get_results($query, ARRAY_A);
-        
+
         return array_map(fn($data) => new StepBranch($data), $results);
     }
 
@@ -158,5 +158,47 @@ class StepRepository
         );
 
         return $result !== false;
+    }
+
+    public function createBranch(int $stepId, array $condition, string $nextStepId): ?StepBranch
+    {
+        $result = $this->wpdb->insert($this->branchesTable, [
+            'step_id' => $stepId,
+            'condition' => wp_json_encode($condition),
+            'next_step_id' => $nextStepId,
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql'),
+        ]);
+
+        if ($result === false) {
+            return null;
+        }
+
+        return new StepBranch([
+            'id' => $this->wpdb->insert_id,
+            'step_id' => $stepId,
+            'condition' => $condition,
+            'next_step_id' => $nextStepId,
+        ]);
+    }
+
+    public function deleteBranchesByStepId(int $stepId): int
+    {
+        $result = $this->wpdb->delete($this->branchesTable, ['step_id' => $stepId], ['%d']);
+
+        return $result !== false ? $result : 0;
+    }
+
+    public function syncBranches(int $stepId, array $branches): void
+    {
+        $this->deleteBranchesByStepId($stepId);
+
+        foreach ($branches as $branch) {
+            $this->createBranch(
+                $stepId,
+                $branch['condition'] ?? [],
+                $branch['next_step_id'] ?? ''
+            );
+        }
     }
 }

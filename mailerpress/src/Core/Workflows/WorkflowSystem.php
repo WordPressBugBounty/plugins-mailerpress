@@ -5,6 +5,7 @@ namespace MailerPress\Core\Workflows;
 use MailerPress\Core\Workflows\Services\WorkflowManager;
 use MailerPress\Core\Workflows\Conditions\WooCommerceConditionProvider;
 use MailerPress\Core\Workflows\Conditions\WooCommerceSubscriptionsConditionProvider;
+use MailerPress\Core\Workflows\Conditions\SureCartConditionProvider;
 use MailerPress\Core\Workflows\Conditions\MailerPressConditionProvider;
 use MailerPress\Core\Workflows\Conditions\UserConditionProvider;
 
@@ -43,6 +44,11 @@ class WorkflowSystem
         // Only register WooCommerce Subscriptions condition provider if WooCommerce Subscriptions is active
         if (class_exists('WC_Subscriptions')) {
             new WooCommerceSubscriptionsConditionProvider();
+        }
+
+        // Only register SureCart condition provider if SureCart is active
+        if (class_exists('\SureCart\Models\Purchase') || function_exists('surecart')) {
+            new SureCartConditionProvider();
         }
     }
 

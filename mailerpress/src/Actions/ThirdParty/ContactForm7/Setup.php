@@ -307,7 +307,7 @@ class Setup
                 <?php if (!is_plugin_active('mailerpress-pro/mailerpress-pro.php')): ?>
                     <div class="pro-notice" style="margin: 10px 0; padding: 10px; background: #fff8e5; border-left: 4px solid #ffb900;">
                         <p>
-                            <?php echo wp_kses_post(__('Custom field mapping is available in <strong>MailerPress Pro</strong>. <a href="https://mailerpress.com/pricing" target="_blank">Upgrade now</a> to unlock this feature.', 'mailerpress')); ?>
+                            <?php echo wp_kses_post(sprintf(__('Custom field mapping is available in <strong>MailerPress Pro</strong>. <a href="%s" target="_blank">Upgrade now</a> to unlock this feature.', 'mailerpress'), esc_url(\MailerPress\Core\ExternalLinks::get('pricing')))); ?>
                         </p>
                     </div>
                 <?php else: ?>

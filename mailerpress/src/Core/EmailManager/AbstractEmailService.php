@@ -75,10 +75,6 @@ abstract class AbstractEmailService implements EmailServiceInterface
 
             $this->getLogger()->log($logData, $status, $result);
         } catch (\Throwable $e) {
-            // Don't fail email sending if logging fails
-            if (defined('WP_DEBUG') && \WP_DEBUG) {
-                \error_log('MailerPress EmailLogger: Failed to log email - ' . $e->getMessage());
-            }
         }
     }
 }

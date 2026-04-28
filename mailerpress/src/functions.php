@@ -123,50 +123,52 @@ function add_mailerpress_contact($data): array
         $data['lists'] = $normalized_lists;
     }
 
+    // Auto-detect language for WPML/Polylang if not provided
+    if (empty($data['lang'])) {
+        $currentLang = apply_filters('wpml_current_language', null);
+        if ($currentLang) {
+            $data['lang'] = $currentLang;
+        }
+    }
+
     $contactModel = Kernel::getContainer()->get(\MailerPress\Models\Contacts::class);
     $existingContact = $contactModel->getContactByEmail($email);
 
     if ($existingContact) {
         return updateContact($existingContact, $data);
-    } else {
-        $response = wp_remote_post(
-            home_url('/wp-json/mailerpress/v1/contact'),
-            [
-                'method' => 'POST',
-                'timeout' => 60,
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'body' => wp_json_encode($data),
-            ]
-        );
     }
 
+    // New contact — use rest_do_request() (in-process, no HTTP round-trip, no auth issues)
+    $GLOBALS['mailerpress_internal_php_call'] = true;
+    try {
+        $wp_request = new \WP_REST_Request('POST', '/mailerpress/v1/contact');
+        $wp_request->set_body_params($data);
+        $rest_response = rest_do_request($wp_request);
+    } finally {
+        unset($GLOBALS['mailerpress_internal_php_call']);
+    }
 
-    if (is_wp_error($response)) {
+    if ($rest_response->is_error()) {
         return [
             'success' => false,
-            'error' => $response->get_error_message(),
+            'error' => $rest_response->as_error()->get_error_message(),
         ];
     }
 
-    $body = json_decode(wp_remote_retrieve_body($response), true);
+    $response_data = $rest_response->get_data();
 
-    if (isset($body['success']) && $body['success']) {
-        $contact_id = $body['data']['contact_id'] ?? $body['contact_id'] ?? null;
-
+    if (isset($response_data['success']) && $response_data['success']) {
+        $contact_id = $response_data['data']['contact_id'] ?? $response_data['contact_id'] ?? null;
         return [
             'success' => true,
             'contact_id' => $contact_id,
-            'data' => $body['data'] ?? [],
+            'data' => $response_data['data'] ?? [],
         ];
     }
 
-    $error_message = $body['message'] ?? __('Unknown error.', 'mailerpress');
-
     return [
         'success' => false,
-        'error' => $error_message,
+        'error' => $response_data['message'] ?? __('Unknown error.', 'mailerpress'),
     ];
 }
 
@@ -603,6 +605,23 @@ function add_unlock_request($campaign_id, $user_id): void
     set_transient("campaign_{$campaign_id}_unlock_requests", $requests, 5 * MINUTE_IN_SECONDS);
 }
 
+/**
+ * Register a notification message
+ *
+ * @param string $id Unique identifier for the message
+ * @param string $class Fully qualified class name implementing NotificationMessageInterface
+ * @throws Exception
+ */
+function mailerpress_register_notification_message(string $id, string $class): void
+{
+    try {
+        $factory = Kernel::getContainer()->get(\MailerPress\Core\Notifications\NotificationMessageFactory::class);
+        $factory->register($id, $class);
+    } catch (DependencyException | NotFoundException $e) {
+        throw new Exception('Failed to register notification message: ' . $e->getMessage());
+    }
+}
+
 function user_has_gravatar($email): bool
 {
     $hash = md5(strtolower(trim($email)));
@@ -611,4 +630,487 @@ function user_has_gravatar($email): bool
     $response = wp_remote_head($uri);
 
     return !is_wp_error($response) && 200 === wp_remote_retrieve_response_code($response);
+}
+
+/**
+ * Get the signup confirmation option as a PHP array.
+ * Handles backward compatibility with old JSON-encoded format.
+ */
+function mailerpress_get_signup_confirmation_option(): array
+{
+    $default = [
+        'enableSignupConfirmation' => true,
+        'emailSubject' => __('Confirm your subscription to [site:title]', 'mailerpress'),
+        'emailContent' => __(
+            'Hello [contact:firstName] [contact:lastName],
+
+You have received this email regarding your subscription to [site:title]. Please confirm it to receive emails from us:
+
+[activation_link]Click here to confirm your subscription[/activation_link]
+
+If you received this email in error, simply delete it. You will no longer receive emails from us if you do not confirm your subscription using the link above.
+
+Thank you,
+
+<a target="_blank" href="[site:homeURL]">[site:title]</a>',
+            'mailerpress'
+        ),
+        'confirmRedirectUrl' => '',
+        'enableReminders' => false,
+        'reminderIntervalDays' => 7,
+        'campaign_id' => null,
+    ];
+
+    $option = get_option('mailerpress_signup_confirmation');
+
+    if ($option === false) {
+        return $default;
+    }
+
+    // Backward compatibility: old format was JSON string — migrate to native array
+    // so WPML admin-texts can translate sub-keys
+    if (is_string($option)) {
+        $decoded = json_decode($option, true);
+        if (is_array($decoded)) {
+            // Persist as native PHP array for WPML compatibility
+            update_option('mailerpress_signup_confirmation', $decoded);
+            $option = $decoded;
+        } else {
+            return $default;
+        }
+    }
+
+    if (!is_array($option)) {
+        return $default;
+    }
+
+    $result = array_merge($default, $option);
+
+    // WPML strips \n from translated admin-texts values.
+    // Restore line breaks in emailContent by reading the original (untranslated) value
+    // and applying its \n\n structure to the translated text.
+    if (!empty($result['emailContent'])) {
+        $before = $result['emailContent'];
+        $result['emailContent'] = mailerpress_restore_newlines_from_original($result['emailContent']);
+    }
+
+    return $result;
+}
+
+/**
+ * Restore \n\n line breaks in translated text by using the original (untranslated) value as reference.
+ * WPML strips newlines from admin-texts translations, so we read the original value,
+ * extract the \n\n structure, and re-inject it into the translated text.
+ *
+ * Strategy: split the original by \n\n to get segment ending patterns (last few chars).
+ * For each segment ending in the original, find the corresponding ending in the translated text
+ * (same trailing punctuation/tag pattern) and insert \n\n after it.
+ */
+function mailerpress_restore_newlines_from_original(string $translatedContent): string
+{
+    // If the translated content already has \n\n, it's fine — no restoration needed
+    if (str_contains($translatedContent, "\n\n")) {
+        return $translatedContent;
+    }
+
+    // Read the original (untranslated) option value by temporarily switching to default language
+    $originalLang = apply_filters('wpml_current_language', null);
+    $defaultLang = apply_filters('wpml_default_language', null);
+
+    if (!$defaultLang || $originalLang === $defaultLang) {
+        return $translatedContent;
+    }
+
+    // Read the raw option directly from the database, bypassing WPML filters
+    // (WPML's get_option filter returns translated values even after wpml_switch_language)
+    global $wpdb;
+    $rawValue = $wpdb->get_var($wpdb->prepare(
+        "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+        'mailerpress_signup_confirmation'
+    ));
+
+    if (!$rawValue) {
+        return $translatedContent;
+    }
+
+    $originalOption = maybe_unserialize($rawValue);
+
+    if (!is_array($originalOption) || empty($originalOption['emailContent'])) {
+        return $translatedContent;
+    }
+
+    $originalContent = $originalOption['emailContent'];
+
+    if (!str_contains($originalContent, "\n\n")) {
+        return $translatedContent;
+    }
+
+    // Split the original by \n\n to get segment endings
+    $originalSegments = preg_split('/\n\n+/', $originalContent);
+    $segmentCount = count($originalSegments);
+
+    if ($segmentCount <= 1) {
+        return $translatedContent;
+    }
+
+    // Extract the trailing pattern of each segment (the last distinctive string).
+    // We use the last punctuation or HTML tag ending as anchor to find the same boundary
+    // in the translated text.
+    $result = $translatedContent;
+    $offset = 0;
+
+    for ($i = 0; $i < $segmentCount - 1; $i++) {
+        $origSegment = trim($originalSegments[$i]);
+        if (empty($origSegment)) {
+            continue;
+        }
+
+        // Get the ending anchor: for tags like [/activation_link] or </a>, use the tag.
+        // For text, use the last punctuation + trailing chars.
+        $anchor = null;
+
+        // Check for shortcode ending
+        if (preg_match('/(\[\/?[a-z_]+\])$/i', $origSegment, $m)) {
+            $anchor = $m[1];
+        }
+        // Check for HTML tag ending
+        elseif (preg_match('/(<\/[a-z]+>)$/i', $origSegment, $m)) {
+            $anchor = $m[1];
+        }
+        // Use last punctuation (: , . ;) as anchor — look for it followed by a space
+        else {
+            $lastChar = substr(rtrim($origSegment), -1);
+            if (in_array($lastChar, [':', ',', '.', ';'], true)) {
+                $anchor = $lastChar;
+            }
+        }
+
+        if ($anchor === null) {
+            continue;
+        }
+
+        // Count how many times this anchor appears in the original segment
+        // to find the Nth (last) occurrence in the translated text.
+        // e.g. if original segment has 2 periods ("delete it. ... link above."),
+        // we need the 2nd period in the translated text.
+        $anchorCountInSegment = substr_count($origSegment, $anchor);
+
+        // Find the Nth occurrence of this anchor in the translated text after current offset
+        $pos = false;
+        $searchPos = $offset;
+        for ($n = 0; $n < $anchorCountInSegment; $n++) {
+            $found = strpos($result, $anchor, $searchPos);
+            if ($found === false) {
+                break;
+            }
+            $pos = $found;
+            $searchPos = $found + strlen($anchor);
+        }
+
+        if ($pos === false || $pos <= $offset) {
+            continue;
+        }
+
+        $insertAt = $pos + strlen($anchor);
+
+        // Skip trailing space if present
+        if ($insertAt < strlen($result) && $result[$insertAt] === ' ') {
+            $insertAt++;
+        }
+
+        // Don't insert at the very end
+        if ($insertAt >= strlen($result)) {
+            continue;
+        }
+
+        $result = substr($result, 0, $insertAt) . "\n\n" . substr($result, $insertAt);
+        $offset = $insertAt + 2; // skip past the inserted \n\n
+    }
+
+    return $result;
+}
+
+/**
+ * Build the HTML email wrapper for the confirmation email.
+ * Wraps the textarea content in a responsive email template with header (logo) and footer.
+ */
+function mailerpress_build_confirmation_email_html(string $bodyContent, array $options = []): string
+{
+    $primaryColor = esc_attr($options['primaryColor'] ?? '#000000');
+    $backgroundColor = esc_attr($options['backgroundColor'] ?? '#f5f5f5');
+    $textColor = esc_attr($options['textColor'] ?? '#333333');
+    $headerLogo = $options['headerLogo'] ?? '';
+    $siteTitle = esc_html(get_bloginfo('name'));
+
+    $logoHtml = '';
+    if (!empty($headerLogo)) {
+        $logoHtml = sprintf(
+            '<tr><td align="center" style="padding: 25px 20px 15px 20px;"><img src="%s" alt="%s" style="max-width: 120px; height: auto; display: block;" /></td></tr>',
+            esc_url($headerLogo),
+            $siteTitle
+        );
+    }
+
+    return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{$siteTitle}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: {$backgroundColor}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {$backgroundColor};">
+<tr><td align="center" style="padding: 30px 10px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+<!-- Header -->
+<tr><td style="background-color: {$primaryColor}; padding: 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+{$logoHtml}
+<tr><td style="height: 8px; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+</table>
+</td></tr>
+<!-- Body -->
+<tr><td style="padding: 40px 30px; color: {$textColor}; font-size: 16px; line-height: 1.6;">
+{$bodyContent}
+</td></tr>
+<!-- Footer -->
+<tr><td align="center" style="padding: 20px 30px; background-color: {$backgroundColor}; color: #999999; font-size: 12px; line-height: 1.5;">
+{$siteTitle}
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+HTML;
+}
+
+/**
+ * Starter template for the confirm_email campaign type.
+ * Contains a locked text block showing the textarea content (non-editable in the editor).
+ * At send time, the content between MAILERPRESS_EMAIL_CONTENT markers is replaced
+ * with the translated textarea content.
+ */
+function mailerpress_get_confirm_email_starter_template(string $emailContent = ''): array
+{
+    $uid = function () {
+        return wp_generate_uuid4();
+    };
+
+    // Split content around [activation_link]Label[/activation_link]
+    $buttonLabel = __('Confirm my subscription', 'mailerpress');
+    $beforeText = $emailContent;
+    $afterText = '';
+
+    if (preg_match('/\[activation_link\](.*?)\[\/activation_link\]/s', $emailContent, $matches)) {
+        $buttonLabel = trim($matches[1]);
+        $parts = preg_split('/\[activation_link\].*?\[\/activation_link\]/s', $emailContent);
+        $beforeText = trim($parts[0] ?? '');
+        $afterText = trim($parts[1] ?? '');
+    }
+
+    return [
+        'type' => 'page',
+        'data' => [
+            'attributes' => [
+                'width' => '600px',
+                'background-color' => '#ffffff',
+            ],
+            'globalAttributes' => [],
+            'headAttributes' => [],
+            'fonts' => [],
+            'style' => '',
+            'previewText' => '',
+        ],
+        'attributes' => [],
+        'children' => [
+            // Header section (design only — logo, spacer)
+            [
+                'type' => 'section',
+                'data' => ['columnCount' => 1, 'border-style' => 'solid', 'size' => 'full'],
+                'attributes' => [
+                    'padding-left' => '20px',
+                    'padding-right' => '20px',
+                    'padding-bottom' => '0px',
+                    'padding-top' => '10px',
+                    'background-color' => '#2c2c2c',
+                ],
+                'children' => [
+                    [
+                        'type' => 'column',
+                        'data' => ['border-style' => 'solid'],
+                        'attributes' => ['vertical-align' => 'top', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-right' => '0px', 'padding-left' => '0px'],
+                        'children' => [
+                            [
+                                'type' => 'spacer',
+                                'data' => [],
+                                'attributes' => ['height' => '10px', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-left' => '0px', 'padding-right' => '0px'],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                            [
+                                'type' => 'image',
+                                'data' => ['width' => 120, 'size' => 'full'],
+                                'attributes' => ['width' => '120px', 'align' => 'center', 'src' => 'https://placehold.co/120x40/2c2c2c/ffffff?text=LOGO', 'href' => '', 'fluid-on-mobile' => false, 'padding-top' => '10px', 'padding-bottom' => '10px', 'padding-left' => '10px', 'padding-right' => '10px'],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                            [
+                                'type' => 'spacer',
+                                'data' => [],
+                                'attributes' => ['height' => '10px', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-left' => '0px', 'padding-right' => '0px'],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                        ],
+                        'clientId' => $uid(),
+                    ],
+                ],
+                'clientId' => $uid(),
+            ],
+            // Body section — email content placeholder + confirmation button (locked)
+            [
+                'type' => 'section',
+                'data' => ['columnCount' => 1, 'border-style' => 'solid', 'size' => 'full', 'lock' => true],
+                'attributes' => [
+                    'padding-left' => '20px',
+                    'padding-right' => '20px',
+                    'padding-bottom' => '10px',
+                    'padding-top' => '20px',
+                ],
+                'children' => [
+                    [
+                        'type' => 'column',
+                        'data' => ['border-style' => 'solid', 'lock' => true],
+                        'attributes' => ['vertical-align' => 'top', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-right' => '0px', 'padding-left' => '0px'],
+                        'children' => array_values(array_filter([
+                            // Text before button
+                            $beforeText ? [
+                                'type' => 'text',
+                                'data' => [
+                                    'content' => '<!-- MAILERPRESS_EMAIL_CONTENT_BEFORE_START -->' . nl2br(esc_html($beforeText)) . '<!-- MAILERPRESS_EMAIL_CONTENT_BEFORE_END -->',
+                                    'lock' => true,
+                                ],
+                                'attributes' => [
+                                    'padding-top' => '10px',
+                                    'padding-bottom' => '10px',
+                                    'padding-left' => '25px',
+                                    'padding-right' => '25px',
+                                    'font-size' => '16px',
+                                    'color' => '#333333',
+                                    'line-height' => '1.6',
+                                    'css-class' => 'lock-inline-editing',
+                                ],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ] : null,
+                            // Confirmation button
+                            [
+                                'type' => 'button',
+                                'data' => [
+                                    'content' => $buttonLabel,
+                                    'border-style' => 'solid',
+                                    'lock' => true,
+                                ],
+                                'attributes' => [
+                                    'align' => 'center',
+                                    'background-color' => '#2c2c2c',
+                                    'color' => '#ffffff',
+                                    'font-size' => '16px',
+                                    'font-weight' => 'bold',
+                                    'border-radius' => '6px',
+                                    'padding-top' => '15px',
+                                    'padding-bottom' => '15px',
+                                    'padding-left' => '10px',
+                                    'padding-right' => '10px',
+                                    'inner-padding' => '14px 30px',
+                                    'href' => '{{activation_link}}',
+                                    'css-class' => 'lock-inline-editing',
+                                ],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                            // Text after button
+                            $afterText ? [
+                                'type' => 'text',
+                                'data' => [
+                                    'content' => '<!-- MAILERPRESS_EMAIL_CONTENT_AFTER_START -->' . nl2br(esc_html($afterText)) . '<!-- MAILERPRESS_EMAIL_CONTENT_AFTER_END -->',
+                                    'lock' => true,
+                                ],
+                                'attributes' => [
+                                    'padding-top' => '10px',
+                                    'padding-bottom' => '10px',
+                                    'padding-left' => '25px',
+                                    'padding-right' => '25px',
+                                    'font-size' => '16px',
+                                    'color' => '#333333',
+                                    'line-height' => '1.6',
+                                    'css-class' => 'lock-inline-editing',
+                                ],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ] : null,
+                            // Trailing spacer
+                            [
+                                'type' => 'spacer',
+                                'data' => [],
+                                'attributes' => ['height' => '15px', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-left' => '0px', 'padding-right' => '0px'],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                        ])),
+                        'clientId' => $uid(),
+                    ],
+                ],
+                'clientId' => $uid(),
+            ],
+            // Footer section (design only — divider, spacer)
+            [
+                'type' => 'section',
+                'data' => ['columnCount' => 1, 'border-style' => 'solid', 'size' => 'full'],
+                'attributes' => [
+                    'padding-left' => '20px',
+                    'padding-right' => '20px',
+                    'padding-bottom' => '20px',
+                    'padding-top' => '10px',
+                    'background-color' => '#f5f5f5',
+                ],
+                'children' => [
+                    [
+                        'type' => 'column',
+                        'data' => ['border-style' => 'solid'],
+                        'attributes' => ['vertical-align' => 'top', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-right' => '0px', 'padding-left' => '0px'],
+                        'children' => [
+                            [
+                                'type' => 'divider',
+                                'data' => [],
+                                'attributes' => [
+                                    'border-color' => '#cccccc',
+                                    'border-style' => 'solid',
+                                    'border-width' => '1px',
+                                    'padding-top' => '10px',
+                                    'padding-bottom' => '10px',
+                                    'padding-left' => '10px',
+                                    'padding-right' => '10px',
+                                ],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                            [
+                                'type' => 'spacer',
+                                'data' => [],
+                                'attributes' => ['height' => '10px', 'padding-top' => '0px', 'padding-bottom' => '0px', 'padding-left' => '0px', 'padding-right' => '0px'],
+                                'children' => [],
+                                'clientId' => $uid(),
+                            ],
+                        ],
+                        'clientId' => $uid(),
+                    ],
+                ],
+                'clientId' => $uid(),
+            ],
+        ],
+        'clientId' => $uid(),
+    ];
 }

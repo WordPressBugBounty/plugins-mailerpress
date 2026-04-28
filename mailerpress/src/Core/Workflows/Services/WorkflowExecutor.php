@@ -14,7 +14,12 @@ use MailerPress\Core\Workflows\Handlers\AddTagStepHandler;
 use MailerPress\Core\Workflows\Handlers\AddToListStepHandler;
 use MailerPress\Core\Workflows\Handlers\RemoveTagStepHandler;
 use MailerPress\Core\Workflows\Handlers\RemoveFromListStepHandler;
+use MailerPress\Core\Workflows\Handlers\CreateContactStepHandler;
+use MailerPress\Core\Workflows\Handlers\CreateWordPressUserStepHandler;
 use MailerPress\Core\Workflows\Services\ConditionEvaluator;
+use MailerPress\Core\Workflows\Models\AutomationJob;
+use MailerPress\Core\Workflows\Exceptions\NonRetryableException;
+use MailerPress\Services\Logger;
 
 class WorkflowExecutor
 {
@@ -24,13 +29,18 @@ class WorkflowExecutor
     private AutomationLogRepository $logRepo;
     private StepHandlerRegistry $handlerRegistry;
 
-    public function __construct()
-    {
-        $this->automationRepo = new AutomationRepository();
-        $this->stepRepo = new StepRepository();
-        $this->jobRepo = new AutomationJobRepository();
-        $this->logRepo = new AutomationLogRepository();
-        $this->handlerRegistry = new StepHandlerRegistry();
+    public function __construct(
+        ?AutomationRepository $automationRepo = null,
+        ?StepRepository $stepRepo = null,
+        ?AutomationJobRepository $jobRepo = null,
+        ?AutomationLogRepository $logRepo = null,
+        ?StepHandlerRegistry $handlerRegistry = null
+    ) {
+        $this->automationRepo = $automationRepo ?? new AutomationRepository();
+        $this->stepRepo = $stepRepo ?? new StepRepository();
+        $this->jobRepo = $jobRepo ?? new AutomationJobRepository();
+        $this->logRepo = $logRepo ?? new AutomationLogRepository();
+        $this->handlerRegistry = $handlerRegistry ?? new StepHandlerRegistry();
 
         $this->registerDefaultHandlers();
     }
@@ -44,6 +54,8 @@ class WorkflowExecutor
         $this->handlerRegistry->register(new AddToListStepHandler());
         $this->handlerRegistry->register(new RemoveTagStepHandler());
         $this->handlerRegistry->register(new RemoveFromListStepHandler());
+        $this->handlerRegistry->register(new CreateContactStepHandler());
+        $this->handlerRegistry->register(new CreateWordPressUserStepHandler());
     }
 
     public function getHandlerRegistry(): StepHandlerRegistry
@@ -53,6 +65,8 @@ class WorkflowExecutor
 
     public function executeJob(int $jobId, array $context = []): bool
     {
+        global $wpdb;
+
         $job = $this->jobRepo->find($jobId);
 
         if (!$job) {
@@ -74,6 +88,8 @@ class WorkflowExecutor
             }
         }
 
+        do_action('mailerpress_workflow_job_started', $job, $context);
+
         try {
             $maxIterations = 50; // sécurité pour éviter les boucles infinies
             $iterations = 0;
@@ -87,9 +103,6 @@ class WorkflowExecutor
                     return false;
                 }
 
-                $job->setStatus('PROCESSING');
-                $this->jobRepo->update($job);
-
                 $nextStepId = $job->getNextStepId();
 
                 if (!$nextStepId) {
@@ -100,6 +113,8 @@ class WorkflowExecutor
                     $job->setStatus('COMPLETED');
                     $this->jobRepo->update($job);
 
+                    do_action('mailerpress_workflow_job_completed', $job);
+
                     // If this is an abandoned cart automation, delete the cart tracking entry
                     $this->cleanupAbandonedCartTracking($job);
 
@@ -109,7 +124,6 @@ class WorkflowExecutor
                 $step = $this->stepRepo->findByStepId($nextStepId);
 
                 if (!$step) {
-                    // Marquer le job en échec et journaliser proprement
                     $job->setStatus('FAILED');
                     $this->jobRepo->update($job);
 
@@ -124,39 +138,94 @@ class WorkflowExecutor
                     return false;
                 }
 
+                // Execute step within a DB transaction
+                $wpdb->query('START TRANSACTION');
 
-                // Log the step with context - this preserves context for later retrieval
-                $this->logRepo->log(
-                    $job->getAutomationId(),
-                    $step->getStepId(),
-                    $job->getUserId(),
-                    'PROCESSING',
-                    $context
-                );
+                try {
+                    $job->setStatus('PROCESSING');
+                    $this->jobRepo->update($job);
 
-                $stepKey = $step->getKey();
+                    // Log the step with context - this preserves context for later retrieval
+                    $this->logRepo->log(
+                        $job->getAutomationId(),
+                        $step->getStepId(),
+                        $job->getUserId(),
+                        'PROCESSING',
+                        $context
+                    );
 
-                // Log all handlers and their supported keys
-                $allHandlers = $this->handlerRegistry->getHandlers();
-                $handlerInfo = [];
-                foreach ($allHandlers as $h) {
-                    $handlerInfo[] = get_class($h);
-                    // Try to detect supported keys by checking common keys
-                    $testKeys = ['send_email', 'add_tag', 'delay', 'condition', 'ab_test', 'create_campaign'];
-                    foreach ($testKeys as $testKey) {
-                        if ($h->supports($testKey)) {
-                            $handlerInfo[count($handlerInfo) - 1] .= " (supports: {$testKey})";
-                            break;
-                        }
+                    $stepKey = $step->getKey();
+                    $handler = $this->handlerRegistry->getHandler($stepKey);
+
+                    if (!$handler) {
+                        $job->setNextStepId($step->getNextStepId());
+                        $job->setStatus('ACTIVE');
+                        $this->jobRepo->update($job);
+
+                        $this->logRepo->log(
+                            $job->getAutomationId(),
+                            $step->getStepId(),
+                            $job->getUserId(),
+                            'COMPLETED',
+                            ['skipped' => true, 'reason' => 'No handler found for key: ' . $stepKey]
+                        );
+
+                        $wpdb->query('COMMIT');
+                        continue;
                     }
-                }
 
-                $handler = $this->handlerRegistry->getHandler($stepKey);
+                    // Pass context to handler
+                    $result = $handler->handle($step, $job, $context);
 
-                if (!$handler) {
-                    // Pas de handler : on avance simplement au prochain step
-                    $job->setNextStepId($step->getNextStepId());
-                    $job->setStatus('ACTIVE');
+                    // Merge any new context data from the result back into context
+                    $resultData = $result->getData();
+                    if (is_array($resultData) && !empty($resultData)) {
+                        $context = array_merge($context, $resultData);
+                    }
+
+                    if (!$result->isSuccess()) {
+                        if ($result->isRetryable() && $job->canRetry()) {
+                            $this->logRepo->log(
+                                $job->getAutomationId(),
+                                $step->getStepId(),
+                                $job->getUserId(),
+                                'EXITED',
+                                ['error' => $result->getError(), 'retry' => true, 'attempt' => $job->getRetryCount() + 1]
+                            );
+
+                            $wpdb->query('COMMIT');
+                            $this->scheduleRetry($job, $result->getError());
+                            return true;
+                        }
+
+                        $job->setStatus('FAILED');
+                        $job->setLastError($result->getError());
+                        $this->jobRepo->update($job);
+
+                        $this->logRepo->log(
+                            $job->getAutomationId(),
+                            $step->getStepId(),
+                            $job->getUserId(),
+                            'EXITED',
+                            ['error' => $result->getError()]
+                        );
+
+                        $wpdb->query('COMMIT');
+
+                        do_action('mailerpress_workflow_job_failed', $job, $result->getError());
+
+                        return false;
+                    }
+
+                    // Mettre à jour le prochain step d'après le résultat
+                    $nextStepIdFromResult = $result->getNextStepId();
+                    $job->setNextStepId($nextStepIdFromResult);
+
+                    // Preserve WAITING status if handler set it (for future-dependent conditions)
+                    if ($job->getStatus() !== 'WAITING') {
+                        $job->setStatus('ACTIVE');
+                    }
+
                     $this->jobRepo->update($job);
 
                     $this->logRepo->log(
@@ -164,55 +233,16 @@ class WorkflowExecutor
                         $step->getStepId(),
                         $job->getUserId(),
                         'COMPLETED',
-                        ['skipped' => true, 'reason' => 'No handler found for key: ' . $stepKey]
+                        $result->getData()
                     );
 
-                    // continuer la boucle immédiatement
-                    continue;
+                    $wpdb->query('COMMIT');
+
+                    do_action('mailerpress_workflow_step_executed', $job, $step, $result, $context);
+                } catch (\Exception $stepException) {
+                    $wpdb->query('ROLLBACK');
+                    throw $stepException;
                 }
-
-                // Pass context to handler - it will be preserved through the loop
-                $result = $handler->handle($step, $job, $context);
-
-                // Merge any new context data from the result back into context
-                $resultData = $result->getData();
-                if (is_array($resultData) && !empty($resultData)) {
-                    $context = array_merge($context, $resultData);
-                }
-
-                if (!$result->isSuccess()) {
-                    $job->setStatus('FAILED');
-                    $this->jobRepo->update($job);
-
-                    $this->logRepo->log(
-                        $job->getAutomationId(),
-                        $step->getStepId(),
-                        $job->getUserId(),
-                        'EXITED',
-                        ['error' => $result->getError()]
-                    );
-
-                    return false;
-                }
-
-                // Mettre à jour le prochain step d'après le résultat
-                $nextStepIdFromResult = $result->getNextStepId();
-                $job->setNextStepId($nextStepIdFromResult);
-
-                // Preserve WAITING status if handler set it (for future-dependent conditions)
-                if ($job->getStatus() !== 'WAITING') {
-                    $job->setStatus('ACTIVE');
-                }
-
-                $this->jobRepo->update($job);
-
-                $this->logRepo->log(
-                    $job->getAutomationId(),
-                    $step->getStepId(),
-                    $job->getUserId(),
-                    'COMPLETED',
-                    $result->getData()
-                );
 
                 // Si le job est en attente (WAITING), on s'arrête ici
                 if ($job->getStatus() === 'WAITING') {
@@ -228,11 +258,73 @@ class WorkflowExecutor
             // Si on atteint la limite, on s'arrête proprement
             return true;
         } catch (\Exception $e) {
+            Logger::error('WorkflowExecutor: Job execution failed', [
+                'job_id' => $jobId,
+                'automation_id' => $job->getAutomationId(),
+                'step_id' => $job->getNextStepId(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            $this->logRepo->log(
+                $job->getAutomationId(),
+                $job->getNextStepId() ?? 'unknown',
+                $job->getUserId(),
+                'EXITED',
+                [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]
+            );
+
+            if (!($e instanceof NonRetryableException) && $job->canRetry()) {
+                $this->scheduleRetry($job, $e->getMessage());
+                return true;
+            }
+
             $job->setStatus('FAILED');
+            $job->setLastError($e->getMessage());
             $this->jobRepo->update($job);
+
+            do_action('mailerpress_workflow_job_failed', $job, $e->getMessage());
 
             return false;
         }
+    }
+
+    private function scheduleRetry(AutomationJob $job, string $error): void
+    {
+        $attempt = $job->getRetryCount() + 1;
+        $job->setRetryCount($attempt);
+        $job->setLastError($error);
+        $job->setStatus('ACTIVE');
+
+        // Exponential backoff: 1min, 5min, 25min (base 5^n minutes, cap 30min)
+        $delaySeconds = (int) min(pow(5, $attempt) * 60, 30 * 60);
+        $scheduledAt = gmdate('Y-m-d H:i:s', time() + $delaySeconds);
+        $job->setScheduledAt($scheduledAt);
+        $this->jobRepo->update($job);
+
+        if (function_exists('as_schedule_single_action')) {
+            as_schedule_single_action(
+                time() + $delaySeconds,
+                'mailerpress_continue_workflow',
+                [['job_id' => $job->getId()]],
+                'mailerpress_workflows'
+            );
+        }
+
+        Logger::info('WorkflowExecutor: Job scheduled for retry', [
+            'job_id' => $job->getId(),
+            'attempt' => $attempt,
+            'max_retries' => $job->getMaxRetries(),
+            'delay_seconds' => $delaySeconds,
+            'error' => $error,
+        ]);
+
+        do_action('mailerpress_workflow_job_retry_scheduled', $job, $attempt);
     }
 
     public function continueWorkflow(int $jobId, ?string $nextStepId = null, array $context = []): bool
@@ -258,7 +350,7 @@ class WorkflowExecutor
     /**
      * Re-evaluate waiting jobs for a specific user and campaign
      * Called when an email is opened or clicked
-     * 
+     *
      * @param int $userId
      * @param int $campaignId
      * @param string $eventType 'mp_email_opened' or 'mp_email_clicked'
@@ -266,234 +358,128 @@ class WorkflowExecutor
      */
     public function reevaluateWaitingJobs(int $userId, int $campaignId, string $eventType): int
     {
-        // Get all waiting jobs for this user (jobs that are in WAITING status)
         $waitingJobs = $this->jobRepo->findWaitingByUser($userId);
-
-        // Also get all WAITING logs for this user (even if job is not in WAITING status)
-        // This handles cases where the job went to "No" path but we still want to re-evaluate
         $allWaitingLogs = $this->logRepo->getAllWaitingLogsForUser($userId, $eventType, $campaignId);
+
         if (empty($waitingJobs) && empty($allWaitingLogs)) {
             return 0;
         }
 
         $reevaluated = 0;
+        $reevaluated += $this->processOrphanedWaitingLogs($allWaitingLogs, $waitingJobs, $userId, $campaignId);
+        $reevaluated += $this->processWaitingJobs($waitingJobs, $allWaitingLogs, $userId, $campaignId, $eventType);
 
-        // Process waiting logs that are not associated with WAITING jobs
-        // These are logs created when condition went to "No" path but we still want to re-evaluate
+        return $reevaluated;
+    }
+
+    /**
+     * Process waiting logs that are not associated with any WAITING job.
+     * These are logs created when condition went to "No" path but we still want to re-evaluate.
+     */
+    private function processOrphanedWaitingLogs(array $allWaitingLogs, array $waitingJobs, int $userId, int $campaignId): int
+    {
+        $reevaluated = 0;
+
         foreach ($allWaitingLogs as $waitingLog) {
             $logData = json_decode($waitingLog['data'] ?? '{}', true);
             $automationId = $logData['automation_id'] ?? $waitingLog['automation_id'] ?? null;
             $conditionStepId = $logData['step_id'] ?? null;
             $successStepId = $logData['success_step_id'] ?? null;
             $waitingLogCreatedAt = $waitingLog['created_at'] ?? null;
-            $jobIdFromLog = $logData['job_id'] ?? null;
 
             if (!$automationId || !$conditionStepId || !$successStepId) {
                 continue;
             }
 
-            // Check if this log is already associated with a WAITING job
-            $associatedWaitingJob = null;
-            foreach ($waitingJobs as $job) {
-                if ($job->getAutomationId() == $automationId && $job->getUserId() == $userId) {
-                    // Also check if job_id matches if available
-                    if ($jobIdFromLog && $job->getId() == $jobIdFromLog) {
-                        $associatedWaitingJob = $job;
-                        break;
-                    } elseif (!$jobIdFromLog) {
-                        // If no job_id in log, match by automation and user
-                        $associatedWaitingJob = $job;
-                        break;
-                    }
-                }
-            }
-
-            // If associated with a WAITING job, process it in the job loop below
-            // Otherwise, evaluate condition and create new job if it passes
-            if ($associatedWaitingJob) {
+            if ($this->isLogAssociatedWithWaitingJob($logData, $waitingJobs, $userId)) {
                 continue;
             }
 
-            // If not associated with a WAITING job, evaluate condition and create new job if it passes
-            if (!$associatedWaitingJob) {
-                // Get email_sent_at from the log entry when the email was sent
-                // Try to use email_sent_step_id from waiting log if available
-                $emailSentStepId = $logData['email_sent_step_id'] ?? null;
-                $emailSentData = $this->logRepo->getEmailSentLog(
-                    $automationId,
-                    $userId,
-                    $campaignId,
-                    $waitingLogCreatedAt,
-                    $emailSentStepId
-                );
+            $emailSentStepId = $logData['email_sent_step_id'] ?? null;
+            $context = $this->buildReevaluationContext($automationId, $userId, $campaignId, $waitingLogCreatedAt, $emailSentStepId);
 
-                if ($emailSentData) {
-                    // Get context from logs
-                    $context = $this->logRepo->getTriggerContext($automationId, $userId) ?? [];
-                    $context = array_merge($context, [
-                        'email_sent_at' => $emailSentData['email_sent_at'] ?? null,
-                        'job_id' => $emailSentData['job_id'] ?? null,
-                        'step_id' => $emailSentData['step_id'] ?? null,
-                        'campaign_id' => $campaignId,
-                        'contact_id' => $emailSentData['contact_id'] ?? null,
-                    ]);
+            if (empty($context)) {
+                continue;
+            }
 
-                    // Get the condition step to evaluate
-                    $step = $this->stepRepo->findByStepId($conditionStepId);
-                    if ($step) {
-                        // Instead of creating a temporary job, directly evaluate the condition
-                        // We'll use the ConditionEvaluator directly to check if condition passes
-                        $evaluator = new ConditionEvaluator();
+            $step = $this->stepRepo->findByStepId($conditionStepId);
+            if (!$step) {
+                continue;
+            }
 
-                        // Add step_id to context for condition evaluation
-                        $evaluationContext = array_merge($context, [
-                            'step_id' => $conditionStepId,
-                            'user_id' => $userId,
-                        ]);
+            $evaluator = new ConditionEvaluator();
+            $evaluationContext = array_merge($context, [
+                'step_id' => $conditionStepId,
+                'user_id' => $userId,
+            ]);
 
-                        $conditionMet = $evaluator->evaluate($step->getSettings()['condition'] ?? [], $userId, $evaluationContext);
-                        // If condition passes, create a new job for the "Yes" path
-                        if ($conditionMet) {
-                            // Verify the success step exists
-                            $successStep = $this->stepRepo->findByStepId($successStepId);
-                            if (!$successStep) {
-                            } else {
-                                $newJob = $this->jobRepo->create($automationId, $userId, $successStepId);
-                                if ($newJob) {
-                                    $this->executeJob($newJob->getId(), $context);
-                                    $reevaluated++;
-                                }
-                            }
-                        }
+            $conditionMet = $evaluator->evaluate($step->getSettings()['condition'] ?? [], $userId, $evaluationContext);
+
+            if ($conditionMet) {
+                $successStep = $this->stepRepo->findByStepId($successStepId);
+                if ($successStep) {
+                    $newJob = $this->jobRepo->create($automationId, $userId, $successStepId);
+                    if ($newJob) {
+                        $this->executeJob($newJob->getId(), $context);
+                        $reevaluated++;
                     }
                 }
             }
         }
 
+        return $reevaluated;
+    }
+
+    /**
+     * Process jobs in WAITING status by re-evaluating their conditions.
+     */
+    private function processWaitingJobs(array $waitingJobs, array $allWaitingLogs, int $userId, int $campaignId, string $eventType): int
+    {
+        $reevaluated = 0;
+
         foreach ($waitingJobs as $job) {
-            // Get ALL waiting logs for this event (not just the last one)
-            // This handles cases where multiple conditions are waiting for the same email
-            $waitingLogs = $this->logRepo->getAllWaitingLogsForEvent(
-                $job->getAutomationId(),
-                $job->getUserId(),
-                $eventType,
-                $campaignId
-            );
-
-            if (empty($waitingLogs)) {
-                // Fallback: try to get the last waiting log (for backward compatibility)
-                $waitingLog = $this->logRepo->getLastWaitingLogForJob($job->getAutomationId(), $job->getUserId());
-                if ($waitingLog) {
-                    $logData = json_decode($waitingLog['data'] ?? '{}', true);
-                    $waitingForField = $logData['waiting_for_field'] ?? null;
-                    $waitingForCampaignId = $logData['waiting_for_campaign_id'] ?? null;
-
-                    if ($waitingForField === $eventType && $waitingForCampaignId == $campaignId) {
-                        $waitingLogs = [$waitingLog];
-                    }
-                }
-            }
-
-            // If still empty, try to find logs from $allWaitingLogs that match this job
-            if (empty($waitingLogs)) {
-                foreach ($allWaitingLogs as $waitingLog) {
-                    $logData = json_decode($waitingLog['data'] ?? '{}', true);
-                    $logJobId = $logData['job_id'] ?? null;
-                    $logAutomationId = $logData['automation_id'] ?? $waitingLog['automation_id'] ?? null;
-                    $waitingForField = $logData['waiting_for_field'] ?? null;
-                    $waitingForCampaignId = $logData['waiting_for_campaign_id'] ?? null;
-
-                    if (
-                        $logAutomationId == $job->getAutomationId() &&
-                        ($logJobId == $job->getId() || !$logJobId) &&
-                        $waitingForField === $eventType &&
-                        $waitingForCampaignId == $campaignId
-                    ) {
-                        $waitingLogs[] = $waitingLog;
-                    }
-                }
-            }
+            $waitingLogs = $this->resolveWaitingLogsForJob($job, $allWaitingLogs, $eventType, $campaignId);
 
             if (empty($waitingLogs)) {
                 continue;
             }
 
             // Sort waiting logs by created_at ASC to process them in chronological order
-            // This ensures we re-evaluate conditions in the order they were created
             usort($waitingLogs, function ($a, $b) {
                 $timeA = strtotime($a['created_at'] ?? '1970-01-01');
                 $timeB = strtotime($b['created_at'] ?? '1970-01-01');
                 return $timeA <=> $timeB;
             });
 
-            // Re-evaluate each waiting condition
-            // We need to re-evaluate ALL conditions that are waiting for this event
             foreach ($waitingLogs as $waitingLog) {
                 $logData = json_decode($waitingLog['data'] ?? '{}', true);
-                $waitingForField = $logData['waiting_for_field'] ?? null;
-                $waitingForCampaignId = $logData['waiting_for_campaign_id'] ?? null;
                 $conditionStepId = $logData['step_id'] ?? null;
                 $waitingLogCreatedAt = $waitingLog['created_at'] ?? null;
 
-                // Re-fetch the job to get the latest state before each re-evaluation
                 $currentJob = $this->jobRepo->find($job->getId());
                 if (!$currentJob) {
                     break;
                 }
 
-                // Check if this specific condition is still relevant
-                // If the job is no longer WAITING, it might have already passed a previous condition
-                // But we still want to re-evaluate this condition if it's the one we're waiting for
-
-                // Get context from logs
-                $context = $this->logRepo->getTriggerContext($job->getAutomationId(), $job->getUserId()) ?? [];
-
-                // Get email_sent_at from the log entry when the email was sent
-                // IMPORTANT: Only get emails sent BEFORE the condition was evaluated (waitingLogCreatedAt)
-                // This ensures we get the correct email for this specific condition, not a later one
-                // Try to use email_sent_step_id from waiting log if available
                 $emailSentStepId = $logData['email_sent_step_id'] ?? null;
-                $emailSentData = $this->logRepo->getEmailSentLog(
+                $context = $this->buildReevaluationContext(
                     $job->getAutomationId(),
                     $job->getUserId(),
                     $campaignId,
-                    $waitingLogCreatedAt,  // Only get emails sent before this condition was evaluated
-                    $emailSentStepId
+                    $waitingLogCreatedAt,
+                    $emailSentStepId,
+                    $job->getId()
                 );
 
-                if ($emailSentData) {
-                    // Add email_sent_at, job_id, step_id, and contact_id to context for condition evaluation
-                    // contact_id is CRITICAL for non-subscribers - it should be user_id for them
-                    // NOTE: step_id here is from email sent log (Send Email step), but ConditionStepHandler will override it with condition step ID
-                    $context = array_merge($context, [
-                        'email_sent_at' => $emailSentData['email_sent_at'] ?? null,
-                        'job_id' => $emailSentData['job_id'] ?? $job->getId(),
-                        'step_id' => $emailSentData['step_id'] ?? null, // This will be overridden by ConditionStepHandler
-                        'campaign_id' => $campaignId,
-                        'contact_id' => $emailSentData['contact_id'] ?? null, // Pass contact_id from email sent log
-                    ]);
-                } else {
-                    // Still add job_id and step_id for context
-                    $context = array_merge($context, [
-                        'job_id' => $job->getId(),
-                        'campaign_id' => $campaignId,
-                    ]);
-                }
-
                 // Set job back to WAITING temporarily, then re-activate and set next_step_id
-                // This ensures we can properly re-evaluate the condition
-                $currentJob->setStatus('WAITING'); // Temporary, will be set to ACTIVE below
+                $currentJob->setStatus('WAITING');
                 $currentJob->setNextStepId($conditionStepId);
                 $this->jobRepo->update($currentJob);
 
-                // Now set to ACTIVE and re-evaluate
                 $currentJob->setStatus('ACTIVE');
                 $this->jobRepo->update($currentJob);
 
-                // Continue execution - this will re-evaluate the condition
-                // The condition should now pass because the email has been opened AFTER it was sent
                 $this->executeJob($job->getId(), $context);
-
                 $reevaluated++;
             }
         }
@@ -502,8 +488,114 @@ class WorkflowExecutor
     }
 
     /**
+     * Build evaluation context from log data for re-evaluation.
+     */
+    private function buildReevaluationContext(int $automationId, int $userId, int $campaignId, ?string $waitingLogCreatedAt, ?string $emailSentStepId, ?int $jobId = null): array
+    {
+        $emailSentData = $this->logRepo->getEmailSentLog(
+            $automationId,
+            $userId,
+            $campaignId,
+            $waitingLogCreatedAt,
+            $emailSentStepId
+        );
+
+        if (!$emailSentData) {
+            if ($jobId) {
+                $context = $this->logRepo->getTriggerContext($automationId, $userId) ?? [];
+                return array_merge($context, [
+                    'job_id' => $jobId,
+                    'campaign_id' => $campaignId,
+                ]);
+            }
+            return [];
+        }
+
+        $context = $this->logRepo->getTriggerContext($automationId, $userId) ?? [];
+        return array_merge($context, [
+            'email_sent_at' => $emailSentData['email_sent_at'] ?? null,
+            'job_id' => $emailSentData['job_id'] ?? $jobId,
+            'step_id' => $emailSentData['step_id'] ?? null,
+            'campaign_id' => $campaignId,
+            'contact_id' => $emailSentData['contact_id'] ?? null,
+        ]);
+    }
+
+    /**
+     * Check if a waiting log is associated with a WAITING job.
+     */
+    private function isLogAssociatedWithWaitingJob(array $logData, array $waitingJobs, int $userId): bool
+    {
+        $automationId = $logData['automation_id'] ?? null;
+        $jobIdFromLog = $logData['job_id'] ?? null;
+
+        foreach ($waitingJobs as $job) {
+            if ($job->getAutomationId() == $automationId && $job->getUserId() == $userId) {
+                if ($jobIdFromLog && $job->getId() == $jobIdFromLog) {
+                    return true;
+                } elseif (!$jobIdFromLog) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Resolve all waiting logs relevant to a specific job, with multiple fallback strategies.
+     */
+    private function resolveWaitingLogsForJob(AutomationJob $job, array $allWaitingLogs, string $eventType, int $campaignId): array
+    {
+        // Strategy 1: Get waiting logs for this specific event
+        $waitingLogs = $this->logRepo->getAllWaitingLogsForEvent(
+            $job->getAutomationId(),
+            $job->getUserId(),
+            $eventType,
+            $campaignId
+        );
+
+        if (!empty($waitingLogs)) {
+            return $waitingLogs;
+        }
+
+        // Strategy 2: Fallback to last waiting log (backward compatibility)
+        $waitingLog = $this->logRepo->getLastWaitingLogForJob($job->getAutomationId(), $job->getUserId());
+        if ($waitingLog) {
+            $logData = json_decode($waitingLog['data'] ?? '{}', true);
+            $waitingForField = $logData['waiting_for_field'] ?? null;
+            $waitingForCampaignId = $logData['waiting_for_campaign_id'] ?? null;
+
+            if ($waitingForField === $eventType && $waitingForCampaignId == $campaignId) {
+                return [$waitingLog];
+            }
+        }
+
+        // Strategy 3: Match from allWaitingLogs by automation/job/event
+        $matched = [];
+        foreach ($allWaitingLogs as $log) {
+            $logData = json_decode($log['data'] ?? '{}', true);
+            $logJobId = $logData['job_id'] ?? null;
+            $logAutomationId = $logData['automation_id'] ?? $log['automation_id'] ?? null;
+            $waitingForField = $logData['waiting_for_field'] ?? null;
+            $waitingForCampaignId = $logData['waiting_for_campaign_id'] ?? null;
+
+            if (
+                $logAutomationId == $job->getAutomationId() &&
+                ($logJobId == $job->getId() || !$logJobId) &&
+                $waitingForField === $eventType &&
+                $waitingForCampaignId == $campaignId
+            ) {
+                $matched[] = $log;
+            }
+        }
+
+        return $matched;
+    }
+
+    /**
      * Clean up abandoned cart tracking entry when automation is completed
-     * 
+     *
      * @param \MailerPress\Core\Workflows\Models\AutomationJob $job
      * @return void
      */
@@ -527,8 +619,13 @@ class WorkflowExecutor
 
             // Delete the active cart tracking entry for this user
             $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
-            $deleted = $cartRepo->deleteCartsByUserId($job->getUserId());
+            $cartRepo->deleteCartsByUserId($job->getUserId());
         } catch (\Exception $e) {
+            Logger::warning('WorkflowExecutor: Failed to cleanup abandoned cart tracking', [
+                'job_id' => $job->getId(),
+                'user_id' => $job->getUserId(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

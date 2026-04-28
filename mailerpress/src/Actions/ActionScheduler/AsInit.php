@@ -24,14 +24,34 @@ final class AsInit
 
 
 
-        if (\function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mailerpress_as_clean')) {
-            as_schedule_recurring_action(
-                time(),
-                WEEK_IN_SECONDS,
-                'mailerpress_as_clean',
-                [],
-                'mailerpress'
-            );
+        if (\function_exists('as_has_scheduled_action') && \function_exists('as_schedule_recurring_action')) {
+            $existing = as_get_scheduled_actions([
+                'hook'   => 'mailerpress_as_clean',
+                'status' => \ActionScheduler_Store::STATUS_PENDING,
+            ], 'ARRAY_A');
+
+            $needsReschedule = true;
+            foreach ( $existing as $action ) {
+                $interval = $action['schedule'] ?? null;
+                if ( $interval instanceof \ActionScheduler_IntervalSchedule ) {
+                    $recurrence = $interval->get_recurrence();
+                    if ( (int) $recurrence === DAY_IN_SECONDS ) {
+                        $needsReschedule = false;
+                        break;
+                    }
+                }
+            }
+
+            if ( $needsReschedule ) {
+                as_unschedule_all_actions( 'mailerpress_as_clean' );
+                as_schedule_recurring_action(
+                    time(),
+                    DAY_IN_SECONDS,
+                    'mailerpress_as_clean',
+                    [],
+                    'mailerpress'
+                );
+            }
         }
 
         // Gestion simple de l'action de check bounce (toutes les 12h)
@@ -56,18 +76,45 @@ final class AsInit
                 self::deleteAllBounceActionsFromDatabase();
             }
         }
+
+        // Refresh audience counts for scheduled campaigns (every 15 minutes)
+        if (\function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mailerpress_refresh_scheduled_counts')) {
+            as_schedule_recurring_action(
+                time(),
+                15 * MINUTE_IN_SECONDS,
+                'mailerpress_refresh_scheduled_counts',
+                [],
+                'mailerpress'
+            );
+        }
+
+        // Workflow cleanup cron (daily)
+        if (\function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mailerpress_workflow_cleanup')) {
+            as_schedule_recurring_action(
+                time(),
+                DAY_IN_SECONDS,
+                'mailerpress_workflow_cleanup',
+                [],
+                'mailerpress'
+            );
+        }
+
+        add_action('mailerpress_workflow_cleanup', function () {
+            $cleanup = new \MailerPress\Core\Workflows\Services\WorkflowCleanup();
+            $cleanup->cleanup();
+        });
     }
 
     #[Filter('action_scheduler_queue_runner_concurrent_batches')]
     public function mailerpress_increase_concurrent_batches($concurrent_batches)
     {
-        return 1;
+        return 3;
     }
 
     #[Filter('action_scheduler_queue_runner_batch_size')]
     public function mailerpress_increase_queue_batch_size($batch_size)
     {
-        return 5;
+        return 20;
     }
 
     #[Filter(['action_scheduler_timeout_period', 'action_scheduler_failure_period'])]
@@ -104,7 +151,6 @@ final class AsInit
                     add_action('process_import_chunk', [$processor, 'processImportChunk'], 10, 2);
                 }
             } catch (\Exception $e) {
-                error_log('MailerPress: Failed to register process_import_chunk hook: ' . $e->getMessage());
             }
         }
     }
@@ -123,7 +169,6 @@ final class AsInit
                     add_action('process_delete_chunk', [$processor, 'processDeleteChunk'], 10, 1);
                 }
             } catch (\Exception $e) {
-                error_log('MailerPress: Failed to register process_delete_chunk hook: ' . $e->getMessage());
             }
         }
     }

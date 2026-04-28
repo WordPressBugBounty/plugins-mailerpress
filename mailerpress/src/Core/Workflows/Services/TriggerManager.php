@@ -12,16 +12,21 @@ class TriggerManager
     private StepRepository $stepRepo;
     private AutomationJobRepository $jobRepo;
     private WorkflowExecutor $executor;
+    private TriggerRateLimiter $rateLimiter;
     private array $registeredTriggers = [];
     private array $triggerDefinitions = [];
 
-    public function __construct(?WorkflowExecutor $executor = null)
-    {
-        $this->automationRepo = new AutomationRepository();
-        $this->stepRepo = new StepRepository();
-        $this->jobRepo = new AutomationJobRepository();
-        // Use provided executor or create a new one (for backward compatibility)
+    public function __construct(
+        ?WorkflowExecutor $executor = null,
+        ?AutomationRepository $automationRepo = null,
+        ?StepRepository $stepRepo = null,
+        ?AutomationJobRepository $jobRepo = null
+    ) {
+        $this->automationRepo = $automationRepo ?? new AutomationRepository();
+        $this->stepRepo = $stepRepo ?? new StepRepository();
+        $this->jobRepo = $jobRepo ?? new AutomationJobRepository();
         $this->executor = $executor ?? new WorkflowExecutor();
+        $this->rateLimiter = new TriggerRateLimiter();
     }
 
     /**
@@ -86,17 +91,6 @@ class TriggerManager
         $automations = $this->automationRepo->findByStatus('ENABLED');
 
         foreach ($automations as $automation) {
-            // Debug: Get all triggers for this automation to see what keys are stored
-            $allSteps = $this->stepRepo->findByAutomationId($automation->getId());
-            $triggerKeys = [];
-            $allStepKeys = [];
-            foreach ($allSteps as $step) {
-                $allStepKeys[] = "type={$step->getType()}, key={$step->getKey()}";
-                if ($step->isTrigger()) {
-                    $triggerKeys[] = $step->getKey();
-                }
-            }
-
             $trigger = $this->stepRepo->findTriggerByKey($automation->getId(), $triggerKey);
 
             if (!$trigger) {
@@ -105,6 +99,10 @@ class TriggerManager
 
             $context = $contextBuilder ? $contextBuilder(...$args) : [];
 
+            if (empty($context)) {
+                continue;
+            }
+
             // For abandoned cart trigger, verify context has cart_hash
             if ($triggerKey === 'woocommerce_abandoned_cart') {
                 if (empty($context['cart_hash'])) {
@@ -112,9 +110,41 @@ class TriggerManager
                 }
             }
 
+            // For SureCart triggers, verify context has at least customer_email
+            if (strpos($triggerKey, 'surecart_') === 0) {
+                if (empty($context['customer_email']) && empty($context['email']) && empty($context['user_email'])) {
+                    continue;
+                }
+            }
+
             $userId = $context['user_id'] ?? null;
             if (!$userId) {
                 $userId = get_current_user_id();
+            }
+
+            // For guest checkouts (e.g., SureCart, WooCommerce guest orders),
+            // we may not have a user_id but we have a customer email.
+            // Look up or skip if no MailerPress contact exists for this email.
+            if (!$userId) {
+                $guestEmail = $context['customer_email'] ?? $context['email'] ?? $context['user_email'] ?? null;
+                if (!empty($guestEmail)) {
+                    $contactsModel = new \MailerPress\Models\Contacts();
+                    $guestContact = $contactsModel->getContactByEmail($guestEmail);
+                    if ($guestContact) {
+                        $userId = (int) $guestContact->contact_id;
+                        $context['contact_id'] = $userId;
+                    }
+                }
+            }
+
+            // If create_contact is enabled in trigger settings, create/update the contact
+            $triggerSettings = $trigger->getSettings() ?? [];
+            if (!empty($triggerSettings['create_contact'])) {
+                $createdContact = $this->createContactFromTrigger($triggerSettings, $context);
+                if ($createdContact) {
+                    $userId = (int) $createdContact->contact_id;
+                    $context['contact_id'] = $userId;
+                }
             }
 
             if (!$userId) {
@@ -211,12 +241,18 @@ class TriggerManager
             $conditionsPass = $this->checkTriggerConditions($trigger, $userId, $context);
 
             if (!$conditionsPass) {
+                do_action('mailerpress_workflow_trigger_skipped', $triggerKey, $automation->getId(), $userId, $context);
                 continue;
             }
 
             $nextStepId = $trigger->getNextStepId();
 
             if (empty($nextStepId)) {
+                continue;
+            }
+
+            if (!$this->rateLimiter->isAllowed($triggerKey, $userId)) {
+                do_action('mailerpress_workflow_trigger_rate_limited', $triggerKey, $userId);
                 continue;
             }
 
@@ -227,6 +263,7 @@ class TriggerManager
             );
 
             if ($job) {
+                do_action('mailerpress_workflow_trigger_fired', $triggerKey, $job, $context);
                 $this->executor->executeJob($job->getId(), $context);
             }
         }
@@ -332,6 +369,7 @@ class TriggerManager
         $conditionsPass = $this->checkTriggerConditions($trigger, $userId, $context);
 
         if (!$conditionsPass) {
+            do_action('mailerpress_workflow_trigger_skipped', $triggerKey, $automationId, $userId, $context);
             return;
         }
 
@@ -341,345 +379,189 @@ class TriggerManager
             return;
         }
 
+        if (!$this->rateLimiter->isAllowed($triggerKey, $userId)) {
+            do_action('mailerpress_workflow_trigger_rate_limited', $triggerKey, $userId);
+            return;
+        }
+
         $job = $this->jobRepo->create($automationId, $userId, $nextStepId);
 
         if ($job) {
+            do_action('mailerpress_workflow_trigger_fired', $triggerKey, $job, $context);
             $this->executor->executeJob($job->getId(), $context);
         }
+    }
+
+    /**
+     * Create or update a MailerPress contact from trigger settings and context.
+     *
+     * @param array $triggerSettings Trigger step settings (with create_contact, contact_email, etc.)
+     * @param array $context Workflow context data
+     * @return object|null The contact object, or null on failure
+     */
+    private function createContactFromTrigger(array $triggerSettings, array $context): ?object
+    {
+        $emailTemplate = $triggerSettings['contact_email'] ?? '';
+        $email = $this->replacePlaceholders($emailTemplate, $context);
+
+        if (empty($email)) {
+            return null;
+        }
+
+        $email = sanitize_email($email);
+        if (!is_email($email)) {
+            return null;
+        }
+
+        $firstName = sanitize_text_field($this->replacePlaceholders($triggerSettings['contact_first_name'] ?? '', $context));
+        $lastName = sanitize_text_field($this->replacePlaceholders($triggerSettings['contact_last_name'] ?? '', $context));
+        $subscriptionStatus = $triggerSettings['contact_subscription_status'] ?? 'subscribed';
+        $updateExisting = $triggerSettings['contact_update_existing'] ?? true;
+
+        global $wpdb;
+        $contactTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_CONTACT);
+        $contactsModel = new \MailerPress\Models\Contacts();
+
+        $existingContact = $contactsModel->getContactByEmail($email);
+
+        if ($existingContact) {
+            if ($updateExisting) {
+                $updateData = ['updated_at' => current_time('mysql')];
+                $updateFormat = ['%s'];
+
+                if (!empty($firstName)) {
+                    $updateData['first_name'] = $firstName;
+                    $updateFormat[] = '%s';
+                }
+                if (!empty($lastName)) {
+                    $updateData['last_name'] = $lastName;
+                    $updateFormat[] = '%s';
+                }
+
+                $wpdb->update($contactTable, $updateData, ['contact_id' => $existingContact->contact_id], $updateFormat, ['%d']);
+            }
+
+            $this->addContactToLists((int) $existingContact->contact_id, $triggerSettings);
+            return $existingContact;
+        }
+
+        // Create new contact
+        $result = $wpdb->insert($contactTable, [
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'subscription_status' => $subscriptionStatus,
+            'opt_in_source' => 'workflow',
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql'),
+            'unsubscribe_token' => wp_generate_uuid4(),
+            'access_token' => bin2hex(random_bytes(32)),
+        ], ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s']);
+
+        if ($result === false) {
+            return null;
+        }
+
+        $contactId = (int) $wpdb->insert_id;
+        \do_action('mailerpress_contact_created', $contactId);
+
+        $this->addContactToLists($contactId, $triggerSettings);
+
+        return $contactsModel->get($contactId);
+    }
+
+    /**
+     * Add contact to lists specified in trigger settings.
+     */
+    private function addContactToLists(int $contactId, array $triggerSettings): void
+    {
+        $lists = $triggerSettings['contact_lists'] ?? [];
+        if (empty($lists)) {
+            return;
+        }
+
+        if (is_string($lists)) {
+            $decoded = json_decode($lists, true);
+            $lists = is_array($decoded) ? $decoded : array_map('trim', explode(',', $lists));
+        }
+
+        global $wpdb;
+        $listsTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_CONTACT_LIST);
+
+        foreach ($lists as $item) {
+            $listId = is_array($item) ? (int) ($item['value'] ?? $item['id'] ?? 0) : (int) $item;
+            if ($listId <= 0) {
+                continue;
+            }
+
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT 1 FROM {$listsTable} WHERE contact_id = %d AND list_id = %d",
+                $contactId,
+                $listId
+            ));
+
+            if (!$exists) {
+                $wpdb->insert($listsTable, [
+                    'contact_id' => $contactId,
+                    'list_id' => $listId,
+                ], ['%d', '%d']);
+                \do_action('mailerpress_contact_list_added', $contactId, $listId);
+            }
+        }
+    }
+
+    /**
+     * Replace {{placeholder}} patterns with values from context.
+     */
+    private function replacePlaceholders(string $template, array $context): string
+    {
+        if (empty($template)) {
+            return '';
+        }
+
+        return preg_replace_callback('/\{\{(\w+(?:\.\w+)*)\}\}/', function ($matches) use ($context) {
+            $key = $matches[1];
+
+            // Support dot notation
+            if (str_contains($key, '.')) {
+                $parts = explode('.', $key);
+                $value = $context;
+                foreach ($parts as $part) {
+                    if (is_array($value) && isset($value[$part])) {
+                        $value = $value[$part];
+                    } else {
+                        return '';
+                    }
+                }
+                return is_scalar($value) ? (string) $value : '';
+            }
+
+            if (isset($context[$key]) && is_scalar($context[$key])) {
+                return (string) $context[$key];
+            }
+
+            return '';
+        }, $template);
     }
 
     private function checkTriggerConditions($trigger, int $userId, array $context): bool
     {
         $settings = $trigger->getSettings() ?? [];
-        $triggerKey = $trigger->getKey();
 
-        // Check specific trigger settings
-        switch ($triggerKey) {
-            case 'woocommerce_order_status_changed':
-                $orderStatus = $settings['order_status'] ?? null;
-                if ($orderStatus && isset($context['order_status'])) {
-                    if ($context['order_status'] !== $orderStatus) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'mailerpress_contact_optin':
-                // Check subscription status filter
-                $subscriptionStatus = $settings['subscription_status'] ?? null;
-                if ($subscriptionStatus && isset($context['subscription_status'])) {
-                    if ($context['subscription_status'] !== $subscriptionStatus) {
-                        return false;
-                    }
-                }
-
-                // Check lists filter
-                $requiredLists = $settings['lists'] ?? null;
-                if ($requiredLists && !empty($requiredLists)) {
-                    $contactLists = $context['lists'] ?? [];
-                    if (empty($contactLists)) {
-                        // Contact has no lists but lists are required
-                        return false;
-                    }
-
-                    // Convert to arrays if needed
-                    if (!is_array($requiredLists)) {
-                        $requiredLists = [$requiredLists];
-                    }
-                    if (!is_array($contactLists)) {
-                        $contactLists = [$contactLists];
-                    }
-
-                    // Convert to integers for comparison
-                    $requiredLists = array_map('intval', $requiredLists);
-                    $contactLists = array_map('intval', $contactLists);
-
-                    // Check if contact has at least one of the required lists
-                    $hasRequiredList = !empty(array_intersect($requiredLists, $contactLists));
-                    if (!$hasRequiredList) {
-                        return false;
-                    }
-                }
-
-                // Check tags filter
-                $requiredTags = $settings['tags'] ?? null;
-                if ($requiredTags && !empty($requiredTags)) {
-                    $contactTags = $context['tags'] ?? [];
-                    if (empty($contactTags)) {
-                        // Contact has no tags but tags are required
-                        return false;
-                    }
-
-                    // Convert to arrays if needed
-                    if (!is_array($requiredTags)) {
-                        $requiredTags = [$requiredTags];
-                    }
-                    if (!is_array($contactTags)) {
-                        $contactTags = [$contactTags];
-                    }
-
-                    // Convert to integers for comparison
-                    $requiredTags = array_map('intval', $requiredTags);
-                    $contactTags = array_map('intval', $contactTags);
-
-                    // Check if contact has at least one of the required tags
-                    $hasRequiredTag = !empty(array_intersect($requiredTags, $contactTags));
-                    if (!$hasRequiredTag) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'post_published':
-                // Check post type filter
-                $postType = $settings['post_type'] ?? null;
-                if ($postType && isset($context['post_type'])) {
-                    if ($context['post_type'] !== $postType) {
-                        return false;
-                    }
-                }
-
-                // Check post category filter
-                $categoryId = $settings['post_category'] ?? null;
-                if ($categoryId && isset($context['post_categories'])) {
-                    $categoryId = (int) $categoryId;
-                    if (!in_array($categoryId, $context['post_categories'], true)) {
-                        return false;
-                    }
-                }
-
-                // Check post meta filters
-                $metaKey = $settings['post_meta_key'] ?? null;
-                $metaValue = $settings['post_meta_value'] ?? null;
-                if ($metaKey && isset($context['post_meta'])) {
-                    $postMeta = $context['post_meta'];
-                    if (!isset($postMeta[$metaKey])) {
-                        return false;
-                    }
-                    if ($metaValue !== null && $metaValue !== '') {
-                        $actualValue = $postMeta[$metaKey];
-                        // Handle array values
-                        if (is_array($actualValue)) {
-                            $actualValue = $actualValue[0] ?? '';
-                        }
-                        if ($actualValue != $metaValue) {
-                            return false;
-                        }
-                    }
-                }
-                break;
-
-            case 'user_role_changed':
-                $roleFilter = $settings['role'] ?? null;
-                if ($roleFilter && isset($context['new_role'])) {
-                    if ($context['new_role'] !== $roleFilter) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'user_meta_updated':
-                $metaKeyFilter = $settings['meta_key'] ?? null;
-                if ($metaKeyFilter && isset($context['meta_key'])) {
-                    if ($context['meta_key'] !== $metaKeyFilter) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'comment_posted':
-                $postIdFilter = $settings['post_id'] ?? null;
-                if ($postIdFilter && isset($context['post_id'])) {
-                    // Support both single ID and array of IDs
-                    $filterIds = is_array($postIdFilter)
-                        ? array_map('intval', $postIdFilter)
-                        : [(int) $postIdFilter];
-                    if (!in_array((int) $context['post_id'], $filterIds, true)) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'contact_subscribed':
-            case 'user_login':
-            case 'profile_updated':
-                $roleFilter = $settings['user_role'] ?? null;
-                if ($roleFilter && isset($context['user_role'])) {
-                    if ($context['user_role'] !== $roleFilter) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'woocommerce_abandoned_cart':
-                // Check minimum cart value filter
-                $minimumCartValue = $settings['minimum_cart_value'] ?? null;
-                if ($minimumCartValue && isset($context['cart_total'])) {
-                    $cartTotal = (float) $context['cart_total'];
-                    $minimumValue = (float) $minimumCartValue;
-                    if ($cartTotal < $minimumValue) {
-                        return false;
-                    }
-                }
-
-                // Check if email is required
-                $requireEmail = $settings['require_email'] ?? false;
-                if ($requireEmail && empty($context['customer_email'])) {
-                    return false;
-                }
-                break;
-
-            case 'tag_added':
-                // Check if a specific tag filter is configured
-                $requiredTagId = $settings['tag_id'] ?? null;
-                if ($requiredTagId && isset($context['tag_id'])) {
-                    // Convert both to integers for comparison
-                    $requiredTagId = (int) $requiredTagId;
-                    $contextTagId = (int) $context['tag_id'];
-                    if ($contextTagId !== $requiredTagId) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'woocommerce_subscription_status_changed':
-                // Check if a specific subscription status filter is configured
-                $subscriptionStatus = $settings['subscription_status'] ?? null;
-                if ($subscriptionStatus && isset($context['subscription_status'])) {
-                    if ($context['subscription_status'] !== $subscriptionStatus) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'contact_custom_field_updated':
-                // Check if a specific custom field filter is configured
-                $requiredFieldKey = $settings['field_key'] ?? null;
-                if ($requiredFieldKey && isset($context['field_key'])) {
-                    if ($context['field_key'] !== $requiredFieldKey) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'webhook_received':
-                // Check if a specific webhook_id filter is configured
-                $requiredWebhookId = $settings['webhook_id'] ?? null;
-                if ($requiredWebhookId && isset($context['webhook_id'])) {
-                    if ($context['webhook_id'] !== $requiredWebhookId) {
-                        return false;
-                    }
-                }
-                break;
-
-            case 'woocommerce_product_purchased':
-                // Check if specific products, categories, or tags are configured
-                $requiredProducts = $settings['products'] ?? null;
-                $requiredCategories = $settings['product_categories'] ?? null;
-                $requiredTags = $settings['product_tags'] ?? null;
-
-                // If no filters are configured, allow all products
-                if (empty($requiredProducts) && empty($requiredCategories) && empty($requiredTags)) {
-                    break;
-                }
-
-                // Get purchased products from context
-                $purchasedProducts = $context['purchased_products'] ?? [];
-                $orderItems = $context['order_items'] ?? [];
-
-                if (empty($purchasedProducts) && empty($orderItems)) {
-                    return false;
-                }
-
-                // Collect all product IDs from the order
-                $orderProductIds = [];
-                foreach ($purchasedProducts as $product) {
-                    $orderProductIds[] = (int) ($product['product_id'] ?? 0);
-                }
-                foreach ($orderItems as $item) {
-                    $productId = (int) ($item['product_id'] ?? 0);
-                    if ($productId && !in_array($productId, $orderProductIds, true)) {
-                        $orderProductIds[] = $productId;
-                    }
-                }
-
-                $orderProductIds = array_filter($orderProductIds);
-                if (empty($orderProductIds)) {
-                    return false;
-                }
-
-                $matchesFilter = false;
-
-                // Check if any product matches the required products
-                if (!empty($requiredProducts)) {
-                    $requiredProductIds = is_array($requiredProducts)
-                        ? array_map('intval', $requiredProducts)
-                        : [intval($requiredProducts)];
-
-                    foreach ($orderProductIds as $productId) {
-                        if (in_array($productId, $requiredProductIds, true)) {
-                            $matchesFilter = true;
-                            break;
-                        }
-                    }
-                }
-
-                // Check if any product matches the required categories
-                if (!$matchesFilter && !empty($requiredCategories)) {
-                    $requiredCategoryIds = is_array($requiredCategories)
-                        ? array_map('intval', $requiredCategories)
-                        : [intval($requiredCategories)];
-
-                    foreach ($orderProductIds as $productId) {
-                        $productCategories = wp_get_post_terms($productId, 'product_cat', ['fields' => 'ids']);
-                        if (!is_wp_error($productCategories)) {
-                            foreach ($productCategories as $categoryId) {
-                                if (in_array($categoryId, $requiredCategoryIds, true)) {
-                                    $matchesFilter = true;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check if any product matches the required tags
-                if (!$matchesFilter && !empty($requiredTags)) {
-                    $requiredTagIds = is_array($requiredTags)
-                        ? array_map('intval', $requiredTags)
-                        : [intval($requiredTags)];
-
-                    foreach ($orderProductIds as $productId) {
-                        $productTags = wp_get_post_terms($productId, 'product_tag', ['fields' => 'ids']);
-                        if (!is_wp_error($productTags)) {
-                            foreach ($productTags as $tagId) {
-                                if (in_array($tagId, $requiredTagIds, true)) {
-                                    $matchesFilter = true;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // If filters are configured but no match found, reject
-                if ((!empty($requiredProducts) || !empty($requiredCategories) || !empty($requiredTags)) && !$matchesFilter) {
-                    return false;
-                }
-                break;
+        // Check trigger-specific conditions
+        $checker = new TriggerConditionChecker();
+        if (!$checker->check($trigger->getKey(), $settings, $userId, $context)) {
+            return false;
         }
 
         // Check general conditions (if any)
         $conditions = $settings['conditions'] ?? null;
 
-        // No conditions means always pass (trigger should proceed)
         if ($conditions === null || $conditions === false || $conditions === '') {
             return true;
         }
 
-        // Empty array or empty condition structure means no condition (always pass)
         if (is_array($conditions)) {
-            // Check if it's truly empty (no rules)
             $rules = $conditions['rules'] ?? [];
             if (empty($rules) || (is_array($rules) && count($rules) === 0)) {
                 return true;
@@ -700,7 +582,12 @@ class TriggerManager
                 return [
                     'user_id' => $userId,
                     'user_email' => $user ? $user->user_email : '',
+                    'user_login' => $user ? $user->user_login : '',
+                    'display_name' => $user ? $user->display_name : '',
+                    'first_name' => $user ? get_user_meta($userId, 'first_name', true) : '',
+                    'last_name' => $user ? get_user_meta($userId, 'last_name', true) : '',
                     'user_role' => $user && !empty($user->roles) ? $user->roles[0] : '',
+                    'user_registered' => $user ? $user->user_registered : '',
                 ];
             },
             [
@@ -718,6 +605,16 @@ class TriggerManager
                         'help' => __('Only trigger for users with specific role (leave empty for all roles)', 'mailerpress'),
                     ],
                 ],
+                'output_fields' => [
+                    ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'user_login', 'label' => __('Username', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'user_registered', 'label' => __('Registration Date', 'mailerpress'), 'type' => 'date', 'group' => 'user'],
+                ],
             ]
         );
 
@@ -728,6 +625,10 @@ class TriggerManager
                 return [
                     'user_id' => $user->ID,
                     'user_login' => $userLogin,
+                    'user_email' => $user->user_email,
+                    'display_name' => $user->display_name,
+                    'first_name' => get_user_meta($user->ID, 'first_name', true),
+                    'last_name' => get_user_meta($user->ID, 'last_name', true),
                     'user_role' => !empty($user->roles) ? $user->roles[0] : '',
                 ];
             },
@@ -746,6 +647,15 @@ class TriggerManager
                         'help' => __('Only trigger for users with specific role (leave empty for all roles)', 'mailerpress'),
                     ],
                 ],
+                'output_fields' => [
+                    ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'user_login', 'label' => __('Username', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                ],
             ]
         );
 
@@ -756,6 +666,10 @@ class TriggerManager
                 $user = get_userdata($userId);
                 return [
                     'user_id' => $userId,
+                    'user_email' => $user ? $user->user_email : '',
+                    'display_name' => $user ? $user->display_name : '',
+                    'first_name' => $user ? get_user_meta($userId, 'first_name', true) : '',
+                    'last_name' => $user ? get_user_meta($userId, 'last_name', true) : '',
                     'old_user_data' => $oldUserData,
                     'user_role' => $user && !empty($user->roles) ? $user->roles[0] : '',
                 ];
@@ -765,6 +679,14 @@ class TriggerManager
                 'description' => __('Triggered when a user updates their WordPress profile. Allows you to react to user information changes and synchronize data.', 'mailerpress'),
                 'icon' => 'wordpress',
                 'category' => 'user',
+                'output_fields' => [
+                    ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                ],
                 'settings_schema' => [
                     [
                         'key' => 'user_role',
@@ -838,11 +760,20 @@ class TriggerManager
             'comment_post',
             function ($commentId, $commentApproved, $commentData) {
                 $comment = get_comment($commentId);
+                $postId = $comment ? $comment->comment_post_ID : null;
+                $post = $postId ? \get_post($postId) : null;
+
                 return [
                     'user_id' => $commentData['user_id'] ?? get_current_user_id(),
                     'comment_id' => $commentId,
                     'comment_approved' => $commentApproved,
-                    'post_id' => $comment ? $comment->comment_post_ID : null,
+                    'comment_author' => $comment ? $comment->comment_author : '',
+                    'comment_author_email' => $comment ? $comment->comment_author_email : '',
+                    'comment_content' => $comment ? $comment->comment_content : '',
+                    'comment_date' => $comment ? \date_i18n(\get_option('date_format'), \strtotime($comment->comment_date)) : '',
+                    'post_id' => $postId,
+                    'post_title' => $post ? $post->post_title : '',
+                    'post_url' => $postId ? \get_permalink($postId) : '',
                 ];
             },
             [
@@ -864,72 +795,127 @@ class TriggerManager
             ]
         );
 
-        $this->registerTrigger(
-            'post_published',
-            'publish_post',
-            function ($postId, $post) {
-                $postObj = get_post($postId);
-                if (!$postObj) {
-                    return [];
-                }
+        // Use transition_post_status instead of publish_post to avoid double-firing
+        // This hook only fires once when status transitions to 'publish'
+        \add_action('transition_post_status', function ($newStatus, $oldStatus, $post) {
+            // Only trigger when transitioning TO 'publish' status
+            // Skip if already was 'publish' (to avoid triggering on updates)
+            if ($newStatus !== 'publish' || $oldStatus === 'publish') {
+                return;
+            }
 
-                // Get post categories
-                $categories = wp_get_post_categories($postId, ['fields' => 'ids']);
+            // Skip auto-saves and revisions
+            if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+                return;
+            }
 
-                // Get post meta
-                $postMeta = get_post_meta($postId);
-                $metaFlat = [];
-                foreach ($postMeta as $key => $values) {
-                    $metaFlat[$key] = is_array($values) && count($values) === 1 ? $values[0] : $values;
-                }
+            // Skip revisions
+            if (\wp_is_post_revision($post)) {
+                return;
+            }
 
-                return [
-                    'user_id' => $postObj->post_author,
-                    'post_id' => $postId,
-                    'post_type' => $postObj->post_type,
-                    'post_categories' => $categories,
-                    'post_meta' => $metaFlat,
-                ];
-            },
-            [
-                'label' => __('Post Published', 'mailerpress'),
-                'description' => __('Triggered when a post or content is published on your site. Ideal for sending automatic newsletters or notifying subscribers about new content.', 'mailerpress'),
-                'icon' => 'wordpress',
-                'category' => 'content',
-                'settings_schema' => [
-                    [
-                        'key' => 'post_type',
-                        'label' => __('Post Type', 'mailerpress'),
-                        'type' => 'select',
-                        'required' => false,
-                        'options' => $this->getPostTypesOptions(),
-                        'help' => __('Only trigger for specific post types', 'mailerpress'),
-                    ],
-                    [
-                        'key' => 'post_category',
-                        'label' => __('Post Category', 'mailerpress'),
-                        'type' => 'select',
-                        'required' => false,
-                        'options' => $this->getCategoriesOptions(),
-                        'help' => __('Only trigger when post is in specific category', 'mailerpress'),
-                    ],
-                    [
-                        'key' => 'post_meta_key',
-                        'label' => __('Post Meta Key', 'mailerpress'),
-                        'type' => 'text',
-                        'required' => false,
-                        'help' => __('Optional: Filter by post meta key (e.g., custom_field)', 'mailerpress'),
-                    ],
-                    [
-                        'key' => 'post_meta_value',
-                        'label' => __('Post Meta Value', 'mailerpress'),
-                        'type' => 'text',
-                        'required' => false,
-                        'help' => __('Optional: Filter by post meta value (requires meta key)', 'mailerpress'),
-                    ],
+            $postId = is_object($post) ? $post->ID : $post;
+            $postObj = \get_post($postId);
+            if (!$postObj) {
+                return;
+            }
+
+            // Get post categories
+            $categories = \wp_get_post_categories($postId, ['fields' => 'ids']);
+
+            // Get post meta
+            $postMeta = \get_post_meta($postId);
+            $metaFlat = [];
+            foreach ($postMeta as $key => $values) {
+                $metaFlat[$key] = is_array($values) && count($values) === 1 ? $values[0] : $values;
+            }
+
+            // Get post excerpt (or generate from content)
+            $excerpt = $postObj->post_excerpt;
+            if (empty($excerpt)) {
+                $excerpt = \wp_trim_words(\wp_strip_all_tags($postObj->post_content), 55, '...');
+            }
+
+            // Get post URL
+            $postUrl = \get_permalink($postId);
+
+            // Get featured image URL
+            $thumbnailUrl = '';
+            $thumbnailId = \get_post_thumbnail_id($postId);
+            if ($thumbnailId) {
+                $thumbnailUrl = \wp_get_attachment_image_url($thumbnailId, 'large')
+                    ?: \wp_get_attachment_image_url($thumbnailId, 'full');
+            }
+
+            $context = [
+                'user_id' => $postObj->post_author,
+                'post_id' => $postId,
+                'post_type' => $postObj->post_type,
+                'post_title' => $postObj->post_title,
+                'post_excerpt' => $excerpt,
+                'post_url' => $postUrl ?: '',
+                'post_thumbnail_url' => $thumbnailUrl ?: '',
+                'post_categories' => $categories,
+                'post_meta' => $metaFlat,
+            ];
+
+            // Manually trigger the workflow execution
+            $this->handleTrigger('post_published', [$postId, $postObj], function () use ($context) {
+                return $context;
+            });
+        }, 10, 3);
+
+        // Also register the trigger definition for the UI
+        $this->triggerDefinitions['post_published'] = [
+            'key' => 'post_published',
+            'hook' => 'transition_post_status',
+            'type' => 'TRIGGER',
+            'label' => __('Post Published', 'mailerpress'),
+            'description' => __('Triggered when a post or content is published on your site. Ideal for sending automatic newsletters or notifying subscribers about new content.', 'mailerpress'),
+            'icon' => 'wordpress',
+            'category' => 'content',
+            'settings_schema' => [
+                [
+                    'key' => 'post_type',
+                    'label' => __('Post Type', 'mailerpress'),
+                    'type' => 'select',
+                    'required' => false,
+                    'options' => $this->getPostTypesOptions(),
+                    'help' => __('Only trigger for specific post types', 'mailerpress'),
                 ],
-            ]
-        );
+                [
+                    'key' => 'post_category',
+                    'label' => __('Post Category', 'mailerpress'),
+                    'type' => 'select',
+                    'required' => false,
+                    'options' => $this->getCategoriesOptions(),
+                    'help' => __('Only trigger when post is in specific category', 'mailerpress'),
+                ],
+                [
+                    'key' => 'post_meta_key',
+                    'label' => __('Post Meta Key', 'mailerpress'),
+                    'type' => 'text',
+                    'required' => false,
+                    'help' => __('Optional: Filter by post meta key (e.g., custom_field)', 'mailerpress'),
+                ],
+                [
+                    'key' => 'post_meta_value',
+                    'label' => __('Post Meta Value', 'mailerpress'),
+                    'type' => 'text',
+                    'required' => false,
+                    'help' => __('Optional: Filter by post meta value (requires meta key)', 'mailerpress'),
+                ],
+            ],
+            'output_fields' => [
+                ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
+                ['key' => 'post_id', 'label' => __('Post ID', 'mailerpress'), 'type' => 'number', 'group' => 'content'],
+                ['key' => 'post_type', 'label' => __('Post Type', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_title', 'label' => __('Post Title', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_excerpt', 'label' => __('Post Excerpt', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_url', 'label' => __('Post URL', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_thumbnail_url', 'label' => __('Featured Image URL', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+            ],
+        ];
     }
 
     public function getRegisteredTriggers(): array

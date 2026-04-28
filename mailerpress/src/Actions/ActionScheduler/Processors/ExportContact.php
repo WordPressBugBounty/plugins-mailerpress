@@ -198,12 +198,24 @@ class ExportContact
 
                 // Get sender configuration
                 if (empty($config['conf']['default_email']) || empty($config['conf']['default_name'])) {
-                    $globalSender = get_option('mailerpress_global_email_senders');
-                    if (is_string($globalSender)) {
-                        $globalSender = json_decode($globalSender, true);
+                    $defaultSettings = get_option('mailerpress_default_settings', []);
+                    if (is_string($defaultSettings)) {
+                        $defaultSettings = json_decode($defaultSettings, true) ?: [];
                     }
-                    $config['conf']['default_email'] = $globalSender['fromAddress'] ?? get_option('admin_email');
-                    $config['conf']['default_name'] = $globalSender['fromName'] ?? get_option('blogname');
+
+                    if (!empty($defaultSettings['fromAddress']) && !empty($defaultSettings['fromName'])) {
+                        $config['conf']['default_email'] = $defaultSettings['fromAddress'];
+                        $config['conf']['default_name'] = $defaultSettings['fromName'];
+                    } else {
+                        $globalSender = get_option('mailerpress_global_email_senders');
+                        if (is_string($globalSender)) {
+                            $globalSender = json_decode($globalSender, true);
+                        }
+                        if (is_array($globalSender)) {
+                            $config['conf']['default_email'] = $globalSender['fromAddress'] ?? get_option('admin_email');
+                            $config['conf']['default_name'] = $globalSender['fromName'] ?? get_option('blogname');
+                        }
+                    }
                 }
 
                 // Get Reply-To settings

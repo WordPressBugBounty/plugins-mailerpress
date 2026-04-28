@@ -122,6 +122,14 @@ final class HtmlParser
             $replacedContent
         );
 
+        // 1.5️⃣ Remove inline styles from merge tag placeholders ({{var}}) that may have been styled in the editor
+        // This removes the blue pill styling that appears in the editor but shouldn't be in final emails
+        $replacedContent = preg_replace_callback(
+            '#<span[^>]*style=["\'][^"\']*background[^"\']*["\'][^>]*>({{[^}]+}})</span>#is',
+            fn($m) => $m[1] ?? '',
+            $replacedContent
+        );
+
         // 2️⃣ Replace {{VAR}} and {{VAR default="value"}}
         // Use a more permissive pattern that matches merge tags even in attributes
         $pattern = '/{{\s*([a-zA-Z0-9_]+)(?:\s+default=["\']([^"\']*)["\'])?\s*}}/';

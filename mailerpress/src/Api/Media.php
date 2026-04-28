@@ -30,6 +30,13 @@ class Media
         // --- Handle base64-encoded images ---
         if (preg_match('/^data:image\/(\w+);base64,/', $input, $matches)) {
             $ext = strtolower($matches[1]); // png, jpg, gif...
+
+            // Security: only allow known image extensions
+            $allowed_extensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+            if (!in_array($ext, $allowed_extensions, true)) {
+                return new \WP_Error('invalid_image_type', 'Unsupported image type: ' . $ext, ['status' => 400]);
+            }
+
             $data = substr($input, strpos($input, ',') + 1);
             $data = base64_decode($data);
 
@@ -38,7 +45,7 @@ class Media
             }
 
             // Save temp file
-            $filename = 'base64-image-' . time() . ".$ext";
+            $filename = 'base64-image-' . wp_generate_password(12, false) . ".$ext";
             $tmp = wp_tempnam($filename);
             file_put_contents($tmp, $data);
 

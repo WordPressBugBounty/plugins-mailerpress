@@ -169,12 +169,11 @@ class Campaigns
 
         $offset = ($paged - 1) * $per_page;
 
-        // Count total clicks including anonymous
-        // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
+        // Count total unique clicks (distinct contact-URL pairs) including anonymous
         $total_clicks_query = "
             SELECT
-                COUNT(DISTINCT CASE WHEN contact_id > 0 THEN contact_id END) +
-                COUNT(DISTINCT CASE WHEN contact_id = 0 AND anonymous_key IS NOT NULL THEN anonymous_key END)
+                COALESCE(COUNT(DISTINCT CASE WHEN contact_id > 0 THEN CONCAT(contact_id, '|', url) END), 0) +
+                COALESCE(COUNT(DISTINCT CASE WHEN contact_id = 0 AND anonymous_key IS NOT NULL THEN CONCAT(anonymous_key, '|', url) END), 0)
             FROM {$click_tracking_table}
             WHERE campaign_id = %d
         ";
@@ -630,8 +629,8 @@ class Campaigns
                     );
                     $campaign->editing_user_id = null;
                     $campaign->editing_started_at = null;
-                } else {
-                    // Lock is valid
+                } elseif ( (int) $campaign->editing_user_id !== get_current_user_id() ) {
+                    // Lock is valid and held by someone else
                     $campaign->locked = true;
                     $user = get_userdata($campaign->editing_user_id);
                     $campaign->locked_by = $user ? $user->display_name : null;
@@ -1050,9 +1049,9 @@ class Campaigns
             $query_params = array_merge($query_params, $campaignTypes);
         }
 
-        // Exclude automation campaigns
-        $query .= " AND c.campaign_type != 'automation'";
-        $countQuery .= " AND c.campaign_type != 'automation'";
+        // Exclude automation, wp_email and wc_email campaigns
+        $query .= " AND c.campaign_type NOT IN ('automation', 'wp_email', 'wc_email', 'confirm_email')";
+        $countQuery .= " AND c.campaign_type NOT IN ('automation', 'wp_email', 'wc_email', 'confirm_email')";
 
         // Ordering - Use whitelist to prevent SQL injection
         $allowed_orderby = ['id', 'name', 'status', 'created_at', 'updated_at', 'user_id', 'campaign_type'];
@@ -1322,8 +1321,8 @@ class Campaigns
             }
             $result->canEdit = $canEdit;
 
-            $result->locked = !empty($result->editing_user_id);
-            if ($result->editing_user_id) {
+            $result->locked = !empty($result->editing_user_id) && (int)$result->editing_user_id !== get_current_user_id();
+            if ($result->editing_user_id && (int)$result->editing_user_id !== get_current_user_id()) {
                 $editing_user = get_userdata($result->editing_user_id);
                 $result->locked_by = $editing_user ? $editing_user->display_name : null;
                 $result->locked_since = $result->editing_started_at;
@@ -1446,7 +1445,7 @@ class Campaigns
         ];
 
         // Add campaign_type if provided
-        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'automated', 'automation'], true)) {
+        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'automated', 'automation', 'wp_email', 'wc_email', 'confirm_email'], true)) {
             $data['campaign_type'] = $campaign_type;
         }
 
@@ -2123,6 +2122,7 @@ class Campaigns
         // Prepare data for update
         $data = [
             'content_html' => wp_json_encode($content),
+            'updated_at'   => current_time('mysql'),
         ];
 
         $updated = $wpdb->update($table_name, $data, ['campaign_id' => $campaign_id]);
@@ -2475,6 +2475,9 @@ class Campaigns
             // If counting fails, use 0 (will be updated later in MailerPressEmailBatch)
         }
 
+        $servicesData = get_option( 'mailerpress_email_services', [] );
+        $espKey = $servicesData['default_service'] ?? '';
+
         // Create batch immediately so it can be displayed in the UI
         // Convert scheduledAt (WP-timezone naive string) to UTC for consistent storage.
         // The chunks table also stores scheduled_at in UTC; dateI18n on the frontend
@@ -2498,6 +2501,7 @@ class Campaigns
                 'subject' => $subject,
                 'scheduled_at' => $utcScheduledAt,
                 'campaign_id' => $post,
+                'esp_key' => $espKey,
             ]
         );
 
@@ -2787,13 +2791,21 @@ class Campaigns
             empty($config['conf']['default_email'])
             || empty($config['conf']['default_name'])
         ) {
-            $globalSender = get_option('mailerpress_default_settings');
+            // Primary fallback: global default settings (updated by Settings page)
+            $defaultSettings = get_option('mailerpress_default_settings', []);
+            if (is_string($defaultSettings)) {
+                $defaultSettings = json_decode($defaultSettings, true) ?: [];
+            }
 
-            if ($globalSender) {
+            if (!empty($defaultSettings['fromAddress']) && !empty($defaultSettings['fromName'])) {
+                $config['conf']['default_email'] = $defaultSettings['fromAddress'];
+                $config['conf']['default_name'] = $defaultSettings['fromName'];
+            } else {
+                // Secondary fallback: global email senders (set during wizard)
+                $globalSender = get_option('mailerpress_global_email_senders');
                 if (is_string($globalSender)) {
                     $globalSender = json_decode($globalSender, true);
                 }
-
                 if (is_array($globalSender)) {
                     $config['conf']['default_email'] = $globalSender['fromAddress'] ?? '';
                     $config['conf']['default_name'] = $globalSender['fromName'] ?? '';
@@ -2924,11 +2936,6 @@ class Campaigns
                         $actions_cancelled++;
 
                     } catch (\Exception $e) {
-                        error_log(sprintf(
-                            '[pause_batch] Failed to cancel mailerpress_batch_email action #%d: %s',
-                            $action_id,
-                            $e->getMessage()
-                        ));
                     }
                 }
             }
@@ -3184,7 +3191,7 @@ class Campaigns
      * @throws NotFoundException
      * @throws \Exception
      */
-    #[Endpoint('campaign/track-open', methods: 'GET')]
+    #[Endpoint('campaign/track-open', methods: 'GET', permissionCallback: '__return_true')]
     public function trackOpen(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         global $wpdb;
@@ -4326,6 +4333,41 @@ class Campaigns
             'segment' => new SegmentContactFetcher(is_array($segment) ? $segment[0] : $segment),
             default => null
         };
+    }
+
+    /**
+     * Count contacts matching the given audience configuration.
+     * Supports both "classic" (lists + tags) and "segment" targeting modes.
+     */
+    #[Endpoint(
+        'campaign/count-audience',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canPublishCampaign'],
+    )]
+    public function countAudience(\WP_REST_Request $request): \WP_Error|\WP_REST_Response
+    {
+        $recipientTargeting = sanitize_text_field( $request->get_param('recipientTargeting') ?? 'classic' );
+        $lists   = $request->get_param('lists')   ?? [];
+        $tags    = $request->get_param('tags')    ?? [];
+        $segment = $request->get_param('segment') ?? [];
+
+        $total = 0;
+        try {
+            $fetcher = $this->getContactFetcher($recipientTargeting, $lists, $tags, $segment);
+            if ($fetcher) {
+                $chunk_size = 1000;
+                $offset     = 0;
+                do {
+                    $contacts = $fetcher->fetch($chunk_size, $offset);
+                    $total   += count($contacts);
+                    $offset  += $chunk_size;
+                } while (count($contacts) === $chunk_size);
+            }
+        } catch (\Exception $e) {
+            // Return 0 on error rather than failing the request
+        }
+
+        return new \WP_REST_Response(['count' => $total], 200);
     }
 
     /**

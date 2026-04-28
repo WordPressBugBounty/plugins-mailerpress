@@ -6,6 +6,7 @@ namespace MailerPress\Actions\Setup;
 
 \defined('ABSPATH') || exit;
 
+use MailerPress\Actions\DatabaseUpdateNotice;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
@@ -44,10 +45,6 @@ class TableManager
             add_action('init', [$this, 'addDefaultData'], 20);
             return;
         }
-
-        // Migrations will run if:
-        // 1. Version changed (normal production flow) OR
-        // 2. WP_DEBUG is enabled (local development convenience)
         // The Manager will use file_hash to detect changed files automatically
 
         // Drop old automation tables ONLY if they exist and new ones don't exist yet
@@ -70,6 +67,10 @@ class TableManager
             // Update stored version only if migrations succeeded
             if ($versionChanged) {
                 update_option('mailerpress_plugin_version', $current_version);
+
+                // Run diagnostic to detect issues that migrations didn't fix (e.g. dbDelta silent failures)
+                // If issues are found, an admin notice will prompt the user to run a one-click repair
+                DatabaseUpdateNotice::checkAfterMigrations();
             }
         } catch (\Throwable $e) {
             // Log error but don't crash the plugin

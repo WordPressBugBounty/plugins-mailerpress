@@ -113,7 +113,11 @@ class Init
 
         // Only block editing if campaign is in a non-editable status
         // Allow editing draft, scheduled, and error campaigns
-        if (in_array($campaign->status, ['sent', 'pending', 'trash', 'in_progress'], true)) {
+        // Exception: Always allow editing automation campaigns (campaign_type = 'automation') regardless of status
+        $campaign_type = $campaign->campaign_type ?? 'newsletter';
+        $is_automation_campaign = $campaign_type === 'automation';
+
+        if (!$is_automation_campaign && in_array($campaign->status, ['sent', 'pending', 'trash', 'in_progress'], true)) {
             wp_die(__('Sorry, you are not allowed to edit this item.'));
         }
     }

@@ -33,7 +33,25 @@ class MigrationValidator
                 return true; // If invalid, assume it needs to run
             }
 
-            // Create a schema builder to analyze the migration
+            // IMPORTANT: We must NOT call $migration($schema) directly because some migrations
+            // use raw $wpdb->query() calls instead of SchemaBuilder. Calling the callback would
+            // execute those SQL statements as a side effect (ALTER TABLE is DDL and cannot be
+            // rolled back with SAVEPOINT in MySQL).
+            //
+            // Instead, we use static analysis: load the file content and check if it uses
+            // SchemaBuilder methods ($schema->create or $schema->table). If it does, we can
+            // safely call it for analysis. If not, we skip analysis and let the migration
+            // handle its own idempotency.
+            $fileContent = file_get_contents($migrationFile);
+            $usesSchemaBuilder = preg_match('/\$schema\s*->\s*(create|table)\s*\(/', $fileContent);
+
+            if (!$usesSchemaBuilder) {
+                // Migration uses raw SQL — can't analyze safely, assume it needs to run.
+                // The migration itself must be idempotent (use IF NOT EXISTS, etc.)
+                return true;
+            }
+
+            // Safe to call: migration only uses SchemaBuilder (no raw SQL side effects)
             $schema = new SchemaBuilder();
             $migration($schema);
 
@@ -59,7 +77,6 @@ class MigrationValidator
 
         $reflection = new \ReflectionClass($schema);
         $property = $reflection->getProperty('operations');
-        $property->setAccessible(true);
         $operations = $property->getValue($schema);
 
         // If no operations, migration is not needed
@@ -108,7 +125,6 @@ class MigrationValidator
         // Get expected columns from manager
         $reflection = new \ReflectionClass($manager);
         $property = $reflection->getProperty('columnBuilders');
-        $property->setAccessible(true);
         $columnBuilders = $property->getValue($manager);
 
         // Get actual columns from database
@@ -135,10 +151,9 @@ class MigrationValidator
 
         // Check version if set
         $versionProperty = $reflection->getProperty('version');
-        $versionProperty->setAccessible(true);
         $expectedVersion = $versionProperty->getValue($manager);
 
-        if ($expectedVersion && $expectedVersion !== '1.5.5') {
+        if ($expectedVersion && $expectedVersion !== '2.0.1') {
             $versionOptionName = 'custom_table_' . sanitize_key(str_replace($wpdb->prefix, '', $tableName)) . '_version';
             $actualVersion = get_option($versionOptionName);
 
@@ -171,7 +186,6 @@ class MigrationValidator
         // Check columns to drop
         $reflection = new \ReflectionClass($manager);
         $property = $reflection->getProperty('columnsToDrop');
-        $property->setAccessible(true);
         $columnsToDrop = $property->getValue($manager);
 
         if (!empty($columnsToDrop)) {
@@ -183,9 +197,8 @@ class MigrationValidator
             }
         }
 
-        // Check columns to add
+        // Check columns to add (from ColumnBuilder objects)
         $property = $reflection->getProperty('columnBuilders');
-        $property->setAccessible(true);
         $columnBuilders = $property->getValue($manager);
 
         if (!empty($columnBuilders)) {
@@ -198,9 +211,63 @@ class MigrationValidator
             }
         }
 
+        // Check columns added via addColumn() which populate $this->columns directly
+        $columnsProperty = $reflection->getProperty('columns');
+        $columnsProperty->setAccessible(true);
+        $simpleColumns = $columnsProperty->getValue($manager);
+
+        if (!empty($simpleColumns)) {
+            if (!isset($actualColumns)) {
+                $actualColumns = $wpdb->get_col("SHOW COLUMNS FROM {$tableName}", 0);
+            }
+            foreach (array_keys($simpleColumns) as $columnName) {
+                if (!in_array($columnName, $actualColumns, true)) {
+                    return true; // Column missing, needs to be added
+                }
+            }
+        }
+
+        // Check indexes to add — pure-index migrations were previously invisible to this
+        // validator, causing handleExistingInstallations() to mark them as completed without
+        // running them on upgrades from older installs.
+        $indexProperty = $reflection->getProperty('indexes');
+        $indexes = $indexProperty->getValue($manager);
+
+        if (!empty($indexes)) {
+            $existingIndexes = $wpdb->get_results("SHOW INDEX FROM {$tableName}", ARRAY_A);
+            $existingIndexedCols = [];
+            foreach ($existingIndexes as $idx) {
+                $existingIndexedCols[] = strtolower($idx['Column_name']);
+            }
+
+            foreach ($indexes as $clause) {
+                preg_match_all('/`([^`]+)`/', $clause, $matches);
+                $expectedCols = array_map('strtolower', $matches[1] ?? []);
+
+                if (!empty($expectedCols)) {
+                    // Check whether all columns of this index are already indexed together.
+                    // We use the same multi-column logic as CustomTableManager::migrate().
+                    $indexFound = false;
+                    $existingByKey = [];
+                    foreach ($existingIndexes as $idx) {
+                        $key = $idx['Key_name'];
+                        $existingByKey[$key][] = strtolower($idx['Column_name']);
+                    }
+                    foreach ($existingByKey as $keyCols) {
+                        if (count(array_intersect($expectedCols, $keyCols)) === count($expectedCols)) {
+                            $indexFound = true;
+                            break;
+                        }
+                    }
+                    if (!$indexFound) {
+                        return true; // Index missing, migration needed
+                    }
+                }
+            }
+        }
+
         // Check foreign keys to drop
         $property = $reflection->getProperty('foreignKeysToDrop');
-        $property->setAccessible(true);
         $foreignKeysToDrop = $property->getValue($manager);
 
         if (!empty($foreignKeysToDrop)) {
@@ -225,7 +292,6 @@ class MigrationValidator
 
         // Check indexes to drop
         $property = $reflection->getProperty('indexesToDrop');
-        $property->setAccessible(true);
         $indexesToDrop = $property->getValue($manager);
 
         if (!empty($indexesToDrop)) {

@@ -14,12 +14,13 @@ use MailerPress\Core\Attributes\Filter;
 use MailerPress\Core\EmailManager\EmailServiceInterface;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Kernel;
+use MailerPress\Models\Campaigns;
+use MailerPress\Models\Contacts;
 use MailerPress\Models\Lists;
 use MailerPress\Models\Patterns as PatternModel;
 use MailerPress\Models\Posts;
 use MailerPress\Models\Tags;
 use MailerPress\Services\ThemeStyles;
-
 use function MailerPress\Helpers\formatPatternsForEditor;
 use function MailerPress\Helpers\formatPostForApi;
 
@@ -116,7 +117,6 @@ class Editor
                 'adminUrl' => admin_url('admin.php'),
                 'adminReturn' => admin_url(),
                 'pluginInited' => $this->checkPluginInit(),
-                'gptAi' => get_option('mailerpress_ai_config'),
                 'imagesSizes' => wp_get_registered_image_subsizes(),
                 'categories' => get_categories([
                     'hide_empty' => true,
@@ -147,6 +147,10 @@ class Editor
                 'whiteLabelMenu' => !defined('MAILERPRESS_WHITE_LABEL_ACTIVE') || constant('MAILERPRESS_WHITE_LABEL_ACTIVE') === true,
                 'showNoticeLienceActivation' => !defined('MAILERPRESS_SHOW_NOTICE_LICENCE_ACTIVATION') || constant('MAILERPRESS_SHOW_NOTICE_LICENCE_ACTIVATION') === true,
                 'lists' => Kernel::getContainer()->get(Lists::class)->getLists(),
+                'contactCount' => (int) Kernel::getContainer()->get(Contacts::class)->count(),
+                'campaignCount' => (int) Kernel::getContainer()->get(Campaigns::class)->count(),
+                'automationCount' => (int) Kernel::getContainer()->get(\MailerPress\Core\Workflows\Repositories\AutomationRepository::class)->count(),
+
                 'sender' => $globalSender,
                 'latestPosts' => formatPostForApi(Kernel::getContainer()->get(Posts::class)->getLatest()),
                 'savedPatterns' => formatPatternsForEditor(Kernel::getContainer()->get(PatternModel::class)->getAll()),
@@ -163,65 +167,61 @@ class Editor
                 'pages' => $pages,
                 'editorFonts' => get_option('mailerpress_fonts_v2', []),
                 'pluginDirUrl' => Kernel::$config['rootUrl'],
-                'mailerPressSignupConfirmation' => get_option('mailerpress_signup_confirmation', wp_json_encode([
-                    'enableSignupConfirmation' => true,
-                    'emailSubject' => 'Confirm your subscription to [site:title]',
-                    'emailContent' => 'Hello [contact:firstName] [contact:lastName],
-
-You have received this email regarding your subscription to [site:title]. Please confirm it to receive emails from us:
-
-[activation_link]Click here to confirm your subscription[/activation_link]
-
-If you received this email in error, simply delete it. You will no longer receive emails from us if you do not confirm your subscription using the link above.
-
-Thank you,
-
-<a target="_blank" href=" [site:homeURL]">[site:title]</a>'
-                ])),
+                'mailerPressSignupConfirmation' => mailerpress_get_signup_confirmation_option(),
+                'confirmEmailStarterTemplate' => mailerpress_get_confirm_email_starter_template(
+                    mailerpress_get_signup_confirmation_option()['emailContent'] ?? ''
+                ),
                 'isPro' => is_plugin_active('mailerpress-pro/mailerpress-pro.php'),
+                'proEsp' => apply_filters('mailerpress_pro_esp_configs', []),
                 'isProPresent' => file_exists(WP_PLUGIN_DIR . '/mailerpress-pro/mailerpress-pro.php'),
+                'addonsStatus' => [
+                    'mailerpress-optin-forms' => [
+                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-optin/mailerpress-optin.php'),
+                        'active'    => is_plugin_active('mailerpress-optin/mailerpress-optin.php'),
+                    ],
+                    'mailerpress-turbo' => [
+                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-turbo/mailerpress-turbo.php'),
+                        'active'    => is_plugin_active('mailerpress-turbo/mailerpress-turbo.php'),
+                    ],
+                    'mailerpress-sms' => [
+                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-sms/mailerpress-sms.php'),
+                        'active'    => is_plugin_active('mailerpress-sms/mailerpress-sms.php'),
+                    ],
+                ],
                 'acfActive' => function_exists('acf_get_field_groups'),
                 'hasWooCommerce' => function_exists('wc_get_products'),
                 'locale' => get_user_locale(),
+                'links' => \MailerPress\Core\ExternalLinks::all(),
                 'manage_link' => [
                     'subscription' => mailerpress_get_page('unsub_page'),
                     'manage' => mailerpress_get_page('manage_page'),
                 ],
                 'currentUser' => wp_get_current_user()->ID,
                 'typography' => $globalTypographySettings ?: '',
+
+                'wpEmailTypes' => apply_filters('mailerpress_wp_email_types_for_frontend', []),
+                'wpEmailTemplates' => json_decode(get_option('mailerpress_wp_email_templates', '{}'), true) ?: [],
+                'wcEmailTypes' => function_exists('wc_get_order')
+                    ? apply_filters('mailerpress_wc_email_types_for_frontend', [])
+                    : [],
+                'wcEmailTemplates' => json_decode(get_option('mailerpress_wc_email_templates', '{}'), true) ?: [],
+                'activeIntegrations' => [
+                    'gravity_forms' => is_plugin_active('gravityforms/gravityforms.php'),
+                    'cf7'           => is_plugin_active('contact-form-7/wp-contact-form-7.php'),
+                    'elementor'     => is_plugin_active('elementor/elementor.php'),
+                    'bricks'        => is_plugin_active('bricks/bricks.php'),
+                    'fluent_form'   => is_plugin_active('fluentform/fluentform.php'),
+                    'divi'          => defined('ET_BUILDER_VERSION'),
+                    'woocommerce'   => is_plugin_active('woocommerce/woocommerce.php'),
+                    'pmpro'         => function_exists('pmpro_hasMembershipLevel'),
+
+                    'bit_flows'     => is_plugin_active('bit-flows/bit-flows.php'),
+                    'flowmattic'    => is_plugin_active('flowmattic/flowmattic.php'),
+                    'ottokit'       => is_plugin_active('suretriggers/suretriggers.php'),
+                    'sure_forms'    => is_plugin_active('sureforms/sureforms.php'),
+                ],
             ]);
         }
-
-        // Localiser jsVars pour tous les scripts admin MailerPress
-        // Créer un script inline pour rendre jsVars disponible globalement
-        $jsVarsData = [
-            'licenceActivated' => get_option('mailerpress_license_activated', false),
-            'autoSave' => apply_filters('mailerpress_editor_auto_save', MINUTE_IN_SECONDS),
-            'userCaps' => CapabilitiesManager::getCurrentUserCaps(),
-            'bounceConfig' => get_option('mailerpress_bounce_config'),
-            'hasCompletedSetup' => get_user_meta(
-                get_current_user_id(),
-                'mailerpress_setup_completed',
-                true
-            ) === 'yes',
-            'version' => MAILERPRESS_VERSION,
-            'adminUrl' => admin_url('admin.php'),
-            'adminReturn' => admin_url(),
-            'pluginInited' => $this->checkPluginInit(),
-            'isPro' => is_plugin_active('mailerpress-pro/mailerpress-pro.php'),
-            'isProPresent' => file_exists(WP_PLUGIN_DIR . '/mailerpress-pro/mailerpress-pro.php'),
-        ];
-
-        // Enregistrer un script minimal pour rendre jsVars disponible globalement
-        wp_register_script(
-            'mailerpress-jsvars',
-            '',
-            [],
-            MAILERPRESS_VERSION,
-            false
-        );
-        wp_enqueue_script('mailerpress-jsvars');
-        wp_add_inline_script('mailerpress-jsvars', 'var jsVars = ' . wp_json_encode($jsVarsData) . ';', 'before');
 
         $buildPath = Kernel::$config['root'] . '/build/';
         $buildUrl = rtrim(Kernel::$config['rootUrl'], '/') . '/build/';
@@ -313,10 +313,10 @@ Thank you,
                 echo 'data-variant="' . esc_attr($variant) . '"';
                 echo '>';
                 echo '@font-face {';
-                echo 'font-family: "' . $firstFont . '";';
-                echo 'src: url("' . $url . '") format("woff2");';
-                echo 'font-weight: ' . $weight . ';';
-                echo 'font-style: ' . $style . ';';
+                echo 'font-family: "' . esc_html($firstFont) . '";';
+                echo 'src: url("' . esc_url($url) . '") format("woff2");';
+                echo 'font-weight: ' . esc_html($weight) . ';';
+                echo 'font-style: ' . esc_html($style) . ';';
                 echo '}';
                 echo '</style>';
             }

@@ -87,6 +87,7 @@ class ConditionStepHandler implements StepHandlerInterface
             'user_id' => $job->getUserId(),
         ]);
         $conditionMet = $this->evaluator->evaluate($condition, $job->getUserId(), $context);
+
         // Check if condition contains future-dependent rules (email opened/clicked)
         $waitingInfo = $this->checkForFutureDependentConditions($condition, $conditionMet);
         // If this is a re-evaluation, handle it specially

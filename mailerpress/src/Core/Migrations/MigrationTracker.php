@@ -271,64 +271,43 @@ class MigrationTracker
         }
         $hasFileHashColumn = self::$fileHashColumnExists;
 
-        // Check if already exists
-        $existing = $wpdb->get_var(
+        // Use INSERT ... ON DUPLICATE KEY UPDATE to avoid race conditions and duplicate entry errors
+        $now = current_time('mysql');
+        $fileHashSql = ($hasFileHashColumn && $fileHash !== null)
+            ? $wpdb->prepare(", file_hash = %s", $fileHash)
+            : '';
+        $fileHashInsertCol = ($hasFileHashColumn && $fileHash !== null) ? ', file_hash' : '';
+        $fileHashInsertVal = ($hasFileHashColumn && $fileHash !== null)
+            ? $wpdb->prepare(', %s', $fileHash)
+            : '';
+
+        $wpdb->query($wpdb->prepare(
+            "INSERT INTO {$this->tableName} (migration_name, migration_file, status, executed_at{$fileHashInsertCol})
+             VALUES (%s, %s, 'running', %s{$fileHashInsertVal})
+             ON DUPLICATE KEY UPDATE
+                migration_name = VALUES(migration_name),
+                status = 'running',
+                executed_at = VALUES(executed_at),
+                error_message = NULL
+                {$fileHashSql}",
+            $migrationName,
+            $migrationFile,
+            $now
+        ));
+
+        if (!empty($wpdb->last_error)) {
+            throw new \RuntimeException("Failed to track migration start: {$wpdb->last_error}");
+        }
+
+        // Get the ID (works for both INSERT and UPDATE)
+        $id = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT id FROM {$this->tableName} WHERE migration_file = %s",
                 $migrationFile
             )
         );
 
-        if ($existing) {
-            // Update existing record (reset if file changed)
-            $updateData = [
-                'migration_name' => $migrationName,
-                'status' => 'running',
-                'executed_at' => current_time('mysql'),
-                'error_message' => null,
-            ];
-            $updateFormat = ['%s', '%s', '%s', '%s'];
-
-            if ($hasFileHashColumn && $fileHash !== null) {
-                $updateData['file_hash'] = $fileHash;
-                $updateFormat[] = '%s';
-            }
-
-            $wpdb->update(
-                $this->tableName,
-                $updateData,
-                ['id' => $existing],
-                $updateFormat,
-                ['%d']
-            );
-            return (int)$existing;
-        } else {
-            // Insert new record
-            $insertData = [
-                'migration_name' => $migrationName,
-                'migration_file' => $migrationFile,
-                'status' => 'running',
-                'executed_at' => current_time('mysql'),
-            ];
-            $insertFormat = ['%s', '%s', '%s', '%s'];
-
-            if ($hasFileHashColumn && $fileHash !== null) {
-                $insertData['file_hash'] = $fileHash;
-                $insertFormat[] = '%s';
-            }
-
-            $wpdb->insert(
-                $this->tableName,
-                $insertData,
-                $insertFormat
-            );
-
-            if (!empty($wpdb->last_error)) {
-                throw new \RuntimeException("Failed to track migration start: {$wpdb->last_error}");
-            }
-
-            return (int)$wpdb->insert_id;
-        }
+        return (int)$id;
     }
 
     /**

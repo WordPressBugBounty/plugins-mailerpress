@@ -190,6 +190,18 @@ class Workflows
             ]);
         }
 
+        // SureCart condition fields
+        if (class_exists('\SureCart\Models\Purchase') || function_exists('surecart')) {
+            $fields = array_merge($fields, [
+                ['key' => 'sc_total_spent', 'label' => __('Total Spent', 'mailerpress'), 'type' => 'number', 'category' => 'surecart', 'valueType' => 'number', 'description' => __('Total amount spent by the customer in SureCart', 'mailerpress')],
+                ['key' => 'sc_order_count', 'label' => __('Order Count', 'mailerpress'), 'type' => 'number', 'category' => 'surecart', 'valueType' => 'number', 'description' => __('Number of orders/purchases placed by the customer', 'mailerpress')],
+                ['key' => 'sc_last_order_status', 'label' => __('Last Order Status', 'mailerpress'), 'type' => 'string', 'category' => 'surecart', 'valueType' => 'select', 'description' => __('Status of the customer\'s last order', 'mailerpress')],
+                ['key' => 'sc_has_purchased_product', 'label' => __('Has Purchased Product', 'mailerpress'), 'type' => 'array|bool', 'category' => 'surecart', 'valueType' => 'token', 'description' => __('Check if customer has purchased specific SureCart products', 'mailerpress')],
+                ['key' => 'sc_order_created', 'label' => __('Order Created', 'mailerpress'), 'type' => 'boolean', 'category' => 'surecart', 'valueType' => 'select', 'description' => __('Check if an order_id exists in the workflow context (useful for abandoned cart recovery)', 'mailerpress')],
+                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'category' => 'surecart', 'valueType' => 'number', 'description' => __('Total amount of the current order from workflow context', 'mailerpress')],
+            ]);
+        }
+
         if (function_exists('apply_filters')) {
             $fields = apply_filters('mailerpress/condition/available_fields', $fields);
         }
@@ -263,11 +275,38 @@ class Workflows
             return new \WP_REST_Response([], 200);
         }
 
-        $formatted = array_map(function ($product) {
-            return [
+        $full = filter_var($request->get_param('full'), FILTER_VALIDATE_BOOLEAN);
+
+        $formatted = array_map(function ($product) use ($full) {
+            $item = [
                 'label' => $product->get_name() . ' (#' . $product->get_id() . ')',
                 'value' => (string) $product->get_id(),
             ];
+
+            if ($full) {
+                $imageId = $product->get_image_id();
+                $imageUrl = $imageId ? wp_get_attachment_image_url($imageId, 'large') : '';
+
+                $images = [];
+                if ($imageId) {
+                    foreach (['thumbnail', 'medium', 'large'] as $size) {
+                        $url = wp_get_attachment_image_url($imageId, $size);
+                        if ($url) {
+                            $images[$size] = $url;
+                        }
+                    }
+                }
+
+                $item['product_name'] = $product->get_name();
+                $item['product_price'] = $product->get_price();
+                $item['product_currency'] = get_woocommerce_currency();
+                $item['product_description'] = $product->get_short_description();
+                $item['product_url'] = get_permalink($product->get_id());
+                $item['product_image_url'] = $imageUrl ?: '';
+                $item['product_images'] = $images;
+            }
+
+            return $item;
         }, $products);
 
         return new \WP_REST_Response($formatted, 200);
@@ -303,6 +342,72 @@ class Workflows
         }, $tags);
 
         return new \WP_REST_Response($formatted, 200);
+    }
+
+    #[Endpoint(
+        'workflows/surecart/products',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canView']
+    )]
+    public function getSureCartProducts(\WP_REST_Request $request): \WP_REST_Response
+    {
+        // Only return products if SureCart is active
+        if (!class_exists('\SureCart\Models\Product') && !function_exists('surecart')) {
+            return new \WP_REST_Response([], 200);
+        }
+
+        try {
+            $search = $request->get_param('search') ?? '';
+            $per_page = (int) ($request->get_param('per_page') ?? 50);
+
+            // Use SureCart Product model to fetch products
+            $products = \SureCart\Models\Product::where([
+                'archived' => false,
+            ])->paginate([
+                'per_page' => $per_page,
+            ]);
+
+            if (is_wp_error($products)) {
+                return new \WP_REST_Response([], 200);
+            }
+
+            $formatted = [];
+
+            // SureCart returns products in a data property
+            $productList = $products->data ?? [];
+
+            foreach ($productList as $product) {
+                $productId = is_object($product) ? ($product->id ?? '') : ($product['id'] ?? '');
+                $productName = is_object($product) ? ($product->name ?? '') : ($product['name'] ?? '');
+
+                if (empty($productId)) {
+                    continue;
+                }
+
+                // Apply search filter if provided
+                if (!empty($search)) {
+                    $searchLower = strtolower($search);
+                    $nameLower = strtolower($productName);
+                    if (strpos($nameLower, $searchLower) === false && strpos($productId, $search) === false) {
+                        continue;
+                    }
+                }
+
+                $formatted[] = [
+                    'label' => $productName ? ($productName . ' (#' . $productId . ')') : ('Product #' . $productId),
+                    'value' => (string) $productId,
+                ];
+            }
+
+            // Sort by label
+            usort($formatted, function ($a, $b) {
+                return strcmp($a['label'], $b['label']);
+            });
+
+            return new \WP_REST_Response($formatted, 200);
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([], 200);
+        }
     }
 
     #[Endpoint(
@@ -399,7 +504,7 @@ class Workflows
             $idsString = implode(',', array_map('intval', $allAutomationIds));
 
             // Get A/B test info: count, status, winner
-            $abTestQuery = "SELECT 
+            $abTestQuery = "SELECT
                     automation_id,
                     COUNT(*) as total_tests,
                     SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running_tests,
@@ -441,7 +546,7 @@ class Workflows
 
             // Get aggregated stats for all enabled automations
             // IDs are already sanitized with intval, so safe to use directly
-            $statsQuery = "SELECT 
+            $statsQuery = "SELECT
                     automation_id,
                     COUNT(*) as total_jobs,
                     SUM(CASE WHEN status IN ('ACTIVE', 'PROCESSING', 'WAITING') THEN 1 ELSE 0 END) as active_jobs,
@@ -613,6 +718,11 @@ class Workflows
                 'alternative_step_id' => $node['alternative_step_id'] ?? null,
             ]);
 
+            // Sync branches for CONDITION steps
+            if ($node['type'] === 'CONDITION' && !empty($settings['branches']) && $stepId) {
+                $stepRepo->syncBranches($stepId, $settings['branches']);
+            }
+
             $createdNodes[] = [
                 'id' => $node['id'] ?? $node['step_id'],
                 'step_id' => $node['step_id'] ?? $node['id'],
@@ -636,7 +746,7 @@ class Workflows
 
     /**
      * Check if a template requires Pro version
-     * 
+     *
      * @param string $templateId Template ID
      * @return bool True if template requires Pro
      */
@@ -644,10 +754,22 @@ class Workflows
     {
         // Templates that require Pro version
         $proTemplates = [
-            'cart-abandonment',
-            'post-purchase-followup',
             'email-sequence',
+            'post-purchase-followup',
             'tag-and-email',
+            'customer-first-order-journey',
+            'abandoned-cart-recovery',
+            'product-review-request',
+            'win-back-campaign',
+            'vip-customer-program',
+            're-engagement-sequence',
+            'birthday-campaign',
+            'newsletter-engagement',
+            'ab-test-email-subject',
+            'ab-test-email-content',
+            'ab-test-welcome-optimization',
+            'ab-test-promotional-campaign',
+            'ab-test-re-engagement-sequence',
         ];
 
         return in_array($templateId, $proTemplates, true);
@@ -655,13 +777,1679 @@ class Workflows
 
     /**
      * Check if MailerPress Pro is active
-     * 
+     *
      * @return bool True if Pro is active
      */
     private function isProActive(): bool
     {
         return function_exists('is_plugin_active')
             && is_plugin_active('mailerpress-pro/mailerpress-pro.php');
+    }
+
+    /**
+     * Validate workflow nodes before activation.
+     * Checks that all send_email nodes have templates with actual HTML content.
+     */
+    private function validateWorkflowBeforeActivation(array $nodes): array
+    {
+        $errors = [];
+        $campaignsModel = new \MailerPress\Models\Campaigns();
+
+        foreach ($nodes as $node) {
+            $key = $node['key'] ?? '';
+            $type = $node['type'] ?? '';
+
+            if ($type !== 'ACTION' || ($key !== 'send_email' && $key !== 'send_mail')) {
+                continue;
+            }
+
+            $settings = $node['settings'] ?? [];
+            $templateId = $settings['template_id'] ?? null;
+            $emailName = $settings['name'] ?? __('Unnamed email', 'mailerpress');
+
+            if (empty($templateId)) {
+                $errors[] = sprintf(
+                    __('"%s": no email template assigned. Please create the email content first.', 'mailerpress'),
+                    $emailName
+                );
+                continue;
+            }
+
+            $campaign = $campaignsModel->find((int) $templateId);
+
+            if (!$campaign) {
+                $errors[] = sprintf(
+                    __('"%s": email template #%s not found. It may have been deleted.', 'mailerpress'),
+                    $emailName,
+                    $templateId
+                );
+                continue;
+            }
+
+            // Check for actual HTML content
+            $hasContent = !empty($campaign->content_html);
+            $hasCachedContent = !empty(get_option('mailerpress_batch_' . $templateId . '_html'));
+
+            if (!$hasContent && !$hasCachedContent) {
+                $errors[] = sprintf(
+                    __('"%s": email template has no content. Please open the email editor and design your email before activating.', 'mailerpress'),
+                    $emailName
+                );
+            }
+        }
+
+        return $errors;
+    }
+
+    #[Endpoint(
+        'workflows/ai-generate',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
+    )]
+    public function aiGenerateWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        if (!$this->isProActive()) {
+            return new \WP_Error(
+                'pro_required',
+                __('AI workflow generation requires MailerPress Pro.', 'mailerpress'),
+                ['status' => 403]
+            );
+        }
+
+        $prompt = sanitize_textarea_field($request->get_param('prompt') ?? '');
+        $messagesParam = $request->get_param('messages');
+        $existingNodesParam = $request->get_param('existing_nodes');
+        $conversationMessages = [];
+
+        if (!empty($messagesParam) && is_array($messagesParam)) {
+            foreach ($messagesParam as $msg) {
+                $role = in_array($msg['role'] ?? '', ['user', 'assistant'], true) ? $msg['role'] : 'user';
+                $content = sanitize_textarea_field($msg['content'] ?? '');
+                if (!empty($content)) {
+                    $conversationMessages[] = ['role' => $role, 'content' => $content];
+                }
+            }
+        }
+
+        // Parse existing nodes for modify mode
+        $existingNodes = [];
+        if (!empty($existingNodesParam) && is_array($existingNodesParam)) {
+            $existingNodes = $existingNodesParam;
+        }
+
+        if (empty($prompt) && empty($conversationMessages)) {
+            return new \WP_Error('missing_prompt', __('Please describe the workflow you want to create.', 'mailerpress'), ['status' => 400]);
+        }
+
+        // Get AI provider config
+        $aiSettings = get_option('mailerpress_ai_model_settings', []);
+        if (is_string($aiSettings)) {
+            $aiSettings = json_decode($aiSettings, true);
+        }
+
+        if (empty($aiSettings['text_ai']['provider']) || empty($aiSettings['api_keys'])) {
+            return new \WP_Error(
+                'ai_not_configured',
+                __('AI is not configured. Please set up your AI provider in MailerPress settings.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $provider = $aiSettings['text_ai']['provider'];
+        $apiKey = $aiSettings['api_keys'][$provider] ?? '';
+
+        if (empty($apiKey)) {
+            return new \WP_Error(
+                'ai_no_api_key',
+                __('No API key found for the configured AI provider.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        // Gather available triggers, actions, conditions
+        $triggersResponse = $this->getTriggers();
+        $actionsResponse = $this->getActions();
+        $conditionsResponse = $this->getConditions();
+
+        $triggers = $triggersResponse->get_data();
+        $actions = $actionsResponse->get_data();
+        $conditions = $conditionsResponse->get_data();
+
+        // Build trigger descriptions for the system prompt
+        $triggerList = [];
+        foreach ($triggers as $t) {
+            $key = $t['key'] ?? '';
+            $label = $t['label'] ?? $key;
+            $desc = $t['description'] ?? '';
+            $triggerList[] = "- key: \"{$key}\" — {$label}" . ($desc ? " ({$desc})" : '');
+        }
+
+        // Build action descriptions
+        $actionList = [];
+        foreach ($actions as $a) {
+            if (isset($a['key'])) {
+                $key = $a['key'];
+                $label = $a['label'] ?? $key;
+                $desc = $a['description'] ?? '';
+                $settingsDoc = '';
+                if (!empty($a['settings_schema'])) {
+                    $fields = array_map(function($s) {
+                        $req = !empty($s['required']) ? ' (required)' : '';
+                        return $s['key'] . $req;
+                    }, $a['settings_schema']);
+                    $settingsDoc = ' | settings: ' . implode(', ', $fields);
+                }
+                $actionList[] = "- key: \"{$key}\" — {$label}" . ($desc ? " ({$desc})" : '') . $settingsDoc;
+            } elseif (isset($a['keys'])) {
+                foreach ($a['keys'] as $key) {
+                    $actionList[] = "- key: \"{$key}\"";
+                }
+            }
+        }
+
+        // Build condition fields
+        $conditionFieldsList = [];
+        foreach (($conditions['fields'] ?? []) as $f) {
+            $conditionFieldsList[] = "- field: \"{$f['key']}\" ({$f['label']}) type: {$f['type']}" . (!empty($f['description']) ? " — {$f['description']}" : '');
+        }
+
+        $conditionOperators = implode(', ', $conditions['operators'] ?? []);
+
+        // Gather existing tags, lists, and custom fields for context
+        $existingTags = \MailerPress\Models\Tags::getAll();
+        $tagNames = !empty($existingTags) ? array_map(fn($t) => $t->name, $existingTags) : [];
+
+        $existingLists = \MailerPress\Models\Lists::getLists();
+        $listNames = !empty($existingLists) ? array_map(fn($l) => $l['name'] ?? '', $existingLists) : [];
+
+        $customFieldsModel = new \MailerPress\Models\CustomFields();
+        $existingCustomFields = $customFieldsModel->all();
+        $customFieldDescriptions = [];
+        if (!empty($existingCustomFields)) {
+            foreach ($existingCustomFields as $f) {
+                $desc = "- \"{$f->field_key}\" ({$f->label}), type: {$f->type}";
+                if (!empty($f->options)) {
+                    $opts = is_string($f->options) ? json_decode($f->options, true) : $f->options;
+                    if (is_array($opts)) {
+                        $desc .= ', options: ' . implode(', ', $opts);
+                    }
+                }
+                $customFieldDescriptions[] = $desc;
+            }
+        }
+
+        $tagDescriptions = [];
+        foreach ($existingTags as $t) {
+            $tagDescriptions[] = "- \"{$t->name}\" (id: {$t->tag_id})";
+        }
+        $tagContext = !empty($tagDescriptions)
+            ? "EXISTING TAGS in the user's MailerPress:\n" . implode("\n", $tagDescriptions) . "\nWhen suggesting tags to the user, show the name. When generating the workflow, use the tag name in settings (the system resolves names to IDs automatically). If the user wants a tag that doesn't exist, use the new name — it will be auto-created."
+            : "No tags exist yet in the user's MailerPress. New tags will be auto-created when the workflow is generated.";
+
+        $listDescriptions = [];
+        foreach ($existingLists as $l) {
+            $listDescriptions[] = "- \"{$l['name']}\" (id: " . ($l['list_id'] ?? $l['id'] ?? '') . ")";
+        }
+        $listContext = !empty($listDescriptions)
+            ? "EXISTING LISTS in the user's MailerPress:\n" . implode("\n", $listDescriptions) . "\nWhen suggesting lists to the user, show the name. When generating the workflow, use the list name in settings (the system resolves names to IDs automatically). If the user wants a list that doesn't exist, use the new name — it will be auto-created."
+            : "No lists exist yet in the user's MailerPress. New lists will be auto-created when the workflow is generated.";
+
+        $customFieldContext = !empty($customFieldDescriptions)
+            ? "EXISTING CUSTOM FIELDS in the user's MailerPress:\n" . implode("\n", $customFieldDescriptions)
+            : "No custom fields exist yet in the user's MailerPress.";
+
+        // Detect active integrations automatically from registered trigger/condition categories
+        $coreCategories = ['user', 'contact', 'content', 'engagement', 'email', 'general'];
+        $integrationCategories = [];
+
+        // Collect categories from triggers
+        foreach ($triggers as $t) {
+            $cat = $t['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+
+        // Collect categories from condition fields
+        foreach (($conditions['fields'] ?? []) as $f) {
+            $cat = $f['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+
+        // Collect categories from actions
+        foreach ($actions as $a) {
+            $cat = $a['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+
+        // Build integrations context — active categories are plugins that registered triggers/conditions
+        $activeIntegrations = array_keys($integrationCategories);
+        if (!empty($activeIntegrations)) {
+            $integrationLines = array_map(function($cat) {
+                return '- ' . ucfirst($cat) . ': ACTIVE (triggers/conditions registered)';
+            }, $activeIntegrations);
+            $integrationsContext = "Active third-party integrations:\n" . implode("\n", $integrationLines)
+                . "\n\nIf the user asks about a plugin/integration NOT listed above, it is NOT installed or not integrated with MailerPress. Tell them it's not available.";
+        } else {
+            $integrationsContext = "No third-party integrations are currently active. Only core MailerPress triggers and actions are available (user, contact, content, email). If the user asks about WooCommerce, SureCart, or any other plugin, tell them it's not installed or not integrated.";
+        }
+
+        // User locale for response language
+        $current_user = wp_get_current_user();
+        $user_locale = get_user_locale($current_user->ID);
+        $language_code = substr($user_locale ?: get_locale(), 0, 2);
+
+        $systemPrompt = <<<PROMPT
+You are an expert email marketing automation assistant for MailerPress (a WordPress plugin).
+Your job is to help users build workflow automations through intelligent conversation.
+
+INSTALLED INTEGRATIONS:
+%INTEGRATIONS%
+
+IMPORTANT: If the user asks for a workflow involving a plugin that is NOT INSTALLED (e.g., WooCommerce or SureCart), you MUST respond with MODE 1 (questions) and tell them that the plugin is not active on their site. Do NOT try to generate a workflow with triggers or conditions from plugins that are not installed — it will not work. Suggest alternatives if possible (e.g., using tags or custom fields instead).
+
+RESPONSE MODES:
+You have TWO response modes. Choose the right one based on context:
+
+MODE 1 — ASK QUESTIONS (when the user's request is missing critical details):
+Respond with a JSON object like:
+{
+  "type": "questions",
+  "message": "<your conversational message in {$language_code} language, asking for the missing details>"
+}
+
+CRITICAL — You MUST ask for clarification when:
+- The user wants to ADD A TAG but did NOT specify the exact tag name → ALWAYS ask which tag. Suggest existing tags from the list below if available.
+- The user wants to ADD TO A LIST but did NOT specify the exact list name → ALWAYS ask which list. Suggest existing lists from the list below.
+- The user wants to CHECK or SET a CUSTOM FIELD but did NOT specify which field → ALWAYS ask. Suggest existing custom fields from the list below.
+- The user wants to SEND AN EMAIL but the purpose/subject is too vague (not the case for obvious subjects like "welcome email", "birthday email", etc.)
+- The user mentions a DELAY but did NOT specify the exact duration
+- The user mentions a CONDITION but the criteria are vague
+
+When suggesting existing tags/lists/custom fields, present them as options the user can choose from, but also let them know they can type a new name. Format suggestions clearly with bullet points or numbered list.
+
+Be smart about what to ask vs. infer:
+- "welcome email" → subject is obvious, don't ask
+- "add a tag" without specifying which tag → MUST ask, even if the rest of the workflow is clear
+- "add tag and send welcome email" → ask for the tag name, but the email subject is inferable
+- User says "add to a list" → ask which list, suggest existing ones
+
+Keep questions SHORT and SPECIFIC. Ask about 1-3 missing things at once, not more.
+Group related questions naturally in a single conversational message.
+
+MODE 2 — GENERATE WORKFLOW (when you have ALL necessary details):
+Respond with a JSON object like:
+{
+  "type": "workflow",
+  "name": "<workflow name>",
+  "nodes": [
+    {
+      "id": "<unique_id like node_1, node_2, etc>",
+      "type": "TRIGGER"|"ACTION"|"DELAY"|"CONDITION",
+      "key": "<key from the lists below>",
+      "settings": { ... },
+      "next_id": "<id of next node or null>",
+      "alt_id": "<id of alternative branch for CONDITION nodes, or null>"
+    }
+  ]
+}
+
+USER'S EXISTING DATA:
+%TAG_CONTEXT%
+%LIST_CONTEXT%
+%CUSTOM_FIELD_CONTEXT%
+Use this data to suggest relevant options when asking questions. When the user picks a tag/list/custom field, use the exact name they chose.
+
+AVAILABLE TRIGGERS (type: TRIGGER):
+%TRIGGERS%
+
+AVAILABLE ACTIONS (type: ACTION):
+%ACTIONS%
+
+DELAY NODE:
+- type: "DELAY", key: "delay"
+- settings: { "value": <number>, "unit": "minutes"|"hours"|"days"|"weeks" }
+- Example for 2 days: { "value": 2, "unit": "days" }
+- Example for 1 hour: { "value": 1, "unit": "hours" }
+- CRITICAL: Always respect the exact delay duration requested by the user. If the user says "10 minutes", use {"value": 10, "unit": "minutes"}. NEVER default to minutes when the user specifies another unit.
+
+ADD_TAG / REMOVE_TAG ACTION:
+- settings: { "tag": "<tag_name>" }
+- Use the exact tag name as specified by the user (the system will resolve it to an ID automatically)
+- Example: { "tag": "prospect chaud" }
+
+ADD_TO_LIST / REMOVE_FROM_LIST ACTION:
+- settings: { "list": "<list_name>" }
+- Use the exact list name as specified by the user (the system will resolve it to an ID automatically)
+- Example: { "list": "VIP Clients" }
+
+SEND_EMAIL ACTION:
+- settings: { "name": "<descriptive name>", "subject": "<email subject>" }
+- Do NOT set template_id — the user will assign the email template later in the editor.
+
+CONDITION NODE:
+- type: "CONDITION", key: "condition"
+- settings: { "condition": { "operator": "AND"|"OR", "rules": [{ "field": "<field_key>", "operator": "<op>", "value": "<val>" }] } }
+- Available condition fields:
+%CONDITION_FIELDS%
+- Available operators: %OPERATORS%
+- Condition nodes have TWO outputs: next_id (true branch) and alt_id (false branch). Both MUST point to valid node IDs.
+- IMPORTANT: Every node reachable from a condition branch must be properly connected. Both the true and false branches must lead to actual nodes in the workflow.
+
+CONDITION SETTINGS EXAMPLES:
+- Check total orders > 3: { "condition": { "operator": "AND", "rules": [{ "field": "wc_order_count", "operator": ">", "value": 3 }] } }
+- Check if contact has tag: { "condition": { "operator": "AND", "rules": [{ "field": "mp_has_tag", "operator": "==", "value": "tag-name" }] } }
+- Check custom field: { "condition": { "operator": "AND", "rules": [{ "field": "mp_custom_field_source", "operator": "==", "value": "organic" }] } }
+- For custom fields, the field key format is: "mp_custom_field_<field_key>" (prefix "mp_custom_field_" + the custom field key)
+
+HOW BRANCHING WORKS — CRITICAL:
+The "nodes" array is a FLAT list. Branching is achieved ONLY through next_id and alt_id pointers. Think of it as a directed graph, NOT a tree of nested objects.
+
+For a CONDITION node:
+- next_id → the FIRST node of the TRUE (Yes) branch
+- alt_id → the FIRST node of the FALSE (No) branch
+- Each branch is an independent chain of nodes linked via their own next_id pointers
+- The last node in each branch has next_id: null (branches do NOT merge back)
+
+For nested conditions (condition inside a branch), the alt_id of the first condition points to the second condition node.
+
+COMPLETE BRANCHING WORKFLOW EXAMPLE:
+Scenario: "When a contact subscribes, check orders > 3. If yes, add to VIP list and send VIP email. If no, check custom field source. If source=organic, add tag and send nurturing email after 2 days. If source=paid, add to list and send welcome email."
+
+The graph structure looks like:
+  TRIGGER → CONDITION_1 (orders > 3)
+    ├─ YES → add_to_list (VIP) → send_email (VIP)
+    └─ NO  → CONDITION_2 (source == organic)
+               ├─ YES → add_tag (prospect) → delay (2 days) → send_email (nurturing)
+               └─ NO  → add_to_list (paid) → send_email (welcome)
+
+JSON output:
+{
+  "type": "workflow",
+  "name": "Segmentation workflow",
+  "nodes": [
+    { "id": "node_1", "type": "TRIGGER", "key": "<use real trigger key from AVAILABLE TRIGGERS above>", "settings": {}, "next_id": "node_2", "alt_id": null },
+    { "id": "node_2", "type": "CONDITION", "key": "condition", "settings": { "condition": { "operator": "AND", "rules": [{ "field": "wc_order_count", "operator": ">", "value": 3 }] } }, "next_id": "node_3", "alt_id": "node_5" },
+    { "id": "node_3", "type": "ACTION", "key": "add_to_list", "settings": { "list": "VIP" }, "next_id": "node_4", "alt_id": null },
+    { "id": "node_4", "type": "ACTION", "key": "send_email", "settings": { "name": "VIP Email", "subject": "Welcome VIP!" }, "next_id": null, "alt_id": null },
+    { "id": "node_5", "type": "CONDITION", "key": "condition", "settings": { "condition": { "operator": "AND", "rules": [{ "field": "mp_custom_field_source", "operator": "==", "value": "organic" }] } }, "next_id": "node_6", "alt_id": "node_9" },
+    { "id": "node_6", "type": "ACTION", "key": "add_tag", "settings": { "tag": "prospect" }, "next_id": "node_7", "alt_id": null },
+    { "id": "node_7", "type": "DELAY", "key": "delay", "settings": { "value": 2, "unit": "days" }, "next_id": "node_8", "alt_id": null },
+    { "id": "node_8", "type": "ACTION", "key": "send_email", "settings": { "name": "Nurturing", "subject": "Nurturing email" }, "next_id": null, "alt_id": null },
+    { "id": "node_9", "type": "ACTION", "key": "add_to_list", "settings": { "list": "Paid leads" }, "next_id": "node_10", "alt_id": null },
+    { "id": "node_10", "type": "ACTION", "key": "send_email", "settings": { "name": "Welcome", "subject": "Welcome!" }, "next_id": null, "alt_id": null }
+  ]
+}
+
+KEY OBSERVATIONS from the example above:
+- node_2 (first condition): next_id="node_3" (YES→VIP branch), alt_id="node_5" (NO→second condition)
+- node_5 (second condition, nested): next_id="node_6" (YES→organic branch), alt_id="node_9" (NO→paid branch)
+- Each branch is an independent linear chain ending with next_id: null
+- ALL 10 nodes are in the flat "nodes" array — no nesting, no children arrays
+- The graph structure emerges from the pointer chain: node_2.alt_id → node_5 → node_5.next_id → node_6 → node_7 → node_8
+
+STRICT OUTPUT RULES:
+1. Respond ONLY with a valid JSON object (either "questions" or "workflow" type). No markdown, no explanation, no code fences.
+2. The first node MUST be a TRIGGER.
+3. Use ONLY keys from the lists above. Never invent keys.
+4. Connect nodes via next_id. The last node in each branch should have next_id: null.
+5. For CONDITION nodes, ALWAYS set both next_id (true branch) and alt_id (false branch) to valid node IDs. NEVER leave a condition with alt_id: null — always provide both branches.
+6. Generate the workflow name in {$language_code} language. Keep node names/subjects in {$language_code} too.
+7. Create a sensible, complete workflow based on the user's description. Add delays where appropriate.
+8. If unsure about a trigger or action, pick the closest match from the available list.
+9. ALWAYS use the exact values, durations, and parameters specified by the user. Never substitute, round, or approximate user-provided values.
+10. When asking questions (MODE 1), the "message" field must be in {$language_code} language and feel natural and conversational. Use short paragraphs or bullet points for clarity.
+11. NEVER generate a workflow with a tag, list, or custom field that the user did not explicitly specify. If they said "add a tag" without naming it, you MUST ask first.
+12. For workflows with multiple condition branches, ensure ALL nodes are included in the flat "nodes" array — including nodes in EVERY branch (true AND false) of EVERY condition. Count your nodes: every node in the graph must appear exactly once in the array.
+13. Before outputting, mentally trace EVERY path from the trigger to each leaf node. Verify that every next_id and alt_id points to a valid node ID that exists in your nodes array. Dangling or missing references will break the workflow.
+PROMPT;
+
+        $systemPrompt = str_replace('%INTEGRATIONS%', $integrationsContext, $systemPrompt);
+        $systemPrompt = str_replace('%TRIGGERS%', implode("\n", $triggerList), $systemPrompt);
+        $systemPrompt = str_replace('%ACTIONS%', implode("\n", $actionList), $systemPrompt);
+        $systemPrompt = str_replace('%CONDITION_FIELDS%', implode("\n", $conditionFieldsList), $systemPrompt);
+        $systemPrompt = str_replace('%OPERATORS%', $conditionOperators, $systemPrompt);
+        $systemPrompt = str_replace('%TAG_CONTEXT%', $tagContext, $systemPrompt);
+        $systemPrompt = str_replace('%LIST_CONTEXT%', $listContext, $systemPrompt);
+        $systemPrompt = str_replace('%CUSTOM_FIELD_CONTEXT%', $customFieldContext, $systemPrompt);
+
+        // If existing nodes are provided, append modification context to the system prompt
+        if (!empty($existingNodes)) {
+            $nodeDescriptions = [];
+            foreach ($existingNodes as $node) {
+                $type = $node['type'] ?? 'UNKNOWN';
+                $key = $node['key'] ?? '';
+                $id = $node['id'] ?? '';
+                $settings = $node['settings'] ?? [];
+                $settingsStr = !empty($settings) ? json_encode($settings, JSON_UNESCAPED_UNICODE) : '{}';
+                $nextId = $node['next_step_id'] ?? $node['next_id'] ?? 'null';
+                $altId = $node['alternative_step_id'] ?? $node['alt_id'] ?? 'null';
+                $nodeDescriptions[] = "  - id: \"{$id}\", type: {$type}, key: \"{$key}\", settings: {$settingsStr}, next_id: \"{$nextId}\", alt_id: \"{$altId}\"";
+            }
+            $existingNodesContext = "\n\nMODIFICATION MODE — EXISTING WORKFLOW:\n"
+                . "The user already has a workflow with these nodes:\n"
+                . implode("\n", $nodeDescriptions) . "\n\n"
+                . "The user wants to MODIFY this existing workflow. Your response must:\n"
+                . "1. Return a COMPLETE replacement workflow (all nodes, not just changes) — same format as MODE 2\n"
+                . "2. PRESERVE existing nodes that the user did not ask to change (keep their settings, especially template_id values)\n"
+                . "3. Apply the user's requested modifications (add steps, remove steps, change settings, reorder, etc.)\n"
+                . "4. Keep the same node IDs for unchanged nodes when possible so template_id references are preserved\n"
+                . "5. Use new IDs (node_new_1, node_new_2, etc.) for newly added nodes\n"
+                . "6. If the user's request is unclear, use MODE 1 (questions) to ask for clarification\n";
+
+            $systemPrompt .= $existingNodesContext;
+        }
+
+        // Determine model
+        $model = $aiSettings['text_ai']['model'] ?? 'gpt-4o';
+
+        // GPT-5.x / o3 / o4 use 'developer' role
+        $isReasoningModel = preg_match('/^(gpt-5|o[34])/', $model);
+        $systemRole = $isReasoningModel ? 'developer' : 'system';
+
+        // Build messages array: system + conversation history or single prompt
+        $messages = [['role' => $systemRole, 'content' => $systemPrompt]];
+
+        if (!empty($conversationMessages)) {
+            foreach ($conversationMessages as $msg) {
+                $messages[] = $msg;
+            }
+        } else {
+            $messages[] = ['role' => 'user', 'content' => $prompt];
+        }
+
+        $requestBody = [
+            'model' => $model,
+            'messages' => $messages,
+        ];
+
+        if ($isReasoningModel) {
+            $requestBody['max_completion_tokens'] = 4000;
+        } else {
+            $requestBody['max_tokens'] = 4000;
+            $requestBody['temperature'] = 0.3;
+        }
+
+        // Determine API URL based on provider
+        $apiUrl = match($provider) {
+            'openai' => 'https://api.openai.com/v1/chat/completions',
+            'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+            'mistral' => 'https://api.mistral.ai/v1/chat/completions',
+            'anthropic' => 'https://api.anthropic.com/v1/messages',
+            default => 'https://api.openai.com/v1/chat/completions',
+        };
+
+        // Anthropic/Claude: system is a top-level param, different headers
+        if ($provider === 'anthropic') {
+            $claudeMessages = [];
+            if (!empty($conversationMessages)) {
+                foreach ($conversationMessages as $msg) {
+                    $claudeMessages[] = [
+                        'role' => $msg['role'],
+                        'content' => $msg['content'],
+                    ];
+                }
+            } else {
+                $claudeMessages[] = ['role' => 'user', 'content' => $prompt];
+            }
+
+            $requestBody = [
+                'model' => $model,
+                'max_tokens' => 4000,
+                'system' => $systemPrompt,
+                'messages' => $claudeMessages,
+            ];
+
+            if (!$isReasoningModel) {
+                $requestBody['temperature'] = 0.3;
+            }
+
+            $headers = [
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'Content-Type' => 'application/json',
+            ];
+        } elseif ($provider === 'gemini') {
+            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $apiKey;
+            $geminiContents = [['role' => 'model', 'parts' => [['text' => $systemPrompt]]]];
+            if (!empty($conversationMessages)) {
+                foreach ($conversationMessages as $msg) {
+                    $geminiRole = $msg['role'] === 'assistant' ? 'model' : 'user';
+                    $geminiContents[] = ['role' => $geminiRole, 'parts' => [['text' => $msg['content']]]];
+                }
+            } else {
+                $geminiContents[] = ['role' => 'user', 'parts' => [['text' => $prompt]]];
+            }
+            $requestBody = [
+                'contents' => $geminiContents,
+                'generationConfig' => [
+                    'maxOutputTokens' => 4000,
+                    'temperature' => 0.3,
+                ],
+            ];
+            $headers = ['Content-Type' => 'application/json'];
+        } else {
+            $headers = [
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type' => 'application/json',
+            ];
+        }
+
+        $response = wp_remote_post($apiUrl, [
+            'headers' => $headers,
+            'body' => wp_json_encode($requestBody),
+            'timeout' => 120,
+        ]);
+
+        if (is_wp_error($response)) {
+            return new \WP_Error(
+                'ai_request_failed',
+                __('Failed to connect to AI provider: ', 'mailerpress') . $response->get_error_message(),
+                ['status' => 500]
+            );
+        }
+
+        $statusCode = wp_remote_retrieve_response_code($response);
+        $responseBody = wp_remote_retrieve_body($response);
+        $data = json_decode($responseBody, true);
+
+        if ($statusCode !== 200) {
+            $errorMsg = $data['error']['message'] ?? $responseBody;
+            return new \WP_Error(
+                'ai_api_error',
+                __('AI provider error: ', 'mailerpress') . $errorMsg,
+                ['status' => 502]
+            );
+        }
+
+        // Extract content based on provider
+        if ($provider === 'anthropic') {
+            $content = $data['content'][0]['text'] ?? null;
+        } elseif ($provider === 'gemini') {
+            $content = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        } else {
+            $content = $data['choices'][0]['message']['content']
+                ?? $data['choices'][0]['message']['reasoning_content']
+                ?? $data['output'][0]['content'][0]['text']
+                ?? null;
+        }
+
+        if (empty($content)) {
+            return new \WP_Error(
+                'ai_empty_response',
+                __('AI returned an empty response. Please try again.', 'mailerpress'),
+                ['status' => 500]
+            );
+        }
+
+        // Strip markdown code fences if present
+        $content = trim($content);
+        $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
+        $content = preg_replace('/\s*```$/i', '', $content);
+        $content = trim($content);
+
+        $parsed = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return new \WP_Error(
+                'ai_invalid_json',
+                __('AI generated an invalid response. Please try again with a clearer description.', 'mailerpress'),
+                ['status' => 422]
+            );
+        }
+
+        // Handle "questions" response type — AI needs more info
+        $responseType = $parsed['type'] ?? 'workflow';
+
+        if ($responseType === 'questions') {
+            return new \WP_REST_Response([
+                'type' => 'questions',
+                'message' => $parsed['message'] ?? __('Could you provide more details?', 'mailerpress'),
+                'raw' => $content,
+            ], 200);
+        }
+
+        // Handle "workflow" response type
+        $workflow = $parsed;
+        if (!isset($workflow['nodes'])) {
+            return new \WP_Error(
+                'ai_invalid_json',
+                __('AI generated an invalid workflow. Please try again with a clearer description.', 'mailerpress'),
+                ['status' => 422]
+            );
+        }
+
+        // Post-process: generate proper UUIDs and wire step_ids
+        $nodeIdMap = [];
+        $processedNodes = [];
+        $yPosition = 100;
+
+        global $wpdb;
+
+        // Build lookup maps for tag/list resolution
+        $tagNameToId = [];
+        foreach ($existingTags as $t) {
+            $tagNameToId[mb_strtolower($t->name)] = (string)$t->tag_id;
+        }
+        $listNameToId = [];
+        foreach ($existingLists as $l) {
+            $listNameToId[mb_strtolower($l['name'] ?? '')] = (string)($l['list_id'] ?? $l['id'] ?? '');
+        }
+
+        $tagsTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_TAGS);
+        $listsTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_LIST);
+
+        // First pass: assign UUIDs
+        foreach ($workflow['nodes'] as $node) {
+            $uuid = wp_generate_uuid4();
+            $nodeIdMap[$node['id']] = $uuid;
+        }
+
+        // Second pass: build proper nodes with settings normalization
+        foreach ($workflow['nodes'] as $node) {
+            $uuid = $nodeIdMap[$node['id']];
+            $nextStepId = null;
+            $altStepId = null;
+
+            // Support multiple possible key names from AI output
+            $nextRef = $node['next_id'] ?? $node['next_step_id'] ?? $node['nextId'] ?? null;
+            $altRef = $node['alt_id'] ?? $node['alternative_step_id'] ?? $node['altId'] ?? $node['false_id'] ?? null;
+
+            if (!empty($nextRef) && isset($nodeIdMap[$nextRef])) {
+                $nextStepId = $nodeIdMap[$nextRef];
+            }
+            if (!empty($altRef) && isset($nodeIdMap[$altRef])) {
+                $altStepId = $nodeIdMap[$altRef];
+            }
+
+            $settings = $node['settings'] ?? [];
+
+            // --- DELAY: Convert nested { value, unit } to dot notation { "delay.value", "delay.unit" } ---
+            if ($node['type'] === 'DELAY') {
+                $delayValue = null;
+                $delayUnit = null;
+
+                // Handle nested format from AI: { "value": 1, "unit": "days" }
+                if (isset($settings['value']) && isset($settings['unit'])) {
+                    $delayValue = (int)$settings['value'];
+                    $delayUnit = $settings['unit'];
+                }
+                // Handle nested object format: { "delay": { "value": 1, "unit": "days" } }
+                elseif (isset($settings['delay']) && is_array($settings['delay'])) {
+                    $delayValue = (int)($settings['delay']['value'] ?? 1);
+                    $delayUnit = $settings['delay']['unit'] ?? 'minutes';
+                }
+                // Handle already correct format
+                elseif (isset($settings['delay.value'])) {
+                    $delayValue = (int)$settings['delay.value'];
+                    $delayUnit = $settings['delay.unit'] ?? 'minutes';
+                }
+
+                if ($delayValue !== null) {
+                    $settings = [
+                        'delay.value' => max(1, $delayValue),
+                        'delay.unit' => in_array($delayUnit, ['minutes', 'hours', 'days', 'weeks']) ? $delayUnit : 'minutes',
+                    ];
+                }
+            }
+
+            // --- ADD_TAG / REMOVE_TAG: Resolve tag name to ID, auto-create if needed ---
+            if (in_array($node['key'], ['add_tag', 'remove_tag'])) {
+                $tagValue = $settings['tag'] ?? $settings['tag_id'] ?? $settings['tag_name'] ?? '';
+                $tagDisplayName = $tagValue; // Keep original name for preview
+
+                if (!empty($tagValue) && !is_numeric($tagValue)) {
+                    // It's a tag name — try to find or create it
+                    $tagNameLower = mb_strtolower(trim($tagValue));
+                    if (isset($tagNameToId[$tagNameLower])) {
+                        $tagValue = $tagNameToId[$tagNameLower];
+                    } else {
+                        // Auto-create the tag
+                        $inserted = $wpdb->insert($tagsTable, ['name' => trim($tagValue)], ['%s']);
+                        if ($inserted) {
+                            $newTagId = (string)$wpdb->insert_id;
+                            $tagValue = $newTagId;
+                            $tagNameToId[$tagNameLower] = $newTagId;
+                        }
+                    }
+                } else {
+                    // It's already an ID — look up the name for display
+                    $tagDisplayName = array_search($tagValue, $tagNameToId) ?: $tagValue;
+                }
+
+                $settings = [
+                    'tag' => (string)$tagValue,
+                    '_tag_name' => (string)$tagDisplayName,
+                ];
+            }
+
+            // --- ADD_TO_LIST / REMOVE_FROM_LIST: Resolve list name to ID, auto-create if needed ---
+            if (in_array($node['key'], ['add_to_list', 'remove_from_list'])) {
+                $listValue = $settings['list'] ?? $settings['list_id'] ?? $settings['list_name'] ?? '';
+                $listDisplayName = $listValue; // Keep original name for preview
+
+                if (!empty($listValue) && !is_numeric($listValue)) {
+                    // It's a list name — try to find or create it
+                    $listNameLower = mb_strtolower(trim($listValue));
+                    if (isset($listNameToId[$listNameLower])) {
+                        $listValue = $listNameToId[$listNameLower];
+                    } else {
+                        // Auto-create the list
+                        $inserted = $wpdb->insert($listsTable, [
+                            'name' => trim($listValue),
+                            'is_default' => 0,
+                        ], ['%s', '%d']);
+                        if ($inserted) {
+                            $newListId = (string)$wpdb->insert_id;
+                            $listValue = $newListId;
+                            $listNameToId[$listNameLower] = $newListId;
+                        }
+                    }
+                } else {
+                    // It's already an ID — look up the name for display
+                    $listDisplayName = array_search($listValue, $listNameToId) ?: $listValue;
+                }
+
+                $settings = [
+                    'list' => (string)$listValue,
+                    '_list_name' => (string)$listDisplayName,
+                ];
+            }
+
+            // --- CONDITION: Ensure proper nested format ---
+            if ($node['type'] === 'CONDITION' && isset($settings['condition'])) {
+                $condition = $settings['condition'];
+                // Ensure rules values are properly formatted
+                if (isset($condition['rules']) && is_array($condition['rules'])) {
+                    foreach ($condition['rules'] as &$rule) {
+                        // For tag-based conditions, resolve tag names to IDs
+                        if (in_array($rule['field'] ?? '', ['mp_has_tag']) && !empty($rule['value'])) {
+                            $ruleValues = is_array($rule['value']) ? $rule['value'] : [$rule['value']];
+                            $resolvedValues = [];
+                            foreach ($ruleValues as $rv) {
+                                if (!is_numeric($rv)) {
+                                    $rvLower = mb_strtolower(trim($rv));
+                                    if (isset($tagNameToId[$rvLower])) {
+                                        $resolvedValues[] = $tagNameToId[$rvLower];
+                                    } else {
+                                        $resolvedValues[] = $rv; // keep as-is
+                                    }
+                                } else {
+                                    $resolvedValues[] = $rv;
+                                }
+                            }
+                            $rule['value'] = count($resolvedValues) === 1 ? $resolvedValues[0] : $resolvedValues;
+                        }
+                        // For list-based conditions, resolve list names to IDs
+                        if (in_array($rule['field'] ?? '', ['mp_in_list']) && !empty($rule['value'])) {
+                            $ruleValues = is_array($rule['value']) ? $rule['value'] : [$rule['value']];
+                            $resolvedValues = [];
+                            foreach ($ruleValues as $rv) {
+                                if (!is_numeric($rv)) {
+                                    $rvLower = mb_strtolower(trim($rv));
+                                    if (isset($listNameToId[$rvLower])) {
+                                        $resolvedValues[] = $listNameToId[$rvLower];
+                                    } else {
+                                        $resolvedValues[] = $rv;
+                                    }
+                                } else {
+                                    $resolvedValues[] = $rv;
+                                }
+                            }
+                            $rule['value'] = count($resolvedValues) === 1 ? $resolvedValues[0] : $resolvedValues;
+                        }
+                    }
+                    unset($rule);
+                    $condition['rules'] = $condition['rules'];
+                }
+                $settings['condition'] = $condition;
+            }
+
+            $processedNodes[] = [
+                'id' => $uuid,
+                'step_id' => $uuid,
+                'type' => $node['type'],
+                'key' => $node['key'],
+                'settings' => $settings,
+                'next_step_id' => $nextStepId,
+                'alternative_step_id' => $altStepId,
+                'position' => ['x' => 460, 'y' => $yPosition],
+            ];
+            $yPosition += 200;
+        }
+
+        return new \WP_REST_Response([
+            'type' => 'workflow',
+            'workflow' => [
+                'name' => $workflow['name'] ?? __('AI Generated Workflow', 'mailerpress'),
+                'nodes' => $processedNodes,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Call the configured AI provider with a system prompt and user messages.
+     *
+     * @param string      $systemPrompt  The system/developer prompt.
+     * @param array       $userMessages  Array of ['role' => ..., 'content' => ...] messages.
+     * @param string|null $modelOverride Optional model override.
+     * @return string|\WP_Error The AI text content or a WP_Error.
+     */
+    private function callAiProvider(string $systemPrompt, array $userMessages, ?string $modelOverride = null): string|\WP_Error
+    {
+        $aiSettings = get_option('mailerpress_ai_model_settings', []);
+        if (is_string($aiSettings)) {
+            $aiSettings = json_decode($aiSettings, true);
+        }
+
+        if (empty($aiSettings['text_ai']['provider']) || empty($aiSettings['api_keys'])) {
+            return new \WP_Error(
+                'ai_not_configured',
+                __('AI is not configured. Please set up your AI provider in MailerPress settings.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $provider = $aiSettings['text_ai']['provider'];
+        $apiKey = $aiSettings['api_keys'][$provider] ?? '';
+
+        if (empty($apiKey)) {
+            return new \WP_Error(
+                'ai_no_api_key',
+                __('No API key found for the configured AI provider.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $model = $modelOverride ?? ($aiSettings['text_ai']['model'] ?? 'gpt-4o');
+
+        // GPT-5.x / o3 / o4 use 'developer' role
+        $isReasoningModel = preg_match('/^(gpt-5|o[34])/', $model);
+        $systemRole = $isReasoningModel ? 'developer' : 'system';
+
+        $messages = [['role' => $systemRole, 'content' => $systemPrompt]];
+        foreach ($userMessages as $msg) {
+            $messages[] = $msg;
+        }
+
+        $requestBody = [
+            'model' => $model,
+            'messages' => $messages,
+        ];
+
+        if ($isReasoningModel) {
+            $requestBody['max_completion_tokens'] = 4000;
+        } else {
+            $requestBody['max_tokens'] = 4000;
+            $requestBody['temperature'] = 0.3;
+        }
+
+        // Determine API URL based on provider
+        $apiUrl = match($provider) {
+            'openai' => 'https://api.openai.com/v1/chat/completions',
+            'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+            'mistral' => 'https://api.mistral.ai/v1/chat/completions',
+            'anthropic' => 'https://api.anthropic.com/v1/messages',
+            default => 'https://api.openai.com/v1/chat/completions',
+        };
+
+        // Anthropic/Claude: system is a top-level param, different headers
+        if ($provider === 'anthropic') {
+            $claudeMessages = [];
+            foreach ($userMessages as $msg) {
+                $claudeMessages[] = [
+                    'role' => $msg['role'],
+                    'content' => $msg['content'],
+                ];
+            }
+
+            $requestBody = [
+                'model' => $model,
+                'max_tokens' => 4000,
+                'system' => $systemPrompt,
+                'messages' => $claudeMessages,
+            ];
+
+            if (!$isReasoningModel) {
+                $requestBody['temperature'] = 0.3;
+            }
+
+            $headers = [
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'Content-Type' => 'application/json',
+            ];
+        } elseif ($provider === 'gemini') {
+            $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $apiKey;
+            $geminiContents = [['role' => 'model', 'parts' => [['text' => $systemPrompt]]]];
+            foreach ($userMessages as $msg) {
+                $geminiRole = ($msg['role'] ?? 'user') === 'assistant' ? 'model' : 'user';
+                $geminiContents[] = ['role' => $geminiRole, 'parts' => [['text' => $msg['content']]]];
+            }
+            $requestBody = [
+                'contents' => $geminiContents,
+                'generationConfig' => [
+                    'maxOutputTokens' => 4000,
+                    'temperature' => 0.3,
+                ],
+            ];
+            $headers = ['Content-Type' => 'application/json'];
+        } else {
+            $headers = [
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type' => 'application/json',
+            ];
+        }
+
+        $response = wp_remote_post($apiUrl, [
+            'headers' => $headers,
+            'body' => wp_json_encode($requestBody),
+            'timeout' => 120,
+        ]);
+
+        if (is_wp_error($response)) {
+            return new \WP_Error(
+                'ai_request_failed',
+                __('Failed to connect to AI provider: ', 'mailerpress') . $response->get_error_message(),
+                ['status' => 500]
+            );
+        }
+
+        $statusCode = wp_remote_retrieve_response_code($response);
+        $responseBody = wp_remote_retrieve_body($response);
+        $data = json_decode($responseBody, true);
+
+        if ($statusCode !== 200) {
+            $errorMsg = $data['error']['message'] ?? $responseBody;
+            return new \WP_Error(
+                'ai_api_error',
+                __('AI provider error: ', 'mailerpress') . $errorMsg,
+                ['status' => 502]
+            );
+        }
+
+        // Extract content based on provider
+        if ($provider === 'anthropic') {
+            $content = $data['content'][0]['text'] ?? null;
+        } elseif ($provider === 'gemini') {
+            $content = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        } else {
+            $content = $data['choices'][0]['message']['content']
+                ?? $data['choices'][0]['message']['reasoning_content']
+                ?? $data['output'][0]['content'][0]['text']
+                ?? null;
+        }
+
+        if (empty($content)) {
+            return new \WP_Error(
+                'ai_empty_response',
+                __('AI returned an empty response. Please try again.', 'mailerpress'),
+                ['status' => 500]
+            );
+        }
+
+        // Strip markdown code fences if present
+        $content = trim($content);
+        $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
+        $content = preg_replace('/\s*```$/i', '', $content);
+        $content = trim($content);
+
+        return $content;
+    }
+
+    /**
+     * Normalize AI-generated nodes: assign UUIDs, resolve tag/list names to IDs, normalize delay/condition settings.
+     *
+     * @param array $rawNodes     The raw nodes array from AI output.
+     * @param array $existingTags Array of tag objects (with ->name, ->tag_id).
+     * @param array $existingLists Array of list arrays (with 'name', 'list_id'/'id').
+     * @return array The processed nodes array.
+     */
+    private function normalizeAiNodes(array $rawNodes, array $existingTags, array $existingLists): array
+    {
+        global $wpdb;
+
+        // Build lookup maps for tag/list resolution
+        $tagNameToId = [];
+        foreach ($existingTags as $t) {
+            $tagNameToId[mb_strtolower($t->name)] = (string)$t->tag_id;
+        }
+        $listNameToId = [];
+        foreach ($existingLists as $l) {
+            $listNameToId[mb_strtolower($l['name'] ?? '')] = (string)($l['list_id'] ?? $l['id'] ?? '');
+        }
+
+        $tagsTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_TAGS);
+        $listsTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_LIST);
+
+        // First pass: assign UUIDs
+        $nodeIdMap = [];
+        foreach ($rawNodes as $node) {
+            $uuid = wp_generate_uuid4();
+            $nodeIdMap[$node['id']] = $uuid;
+        }
+
+        // Second pass: build proper nodes with settings normalization
+        $processedNodes = [];
+        $yPosition = 100;
+
+        foreach ($rawNodes as $node) {
+            $uuid = $nodeIdMap[$node['id']];
+            $nextStepId = null;
+            $altStepId = null;
+
+            // Support multiple possible key names from AI output
+            $nextRef = $node['next_id'] ?? $node['next_step_id'] ?? $node['nextId'] ?? null;
+            $altRef = $node['alt_id'] ?? $node['alternative_step_id'] ?? $node['altId'] ?? $node['false_id'] ?? null;
+
+            if (!empty($nextRef) && isset($nodeIdMap[$nextRef])) {
+                $nextStepId = $nodeIdMap[$nextRef];
+            }
+            if (!empty($altRef) && isset($nodeIdMap[$altRef])) {
+                $altStepId = $nodeIdMap[$altRef];
+            }
+
+            $settings = $node['settings'] ?? [];
+
+            // --- DELAY: Convert nested { value, unit } to dot notation { "delay.value", "delay.unit" } ---
+            if ($node['type'] === 'DELAY') {
+                $delayValue = null;
+                $delayUnit = null;
+
+                // Handle nested format from AI: { "value": 1, "unit": "days" }
+                if (isset($settings['value']) && isset($settings['unit'])) {
+                    $delayValue = (int)$settings['value'];
+                    $delayUnit = $settings['unit'];
+                }
+                // Handle nested object format: { "delay": { "value": 1, "unit": "days" } }
+                elseif (isset($settings['delay']) && is_array($settings['delay'])) {
+                    $delayValue = (int)($settings['delay']['value'] ?? 1);
+                    $delayUnit = $settings['delay']['unit'] ?? 'minutes';
+                }
+                // Handle already correct format
+                elseif (isset($settings['delay.value'])) {
+                    $delayValue = (int)$settings['delay.value'];
+                    $delayUnit = $settings['delay.unit'] ?? 'minutes';
+                }
+
+                if ($delayValue !== null) {
+                    $settings = [
+                        'delay.value' => max(1, $delayValue),
+                        'delay.unit' => in_array($delayUnit, ['minutes', 'hours', 'days', 'weeks']) ? $delayUnit : 'minutes',
+                    ];
+                }
+            }
+
+            // --- ADD_TAG / REMOVE_TAG: Resolve tag name to ID, auto-create if needed ---
+            if (in_array($node['key'], ['add_tag', 'remove_tag'])) {
+                $tagValue = $settings['tag'] ?? $settings['tag_id'] ?? $settings['tag_name'] ?? '';
+                $tagDisplayName = $tagValue; // Keep original name for preview
+
+                if (!empty($tagValue) && !is_numeric($tagValue)) {
+                    // It's a tag name — try to find or create it
+                    $tagNameLower = mb_strtolower(trim($tagValue));
+                    if (isset($tagNameToId[$tagNameLower])) {
+                        $tagValue = $tagNameToId[$tagNameLower];
+                    } else {
+                        // Auto-create the tag
+                        $inserted = $wpdb->insert($tagsTable, ['name' => trim($tagValue)], ['%s']);
+                        if ($inserted) {
+                            $newTagId = (string)$wpdb->insert_id;
+                            $tagValue = $newTagId;
+                            $tagNameToId[$tagNameLower] = $newTagId;
+                        }
+                    }
+                } else {
+                    // It's already an ID — look up the name for display
+                    $tagDisplayName = array_search($tagValue, $tagNameToId) ?: $tagValue;
+                }
+
+                $settings = [
+                    'tag' => (string)$tagValue,
+                    '_tag_name' => (string)$tagDisplayName,
+                ];
+            }
+
+            // --- ADD_TO_LIST / REMOVE_FROM_LIST: Resolve list name to ID, auto-create if needed ---
+            if (in_array($node['key'], ['add_to_list', 'remove_from_list'])) {
+                $listValue = $settings['list'] ?? $settings['list_id'] ?? $settings['list_name'] ?? '';
+                $listDisplayName = $listValue; // Keep original name for preview
+
+                if (!empty($listValue) && !is_numeric($listValue)) {
+                    // It's a list name — try to find or create it
+                    $listNameLower = mb_strtolower(trim($listValue));
+                    if (isset($listNameToId[$listNameLower])) {
+                        $listValue = $listNameToId[$listNameLower];
+                    } else {
+                        // Auto-create the list
+                        $inserted = $wpdb->insert($listsTable, [
+                            'name' => trim($listValue),
+                            'is_default' => 0,
+                        ], ['%s', '%d']);
+                        if ($inserted) {
+                            $newListId = (string)$wpdb->insert_id;
+                            $listValue = $newListId;
+                            $listNameToId[$listNameLower] = $newListId;
+                        }
+                    }
+                } else {
+                    // It's already an ID — look up the name for display
+                    $listDisplayName = array_search($listValue, $listNameToId) ?: $listValue;
+                }
+
+                $settings = [
+                    'list' => (string)$listValue,
+                    '_list_name' => (string)$listDisplayName,
+                ];
+            }
+
+            // --- CONDITION: Ensure proper nested format ---
+            if ($node['type'] === 'CONDITION' && isset($settings['condition'])) {
+                $condition = $settings['condition'];
+                // Ensure rules values are properly formatted
+                if (isset($condition['rules']) && is_array($condition['rules'])) {
+                    foreach ($condition['rules'] as &$rule) {
+                        // For tag-based conditions, resolve tag names to IDs
+                        if (in_array($rule['field'] ?? '', ['mp_has_tag']) && !empty($rule['value'])) {
+                            $ruleValues = is_array($rule['value']) ? $rule['value'] : [$rule['value']];
+                            $resolvedValues = [];
+                            foreach ($ruleValues as $rv) {
+                                if (!is_numeric($rv)) {
+                                    $rvLower = mb_strtolower(trim($rv));
+                                    if (isset($tagNameToId[$rvLower])) {
+                                        $resolvedValues[] = $tagNameToId[$rvLower];
+                                    } else {
+                                        $resolvedValues[] = $rv; // keep as-is
+                                    }
+                                } else {
+                                    $resolvedValues[] = $rv;
+                                }
+                            }
+                            $rule['value'] = count($resolvedValues) === 1 ? $resolvedValues[0] : $resolvedValues;
+                        }
+                        // For list-based conditions, resolve list names to IDs
+                        if (in_array($rule['field'] ?? '', ['mp_in_list']) && !empty($rule['value'])) {
+                            $ruleValues = is_array($rule['value']) ? $rule['value'] : [$rule['value']];
+                            $resolvedValues = [];
+                            foreach ($ruleValues as $rv) {
+                                if (!is_numeric($rv)) {
+                                    $rvLower = mb_strtolower(trim($rv));
+                                    if (isset($listNameToId[$rvLower])) {
+                                        $resolvedValues[] = $listNameToId[$rvLower];
+                                    } else {
+                                        $resolvedValues[] = $rv;
+                                    }
+                                } else {
+                                    $resolvedValues[] = $rv;
+                                }
+                            }
+                            $rule['value'] = count($resolvedValues) === 1 ? $resolvedValues[0] : $resolvedValues;
+                        }
+                    }
+                    unset($rule);
+                    $condition['rules'] = $condition['rules'];
+                }
+                $settings['condition'] = $condition;
+            }
+
+            $processedNodes[] = [
+                'id' => $uuid,
+                'step_id' => $uuid,
+                'type' => $node['type'],
+                'key' => $node['key'],
+                'settings' => $settings,
+                'next_step_id' => $nextStepId,
+                'alternative_step_id' => $altStepId,
+                'position' => ['x' => 460, 'y' => $yPosition],
+            ];
+            $yPosition += 200;
+        }
+
+        return $processedNodes;
+    }
+
+    #[Endpoint(
+        'workflows/ai-explain',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
+    )]
+    public function aiExplainWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        if (!$this->isProActive()) {
+            return new \WP_Error(
+                'pro_required',
+                __('AI workflow explanation requires MailerPress Pro.', 'mailerpress'),
+                ['status' => 403]
+            );
+        }
+
+        $nodes = $request->get_param('nodes');
+        if (empty($nodes) || !is_array($nodes)) {
+            return new \WP_Error('missing_nodes', __('Please provide the workflow nodes to explain.', 'mailerpress'), ['status' => 400]);
+        }
+
+        $locale = sanitize_text_field($request->get_param('locale') ?? '');
+        if (empty($locale)) {
+            $current_user = wp_get_current_user();
+            $user_locale = get_user_locale($current_user->ID);
+            $locale = substr($user_locale ?: get_locale(), 0, 2);
+        }
+
+        // Get available triggers, actions, conditions to build label maps
+        $triggersResponse = $this->getTriggers();
+        $actionsResponse = $this->getActions();
+        $conditionsResponse = $this->getConditions();
+
+        $triggers = $triggersResponse->get_data();
+        $actions = $actionsResponse->get_data();
+        $conditions = $conditionsResponse->get_data();
+
+        // Build label maps for human-readable serialization
+        $triggerLabels = [];
+        foreach ($triggers as $t) {
+            $triggerLabels[$t['key'] ?? ''] = $t['label'] ?? ($t['key'] ?? '');
+        }
+
+        $actionLabels = [];
+        foreach ($actions as $a) {
+            if (isset($a['key'])) {
+                $actionLabels[$a['key']] = $a['label'] ?? $a['key'];
+            } elseif (isset($a['keys'])) {
+                foreach ($a['keys'] as $key) {
+                    $actionLabels[$key] = ucwords(str_replace('_', ' ', $key));
+                }
+            }
+        }
+
+        $conditionFieldLabels = [];
+        foreach (($conditions['fields'] ?? []) as $f) {
+            $conditionFieldLabels[$f['key']] = $f['label'] ?? $f['key'];
+        }
+
+        // Serialize nodes into a human-readable format for the AI
+        $nodeDescriptions = [];
+        foreach ($nodes as $node) {
+            $type = $node['type'] ?? 'UNKNOWN';
+            $key = $node['key'] ?? '';
+            $id = $node['id'] ?? $node['step_id'] ?? '';
+            $settings = $node['settings'] ?? [];
+            $nextId = $node['next_step_id'] ?? $node['next_id'] ?? null;
+            $altId = $node['alternative_step_id'] ?? $node['alt_id'] ?? null;
+
+            // Resolve label
+            $label = $triggerLabels[$key] ?? $actionLabels[$key] ?? ucwords(str_replace('_', ' ', $key));
+
+            $desc = "- Node [{$id}] Type: {$type}, Key: \"{$key}\" ({$label})";
+
+            if (!empty($settings)) {
+                $desc .= ", Settings: " . wp_json_encode($settings);
+            }
+
+            $connections = [];
+            if (!empty($nextId)) {
+                $connections[] = "next → [{$nextId}]";
+            }
+            if (!empty($altId)) {
+                $connections[] = "false/alt → [{$altId}]";
+            }
+            if (!empty($connections)) {
+                $desc .= ", Connections: " . implode(', ', $connections);
+            }
+
+            $nodeDescriptions[] = $desc;
+        }
+
+        $nodesText = implode("\n", $nodeDescriptions);
+
+        $systemPrompt = <<<PROMPT
+You are a workflow analyst. Write a short, plain-text summary of what this automation workflow does.
+Be concrete and concise: state what event starts the workflow, what each step does in order, and what the end result is.
+Do NOT use markdown, headers, bullet points, bold, or any formatting. Just write 2-5 plain sentences describing the workflow.
+Respond in {$locale} language.
+PROMPT;
+
+        $userMessage = "Here is the workflow to explain:\n\n" . $nodesText;
+
+        $result = $this->callAiProvider($systemPrompt, [['role' => 'user', 'content' => $userMessage]]);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return new \WP_REST_Response([
+            'explanation' => $result,
+        ], 200);
+    }
+
+    #[Endpoint(
+        'workflows/ai-steps',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
+    )]
+    public function aiGenerateSteps(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        if (!$this->isProActive()) {
+            return new \WP_Error(
+                'pro_required',
+                __('AI step generation requires MailerPress Pro.', 'mailerpress'),
+                ['status' => 403]
+            );
+        }
+
+        $prompt = sanitize_textarea_field($request->get_param('prompt') ?? '');
+        $parentNodeId = sanitize_text_field($request->get_param('parent_node_id') ?? '');
+        $branch = $request->get_param('branch');
+        $existingNodesParam = $request->get_param('existing_nodes');
+
+        if (empty($prompt)) {
+            return new \WP_Error('missing_prompt', __('Please describe the steps you want to add.', 'mailerpress'), ['status' => 400]);
+        }
+
+        if (empty($parentNodeId)) {
+            return new \WP_Error('missing_parent', __('Please specify the parent node to add steps after.', 'mailerpress'), ['status' => 400]);
+        }
+
+        $existingNodes = [];
+        if (!empty($existingNodesParam) && is_array($existingNodesParam)) {
+            $existingNodes = $existingNodesParam;
+        }
+
+        // Sanitize branch
+        if (!in_array($branch, ['yes', 'no', null], true)) {
+            $branch = null;
+        }
+
+        // Gather available triggers, actions, conditions
+        $triggersResponse = $this->getTriggers();
+        $actionsResponse = $this->getActions();
+        $conditionsResponse = $this->getConditions();
+
+        $triggers = $triggersResponse->get_data();
+        $actions = $actionsResponse->get_data();
+        $conditions = $conditionsResponse->get_data();
+
+        // Build trigger descriptions for the system prompt
+        $triggerList = [];
+        foreach ($triggers as $t) {
+            $key = $t['key'] ?? '';
+            $label = $t['label'] ?? $key;
+            $desc = $t['description'] ?? '';
+            $triggerList[] = "- key: \"{$key}\" — {$label}" . ($desc ? " ({$desc})" : '');
+        }
+
+        // Build action descriptions
+        $actionList = [];
+        foreach ($actions as $a) {
+            if (isset($a['key'])) {
+                $key = $a['key'];
+                $label = $a['label'] ?? $key;
+                $desc = $a['description'] ?? '';
+                $settingsDoc = '';
+                if (!empty($a['settings_schema'])) {
+                    $fields = array_map(function($s) {
+                        $req = !empty($s['required']) ? ' (required)' : '';
+                        return $s['key'] . $req;
+                    }, $a['settings_schema']);
+                    $settingsDoc = ' | settings: ' . implode(', ', $fields);
+                }
+                $actionList[] = "- key: \"{$key}\" — {$label}" . ($desc ? " ({$desc})" : '') . $settingsDoc;
+            } elseif (isset($a['keys'])) {
+                foreach ($a['keys'] as $key) {
+                    $actionList[] = "- key: \"{$key}\"";
+                }
+            }
+        }
+
+        // Build condition fields
+        $conditionFieldsList = [];
+        foreach (($conditions['fields'] ?? []) as $f) {
+            $conditionFieldsList[] = "- field: \"{$f['key']}\" ({$f['label']}) type: {$f['type']}" . (!empty($f['description']) ? " — {$f['description']}" : '');
+        }
+
+        $conditionOperators = implode(', ', $conditions['operators'] ?? []);
+
+        // Gather existing tags, lists, and custom fields for context
+        $existingTags = \MailerPress\Models\Tags::getAll();
+        $tagNames = !empty($existingTags) ? array_map(fn($t) => $t->name, $existingTags) : [];
+
+        $existingLists = \MailerPress\Models\Lists::getLists();
+        $listNames = !empty($existingLists) ? array_map(fn($l) => $l['name'] ?? '', $existingLists) : [];
+
+        $customFieldsModel = new \MailerPress\Models\CustomFields();
+        $existingCustomFields = $customFieldsModel->all();
+        $customFieldDescriptions = [];
+        if (!empty($existingCustomFields)) {
+            foreach ($existingCustomFields as $f) {
+                $desc = "- \"{$f->field_key}\" ({$f->label}), type: {$f->type}";
+                if (!empty($f->options)) {
+                    $opts = is_string($f->options) ? json_decode($f->options, true) : $f->options;
+                    if (is_array($opts)) {
+                        $desc .= ', options: ' . implode(', ', $opts);
+                    }
+                }
+                $customFieldDescriptions[] = $desc;
+            }
+        }
+
+        $tagDescriptions = [];
+        foreach ($existingTags as $t) {
+            $tagDescriptions[] = "- \"{$t->name}\" (id: {$t->tag_id})";
+        }
+        $tagContext = !empty($tagDescriptions)
+            ? "EXISTING TAGS:\n" . implode("\n", $tagDescriptions) . "\nUse the tag name in settings (the system resolves names to IDs automatically). If the user wants a tag that doesn't exist, use the new name — it will be auto-created."
+            : "No tags exist yet. New tags will be auto-created.";
+
+        $listDescriptions = [];
+        foreach ($existingLists as $l) {
+            $listDescriptions[] = "- \"{$l['name']}\" (id: " . ($l['list_id'] ?? $l['id'] ?? '') . ")";
+        }
+        $listContext = !empty($listDescriptions)
+            ? "EXISTING LISTS:\n" . implode("\n", $listDescriptions) . "\nUse the list name in settings (the system resolves names to IDs automatically). If the user wants a list that doesn't exist, use the new name — it will be auto-created."
+            : "No lists exist yet. New lists will be auto-created.";
+
+        $customFieldContext = !empty($customFieldDescriptions)
+            ? "EXISTING CUSTOM FIELDS:\n" . implode("\n", $customFieldDescriptions)
+            : "No custom fields exist yet.";
+
+        // Detect active integrations
+        $coreCategories = ['user', 'contact', 'content', 'engagement', 'email', 'general'];
+        $integrationCategories = [];
+
+        foreach ($triggers as $t) {
+            $cat = $t['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+        foreach (($conditions['fields'] ?? []) as $f) {
+            $cat = $f['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+        foreach ($actions as $a) {
+            $cat = $a['category'] ?? '';
+            if ($cat && !in_array($cat, $coreCategories, true)) {
+                $integrationCategories[$cat] = true;
+            }
+        }
+
+        $activeIntegrations = array_keys($integrationCategories);
+        if (!empty($activeIntegrations)) {
+            $integrationLines = array_map(function($cat) {
+                return '- ' . ucfirst($cat) . ': ACTIVE (triggers/conditions registered)';
+            }, $activeIntegrations);
+            $integrationsContext = "Active third-party integrations:\n" . implode("\n", $integrationLines);
+        } else {
+            $integrationsContext = "No third-party integrations are currently active. Only core MailerPress triggers and actions are available.";
+        }
+
+        // User locale for response language
+        $current_user = wp_get_current_user();
+        $user_locale = get_user_locale($current_user->ID);
+        $language_code = substr($user_locale ?: get_locale(), 0, 2);
+
+        // Serialize existing nodes for context
+        $existingNodesText = '';
+        if (!empty($existingNodes)) {
+            $nodeDescriptions = [];
+            foreach ($existingNodes as $node) {
+                $type = $node['type'] ?? 'UNKNOWN';
+                $key = $node['key'] ?? '';
+                $id = $node['id'] ?? $node['step_id'] ?? '';
+                $settings = $node['settings'] ?? [];
+                $nextId = $node['next_step_id'] ?? $node['next_id'] ?? null;
+                $altId = $node['alternative_step_id'] ?? $node['alt_id'] ?? null;
+
+                $desc = "- Node [{$id}] Type: {$type}, Key: \"{$key}\"";
+                if (!empty($settings)) {
+                    $desc .= ", Settings: " . wp_json_encode($settings);
+                }
+                $connections = [];
+                if (!empty($nextId)) {
+                    $connections[] = "next → [{$nextId}]";
+                }
+                if (!empty($altId)) {
+                    $connections[] = "false/alt → [{$altId}]";
+                }
+                if (!empty($connections)) {
+                    $desc .= ", Connections: " . implode(', ', $connections);
+                }
+                $nodeDescriptions[] = $desc;
+            }
+            $existingNodesText = implode("\n", $nodeDescriptions);
+        }
+
+        $systemPrompt = <<<PROMPT
+You are adding steps to an EXISTING workflow automation for MailerPress (a WordPress plugin).
+The user wants to add steps after a specific point in their workflow.
+Generate ONLY the new steps to add — NOT the full workflow.
+
+Return a JSON object with a "nodes" array containing the new steps.
+The first node should have id "new_1", second "new_2", etc.
+Wire them together: new_1.next_id = "new_2", etc. The last node should have next_id = null.
+
+INSTALLED INTEGRATIONS:
+{$integrationsContext}
+
+USER'S EXISTING DATA:
+{$tagContext}
+{$listContext}
+{$customFieldContext}
+
+AVAILABLE TRIGGERS (type: TRIGGER):
+%TRIGGERS%
+
+AVAILABLE ACTIONS (type: ACTION):
+%ACTIONS%
+
+DELAY NODE:
+- type: "DELAY", key: "delay"
+- settings: { "value": <number>, "unit": "minutes"|"hours"|"days"|"weeks" }
+- CRITICAL: Always respect the exact delay duration requested by the user.
+
+ADD_TAG / REMOVE_TAG ACTION:
+- settings: { "tag": "<tag_name>" }
+- Use the exact tag name as specified by the user (the system will resolve it to an ID automatically)
+
+ADD_TO_LIST / REMOVE_FROM_LIST ACTION:
+- settings: { "list": "<list_name>" }
+- Use the exact list name as specified by the user (the system will resolve it to an ID automatically)
+
+SEND_EMAIL ACTION:
+- settings: { "name": "<descriptive name>", "subject": "<email subject>" }
+- Do NOT set template_id — the user will assign the email template later.
+
+CONDITION NODE:
+- type: "CONDITION", key: "condition"
+- settings: { "condition": { "operator": "AND"|"OR", "rules": [{ "field": "<field_key>", "operator": "<op>", "value": "<val>" }] } }
+- Available condition fields:
+%CONDITION_FIELDS%
+- Available operators: %OPERATORS%
+- Condition nodes have TWO outputs: next_id (true branch) and alt_id (false branch). Both MUST point to valid node IDs.
+
+CONDITION SETTINGS EXAMPLES:
+- Check total orders > 3: { "condition": { "operator": "AND", "rules": [{ "field": "wc_order_count", "operator": ">", "value": 3 }] } }
+- Check if contact has tag: { "condition": { "operator": "AND", "rules": [{ "field": "mp_has_tag", "operator": "==", "value": "tag-name" }] } }
+- For custom fields, the field key format is: "mp_custom_field_<field_key>"
+
+HOW BRANCHING WORKS — CRITICAL:
+The "nodes" array is a FLAT list. Branching is achieved ONLY through next_id and alt_id pointers.
+For a CONDITION node:
+- next_id → the FIRST node of the TRUE (Yes) branch
+- alt_id → the FIRST node of the FALSE (No) branch
+- Each branch is an independent chain of nodes linked via their own next_id pointers
+- The last node in each branch has next_id: null
+
+STRICT OUTPUT RULES:
+1. Respond ONLY with a valid JSON object containing a "nodes" array. No markdown, no explanation, no code fences.
+2. Do NOT include TRIGGER nodes — you are adding steps to an existing workflow.
+3. Use ONLY keys from the lists above. Never invent keys.
+4. Connect nodes via next_id. The last node in each branch should have next_id: null.
+5. For CONDITION nodes, ALWAYS set both next_id and alt_id to valid node IDs.
+6. Generate node names/subjects in {$language_code} language.
+7. ALWAYS use the exact values, durations, and parameters specified by the user.
+8. NEVER generate a workflow with a tag, list, or custom field that the user did not explicitly specify.
+9. Before outputting, verify that every next_id and alt_id points to a valid node ID in your nodes array.
+PROMPT;
+
+        $systemPrompt = str_replace('%TRIGGERS%', implode("\n", $triggerList), $systemPrompt);
+        $systemPrompt = str_replace('%ACTIONS%', implode("\n", $actionList), $systemPrompt);
+        $systemPrompt = str_replace('%CONDITION_FIELDS%', implode("\n", $conditionFieldsList), $systemPrompt);
+        $systemPrompt = str_replace('%OPERATORS%', $conditionOperators, $systemPrompt);
+
+        // Build user message with context
+        $userMessageParts = [];
+        if (!empty($existingNodesText)) {
+            $userMessageParts[] = "Here is the current workflow for context:\n\n" . $existingNodesText;
+        }
+
+        $branchContext = '';
+        if ($branch === 'yes') {
+            $branchContext = ' (on the YES/true branch)';
+        } elseif ($branch === 'no') {
+            $branchContext = ' (on the NO/false branch)';
+        }
+
+        $userMessageParts[] = "Add the following steps after the current point{$branchContext}: {$prompt}";
+
+        $userMessage = implode("\n\n", $userMessageParts);
+
+        $result = $this->callAiProvider($systemPrompt, [['role' => 'user', 'content' => $userMessage]]);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        $parsed = json_decode($result, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return new \WP_Error(
+                'ai_invalid_json',
+                __('AI generated an invalid response. Please try again with a clearer description.', 'mailerpress'),
+                ['status' => 422]
+            );
+        }
+
+        $rawNodes = $parsed['nodes'] ?? [];
+        if (empty($rawNodes)) {
+            return new \WP_Error(
+                'ai_no_nodes',
+                __('AI did not generate any steps. Please try again with a clearer description.', 'mailerpress'),
+                ['status' => 422]
+            );
+        }
+
+        // Normalize the AI-generated nodes
+        $processedNodes = $this->normalizeAiNodes($rawNodes, $existingTags, $existingLists);
+
+        return new \WP_REST_Response([
+            'nodes' => $processedNodes,
+        ], 200);
     }
 
     #[Endpoint(
@@ -684,8 +2472,8 @@ class Workflows
 
         // Récupérer tous les tests A/B pour cette automation
         $tests = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$testTable} 
-            WHERE automation_id = %d 
+            "SELECT * FROM {$testTable}
+            WHERE automation_id = %d
             ORDER BY created_at DESC",
             $automationId
         ), ARRAY_A);
@@ -697,7 +2485,7 @@ class Workflows
 
             // Récupérer les statistiques des participants
             $stats = $wpdb->get_results($wpdb->prepare(
-                "SELECT 
+                "SELECT
                     test_group,
                     COUNT(*) as total,
                     SUM(CASE WHEN opened_at IS NOT NULL THEN 1 ELSE 0 END) as opened,
@@ -829,13 +2617,27 @@ class Workflows
             return ($node['type'] ?? '') !== 'TRIGGER';
         });
 
-        // If workflow has steps (not just a trigger), require Pro
-        if (count($nonTriggerNodes) > 0 && !$this->isProActive()) {
+        // Free users can have up to 1 non-trigger node (1 trigger + 1 action from free templates)
+        // Pro users have no limits
+        if (count($nonTriggerNodes) > 1 && !$this->isProActive()) {
             return new \WP_Error(
                 'pro_required',
-                __('Adding steps to workflows requires MailerPress Pro. Please upgrade to continue.', 'mailerpress'),
+                __('Adding more steps to workflows requires MailerPress Pro. Free users can use 1 trigger and 1 action.', 'mailerpress'),
                 ['status' => 403]
             );
+        }
+
+        // Validate email content before enabling
+        $newStatus = $automationData['status'] ?? null;
+        if ($newStatus === 'ENABLED') {
+            $validationErrors = $this->validateWorkflowBeforeActivation($nodes);
+            if (!empty($validationErrors)) {
+                return new \WP_Error(
+                    'activation_validation_failed',
+                    implode("\n", $validationErrors),
+                    ['status' => 400, 'errors' => $validationErrors]
+                );
+            }
         }
 
         // Update automation
@@ -847,17 +2649,17 @@ class Workflows
 
         // Get existing steps before deletion to identify deleted send_email nodes
         $existingSteps = $stepRepo->findByAutomationId($automationId);
-        
+
         // Get step IDs from new nodes to compare
         $newStepIds = array_map(function ($node) {
             return $node['step_id'] ?? $node['id'];
         }, $nodes);
-        
+
         // Find deleted send_email steps
         $deletedStepIds = [];
         foreach ($existingSteps as $existingStep) {
             $stepId = $existingStep->getStepId();
-            
+
             // Check if this step is being deleted (not in new nodes)
             if (!in_array($stepId, $newStepIds, true)) {
                 // Check if it's a send_email action
@@ -866,27 +2668,27 @@ class Workflows
                 }
             }
         }
-        
+
         // Delete associated campaigns if any
         if (!empty($deletedStepIds)) {
             global $wpdb;
             $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
             $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
-            
+
             // Build placeholders for step_id IN clause
             $stepPlaceholders = implode(',', array_fill(0, count($deletedStepIds), '%s'));
-            
+
             // Find campaigns linked to deleted step_ids
             // Only delete campaigns of type 'automation' to avoid deleting regular campaigns
             $automationCampaigns = $wpdb->get_col(
                 $wpdb->prepare(
-                    "SELECT campaign_id FROM {$campaignsTable} 
-                     WHERE step_id IN ({$stepPlaceholders}) 
+                    "SELECT campaign_id FROM {$campaignsTable}
+                     WHERE step_id IN ({$stepPlaceholders})
                      AND campaign_type = 'automation'",
                     ...$deletedStepIds
                 )
             );
-            
+
             if (!empty($automationCampaigns)) {
                 // Delete batches first
                 $batchPlaceholders = implode(',', array_fill(0, count($automationCampaigns), '%d'));
@@ -896,7 +2698,7 @@ class Workflows
                         ...$automationCampaigns
                     )
                 );
-                
+
                 // Delete campaigns
                 $wpdb->query(
                     $wpdb->prepare(
@@ -930,6 +2732,11 @@ class Workflows
                 'alternative_step_id' => $node['alternative_step_id'] ?? null,
             ]);
 
+            // Sync branches for CONDITION steps
+            if ($node['type'] === 'CONDITION' && !empty($settings['branches']) && $stepId) {
+                $stepRepo->syncBranches($stepId, $settings['branches']);
+            }
+
             $createdNodes[] = [
                 'id' => $node['id'] ?? $node['step_id'],
                 'step_id' => $node['step_id'] ?? $node['id'],
@@ -951,6 +2758,83 @@ class Workflows
         return new \WP_REST_Response([
             'automation' => $automation ? $automation->toArray() : null,
             'nodes' => $createdNodes,
+        ], 200);
+    }
+
+    #[Endpoint(
+        'workflows/(?P<id>\d+)/retry-failed',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canManageAutomations']
+    )]
+    public function retryFailedJobs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        $automationId = (int) $request->get_param('id');
+        $jobId = $request->get_param('job_id');
+
+        $jobRepo = new AutomationJobRepository();
+        $executor = new \MailerPress\Core\Workflows\Services\WorkflowExecutor();
+
+        // Retry a single job or all failed jobs for this automation
+        if ($jobId) {
+            $job = $jobRepo->find((int) $jobId);
+            if (!$job || $job->getAutomationId() !== $automationId) {
+                return new \WP_Error('not_found', __('Job not found', 'mailerpress'), ['status' => 404]);
+            }
+            if ($job->getStatus() !== 'FAILED') {
+                return new \WP_Error('invalid_status', __('Only failed jobs can be retried', 'mailerpress'), ['status' => 400]);
+            }
+
+            // Reset job to ACTIVE and re-execute
+            $job->setStatus('ACTIVE');
+            $job->setRetryCount(0);
+            $job->setLastError(null);
+            $jobRepo->update($job);
+            $executor->executeJob($job->getId());
+
+            return new \WP_REST_Response(['retried' => 1, 'job_id' => $job->getId()], 200);
+        }
+
+        // Retry all failed jobs for this automation
+        global $wpdb;
+        $table = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_AUTOMATION_JOBS);
+        $failedJobs = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id FROM {$table} WHERE automation_id = %d AND status = 'FAILED' ORDER BY created_at ASC",
+                $automationId
+            )
+        );
+
+        if (empty($failedJobs)) {
+            return new \WP_REST_Response(['retried' => 0, 'message' => __('No failed jobs to retry', 'mailerpress')], 200);
+        }
+
+        $retriedCount = 0;
+        foreach ($failedJobs as $failedJob) {
+            $job = $jobRepo->find((int) $failedJob->id);
+            if ($job) {
+                $job->setStatus('ACTIVE');
+                $job->setRetryCount(0);
+                $job->setLastError(null);
+                $jobRepo->update($job);
+
+                // Schedule via ActionScheduler to avoid timeout
+                if (function_exists('as_schedule_single_action')) {
+                    as_schedule_single_action(
+                        time() + ($retriedCount * 2), // stagger by 2 seconds
+                        'mailerpress_continue_workflow',
+                        [['job_id' => $job->getId()]],
+                        'mailerpress_workflows'
+                    );
+                } else {
+                    $executor->executeJob($job->getId());
+                }
+                $retriedCount++;
+            }
+        }
+
+        return new \WP_REST_Response([
+            'retried' => $retriedCount,
+            'message' => sprintf(__('%d failed jobs queued for retry', 'mailerpress'), $retriedCount),
         ], 200);
     }
 
@@ -990,7 +2874,7 @@ class Workflows
             return [
                 'id' => $step->getStepId(),
                 'step_id' => $step->getStepId(),
-                'type' => $step->getType(),
+                'type' => strtoupper($step->getType()),
                 'key' => $step->getKey(),
                 'settings' => $settings,
                 'next_step_id' => $step->getNextStepId(),
@@ -1268,9 +3152,9 @@ class Workflows
 
         // Stats des jobs par statut
         $jobsStats = $wpdb->get_results($wpdb->prepare(
-            "SELECT status, COUNT(*) as count 
-             FROM {$jobsTable} 
-             WHERE automation_id = %d 
+            "SELECT status, COUNT(*) as count
+             FROM {$jobsTable}
+             WHERE automation_id = %d
              GROUP BY status",
             $automationId
         ), ARRAY_A);
@@ -1284,9 +3168,9 @@ class Workflows
 
         // Stats des logs par statut
         $logsStats = $wpdb->get_results($wpdb->prepare(
-            "SELECT status, COUNT(*) as count 
-             FROM {$logsTable} 
-             WHERE automation_id = %d 
+            "SELECT status, COUNT(*) as count
+             FROM {$logsTable}
+             WHERE automation_id = %d
              GROUP BY status",
             $automationId
         ), ARRAY_A);
@@ -1300,25 +3184,25 @@ class Workflows
 
         // Nombre d'utilisateurs uniques
         $uniqueUsers = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT user_id) 
-             FROM {$jobsTable} 
+            "SELECT COUNT(DISTINCT user_id)
+             FROM {$jobsTable}
              WHERE automation_id = %d",
             $automationId
         ));
 
         // Dernière exécution (dernier job créé)
         $lastExecution = $wpdb->get_var($wpdb->prepare(
-            "SELECT MAX(created_at) 
-             FROM {$jobsTable} 
+            "SELECT MAX(created_at)
+             FROM {$jobsTable}
              WHERE automation_id = %d",
             $automationId
         ));
 
         // Nombre de jobs actifs (en cours)
         $activeJobs = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) 
-             FROM {$jobsTable} 
-             WHERE automation_id = %d 
+            "SELECT COUNT(*)
+             FROM {$jobsTable}
+             WHERE automation_id = %d
              AND status IN ('ACTIVE', 'PROCESSING', 'WAITING')",
             $automationId
         ));
@@ -1389,9 +3273,45 @@ class Workflows
         $failureRate = $totalJobs > 0 ? round(($failedJobs / $totalJobs) * 100, 2) : 0;
         $intervalSuccessRate = $intervalJobs > 0 ? round(($intervalCompleted / $intervalJobs) * 100, 2) : 0;
 
+        // Previous period comparison for trend indicators
+        if ($isToday) {
+            $prevDateCondition = "DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
+        } else {
+            $prevDateCondition = $wpdb->prepare(
+                "created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) AND created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
+                $interval * 2,
+                $interval
+            );
+        }
+        $prevJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE {$prevDateCondition}");
+        $prevCompleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' AND {$prevDateCondition}");
+        $prevFailed = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' AND {$prevDateCondition}");
+        $prevUniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE {$prevDateCondition}");
+        $prevSuccessRate = $prevJobs > 0 ? round(($prevCompleted / $prevJobs) * 100, 2) : 0;
+
+        // Average execution time (completed jobs only, in seconds)
+        $avgExecutionTime = (float) $wpdb->get_var(
+            "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at))
+             FROM {$jobsTable}
+             WHERE status = 'COMPLETED' AND {$dateCondition} AND updated_at IS NOT NULL AND updated_at > created_at"
+        );
+
+        // Recent activity feed (last 5 executions)
+        $recentActivity = $wpdb->get_results(
+            "SELECT j.id as job_id, j.automation_id, j.user_id, j.status, j.created_at, j.updated_at,
+                    a.name as workflow_name,
+                    u.user_email
+             FROM {$jobsTable} j
+             INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+             LEFT JOIN {$wpdb->users} u ON j.user_id = u.ID
+             ORDER BY j.created_at DESC
+             LIMIT 5",
+            ARRAY_A
+        );
+
         // Top workflows par nombre de jobs complétés
         if ($isToday) {
-            $topWorkflowsQuery = "SELECT 
+            $topWorkflowsQuery = "SELECT
                 a.id,
                 a.name,
                 a.status,
@@ -1399,9 +3319,11 @@ class Workflows
                 SUM(CASE WHEN j.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_jobs,
                 SUM(CASE WHEN j.status = 'FAILED' THEN 1 ELSE 0 END) as failed_jobs,
                 COUNT(DISTINCT j.user_id) as unique_users,
-                MAX(j.created_at) as last_execution
+                MAX(j.created_at) as last_execution,
+                AVG(CASE WHEN j.status = 'COMPLETED' AND j.updated_at IS NOT NULL AND j.updated_at > j.created_at
+                    THEN TIMESTAMPDIFF(SECOND, j.created_at, j.updated_at) ELSE NULL END) as avg_duration
             FROM {$automationsTable} a
-            LEFT JOIN {$jobsTable} j ON a.id = j.automation_id 
+            LEFT JOIN {$jobsTable} j ON a.id = j.automation_id
                 AND DATE(j.created_at) = CURDATE()
             GROUP BY a.id, a.name, a.status
             HAVING total_jobs > 0
@@ -1409,7 +3331,7 @@ class Workflows
             LIMIT 10";
         } else {
             $topWorkflowsQuery = $wpdb->prepare(
-                "SELECT 
+                "SELECT
                     a.id,
                     a.name,
                     a.status,
@@ -1417,9 +3339,11 @@ class Workflows
                     SUM(CASE WHEN j.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_jobs,
                     SUM(CASE WHEN j.status = 'FAILED' THEN 1 ELSE 0 END) as failed_jobs,
                     COUNT(DISTINCT j.user_id) as unique_users,
-                    MAX(j.created_at) as last_execution
+                    MAX(j.created_at) as last_execution,
+                    AVG(CASE WHEN j.status = 'COMPLETED' AND j.updated_at IS NOT NULL AND j.updated_at > j.created_at
+                        THEN TIMESTAMPDIFF(SECOND, j.created_at, j.updated_at) ELSE NULL END) as avg_duration
                 FROM {$automationsTable} a
-                LEFT JOIN {$jobsTable} j ON a.id = j.automation_id 
+                LEFT JOIN {$jobsTable} j ON a.id = j.automation_id
                     AND j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
                 GROUP BY a.id, a.name, a.status
                 HAVING total_jobs > 0
@@ -1430,9 +3354,66 @@ class Workflows
         }
         $topWorkflows = $wpdb->get_results($topWorkflowsQuery, ARRAY_A);
 
+        // Per-workflow sparkline data (jobs per day for last 7 days) and last error
+        $workflowIds = array_map(function ($wf) { return (int) $wf['id']; }, $topWorkflows);
+        $sparklineData = [];
+        $lastErrors = [];
+
+        if (!empty($workflowIds)) {
+            $idPlaceholders = implode(',', array_fill(0, count($workflowIds), '%d'));
+
+            // Sparkline: jobs per day per workflow (last 7 days)
+            $sparklineQuery = $wpdb->prepare(
+                "SELECT automation_id, DATE(created_at) as date, COUNT(*) as total
+                 FROM {$jobsTable}
+                 WHERE automation_id IN ({$idPlaceholders})
+                   AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                 GROUP BY automation_id, DATE(created_at)
+                 ORDER BY automation_id, date ASC",
+                ...$workflowIds
+            );
+            $sparklineRows = $wpdb->get_results($sparklineQuery, ARRAY_A);
+            foreach ($sparklineRows as $row) {
+                $sparklineData[(int) $row['automation_id']][] = [
+                    'date' => $row['date'],
+                    'total' => (int) $row['total'],
+                ];
+            }
+
+            // Last error per workflow
+            $lastErrorQuery = $wpdb->prepare(
+                "SELECT j.automation_id, j.id as job_id, j.created_at, j.user_id, u.user_email,
+                        l.data as error_data
+                 FROM {$jobsTable} j
+                 INNER JOIN (
+                     SELECT automation_id, MAX(id) as max_id
+                     FROM {$jobsTable}
+                     WHERE automation_id IN ({$idPlaceholders}) AND status = 'FAILED'
+                     GROUP BY automation_id
+                 ) latest ON j.id = latest.max_id
+                 LEFT JOIN {$wpdb->users} u ON j.user_id = u.ID
+                 LEFT JOIN {$logsTable} l ON l.job_id = j.id AND l.status = 'FAILED'",
+                ...$workflowIds
+            );
+            $lastErrorRows = $wpdb->get_results($lastErrorQuery, ARRAY_A);
+            foreach ($lastErrorRows as $row) {
+                $errorMessage = null;
+                if (!empty($row['error_data'])) {
+                    $decoded = json_decode($row['error_data'], true);
+                    $errorMessage = $decoded['error'] ?? $decoded['message'] ?? null;
+                }
+                $lastErrors[(int) $row['automation_id']] = [
+                    'job_id' => (int) $row['job_id'],
+                    'date' => $row['created_at'],
+                    'user_email' => $row['user_email'] ?? null,
+                    'message' => $errorMessage,
+                ];
+            }
+        }
+
         // Évolution des jobs par jour sur la période
         if ($isToday) {
-            $jobsByDayQuery = "SELECT 
+            $jobsByDayQuery = "SELECT
                 DATE(created_at) as date,
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
@@ -1443,7 +3424,7 @@ class Workflows
             ORDER BY date ASC";
         } else {
             $jobsByDayQuery = $wpdb->prepare(
-                "SELECT 
+                "SELECT
                     DATE(created_at) as date,
                     COUNT(*) as total,
                     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
@@ -1459,8 +3440,8 @@ class Workflows
 
         // Distribution des statuts de jobs
         $jobsByStatus = $wpdb->get_results(
-            "SELECT status, COUNT(*) as count 
-             FROM {$jobsTable} 
+            "SELECT status, COUNT(*) as count
+             FROM {$jobsTable}
              GROUP BY status",
             ARRAY_A
         );
@@ -1468,6 +3449,39 @@ class Workflows
         $statusDistribution = [];
         foreach ($jobsByStatus as $stat) {
             $statusDistribution[$stat['status']] = (int) $stat['count'];
+        }
+
+        // Heatmap d'activité : nombre de jobs par jour de la semaine (0=Lun..6=Dim) et heure (0-23)
+        if ($isToday) {
+            $heatmapQuery = "SELECT
+                WEEKDAY(created_at) as day_of_week,
+                HOUR(created_at) as hour_of_day,
+                COUNT(*) as count
+            FROM {$jobsTable}
+            WHERE DATE(created_at) = CURDATE()
+            GROUP BY WEEKDAY(created_at), HOUR(created_at)";
+        } else {
+            $heatmapQuery = $wpdb->prepare(
+                "SELECT
+                    WEEKDAY(created_at) as day_of_week,
+                    HOUR(created_at) as hour_of_day,
+                    COUNT(*) as count
+                FROM {$jobsTable}
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                GROUP BY WEEKDAY(created_at), HOUR(created_at)",
+                $interval
+            );
+        }
+        $heatmapRows = $wpdb->get_results($heatmapQuery, ARRAY_A);
+
+        // Construire la matrice 7x24
+        $activityHeatmap = [];
+        foreach ($heatmapRows as $row) {
+            $activityHeatmap[] = [
+                'day' => (int) $row['day_of_week'],
+                'hour' => (int) $row['hour_of_day'],
+                'count' => (int) $row['count'],
+            ];
         }
 
         // Métriques de revenus WooCommerce (si WooCommerce est actif)
@@ -1479,7 +3493,7 @@ class Workflows
             // On groupe par order_id pour éviter de compter plusieurs fois la même commande
             // On utilise une sous-requête pour ne prendre que le premier log PROCESSING par job
             $revenueQuery = $wpdb->prepare(
-                "SELECT 
+                "SELECT
                     SUM(order_revenue) as total_revenue,
                     COUNT(DISTINCT order_id) as total_orders,
                     SUM(CASE WHEN j.status = 'COMPLETED' THEN order_revenue ELSE 0 END) as completed_revenue,
@@ -1502,7 +3516,7 @@ class Workflows
                         AND JSON_EXTRACT(l.data, '$.order_id') > 0
                     GROUP BY l.automation_id, l.user_id, JSON_EXTRACT(l.data, '$.order_id')
                 ) as unique_orders
-                INNER JOIN {$jobsTable} j ON unique_orders.automation_id = j.automation_id 
+                INNER JOIN {$jobsTable} j ON unique_orders.automation_id = j.automation_id
                     AND unique_orders.user_id = j.user_id
                     AND j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)",
                 $interval,
@@ -1512,7 +3526,7 @@ class Workflows
             $revenueData = $wpdb->get_row($revenueQuery, ARRAY_A);
 
             // Revenus globaux (toutes périodes) - même logique
-            $globalRevenueQuery = "SELECT 
+            $globalRevenueQuery = "SELECT
                 SUM(order_revenue) as total_revenue,
                 COUNT(DISTINCT order_id) as total_orders
             FROM (
@@ -1534,7 +3548,7 @@ class Workflows
 
             // Revenus par jour - grouper par order_id pour éviter les doublons
             $revenueByDay = $wpdb->get_results($wpdb->prepare(
-                "SELECT 
+                "SELECT
                     DATE(first_log_date) as date,
                     SUM(order_revenue) as revenue,
                     COUNT(DISTINCT order_id) as orders
@@ -1561,7 +3575,7 @@ class Workflows
 
             // Top workflows par revenus générés - grouper par order_id
             $topWorkflowsByRevenue = $wpdb->get_results($wpdb->prepare(
-                "SELECT 
+                "SELECT
                     a.id,
                     a.name,
                     SUM(order_revenue) as revenue,
@@ -1640,10 +3654,19 @@ class Workflows
                 'failed_jobs' => $intervalFailed,
                 'unique_users' => $intervalUniqueUsers,
                 'success_rate' => $intervalSuccessRate,
+                'avg_execution_time' => round($avgExecutionTime, 1),
             ],
-            'top_workflows' => array_map(function ($wf) {
+            'previous_period' => [
+                'total_jobs' => $prevJobs,
+                'completed_jobs' => $prevCompleted,
+                'failed_jobs' => $prevFailed,
+                'unique_users' => $prevUniqueUsers,
+                'success_rate' => $prevSuccessRate,
+            ],
+            'top_workflows' => array_map(function ($wf) use ($sparklineData, $lastErrors) {
+                $wfId = (int) $wf['id'];
                 return [
-                    'id' => (int) $wf['id'],
+                    'id' => $wfId,
                     'name' => $wf['name'],
                     'status' => $wf['status'],
                     'total_jobs' => (int) $wf['total_jobs'],
@@ -1651,8 +3674,22 @@ class Workflows
                     'failed_jobs' => (int) $wf['failed_jobs'],
                     'unique_users' => (int) $wf['unique_users'],
                     'last_execution' => $wf['last_execution'],
+                    'avg_duration' => $wf['avg_duration'] !== null ? round((float) $wf['avg_duration'], 1) : null,
+                    'sparkline' => $sparklineData[$wfId] ?? [],
+                    'last_error' => $lastErrors[$wfId] ?? null,
                 ];
             }, $topWorkflows),
+            'recent_activity' => array_map(function ($activity) {
+                return [
+                    'job_id' => (int) $activity['job_id'],
+                    'automation_id' => (int) $activity['automation_id'],
+                    'workflow_name' => $activity['workflow_name'],
+                    'user_email' => $activity['user_email'] ?? null,
+                    'status' => $activity['status'],
+                    'created_at' => $activity['created_at'],
+                    'updated_at' => $activity['updated_at'],
+                ];
+            }, $recentActivity ?: []),
             'jobs_by_day' => array_map(function ($day) {
                 return [
                     'date' => $day['date'],
@@ -1662,6 +3699,7 @@ class Workflows
                 ];
             }, $jobsByDay),
             'status_distribution' => $statusDistribution,
+            'activity_heatmap' => $activityHeatmap,
             'woocommerce_revenue' => $revenueStats,
         ], 200);
     }
@@ -1690,7 +3728,7 @@ class Workflows
 
         // Récupérer les détails des contacts avec leurs workflows et interactions
         if ($isToday) {
-            $contactsQuery = "SELECT 
+            $contactsQuery = "SELECT
                 j.user_id,
                 j.automation_id,
                 a.name as workflow_name,
@@ -1704,7 +3742,7 @@ class Workflows
             ORDER BY j.user_id, j.created_at DESC";
         } else {
             $contactsQuery = $wpdb->prepare(
-                "SELECT 
+                "SELECT
                     j.user_id,
                     j.automation_id,
                     a.name as workflow_name,
@@ -1767,8 +3805,8 @@ class Workflows
                 // chercher dans les logs (pour les contacts externes ou historiques)
                 if (!$shouldInclude && empty($email)) {
                     $logQuery = $wpdb->prepare(
-                        "SELECT data FROM {$logsTable} 
-                         WHERE user_id = %d 
+                        "SELECT data FROM {$logsTable}
+                         WHERE user_id = %d
                          AND (data LIKE '%%\"customer_email\"%%' OR data LIKE '%%\"email\"%%')
                          ORDER BY created_at DESC
                          LIMIT 1",
@@ -1813,18 +3851,22 @@ class Workflows
             $automationId = (int) $jobData['automation_id'];
             $jobId = (int) $jobData['job_id'];
 
-            // Récupérer les logs pour ce workflow pour ce contact
+            // Récupérer les logs pour ce workflow pour ce contact, avec type et key depuis la table steps
+            $stepsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_STEPS);
             $stepsQuery = $wpdb->prepare(
-                "SELECT 
-                    step_id,
-                    status,
-                    data,
-                    created_at
-                FROM {$logsTable}
-                WHERE automation_id = %d 
-                    AND user_id = %d
-                    AND created_at >= %s
-                ORDER BY created_at ASC",
+                "SELECT
+                    l.step_id,
+                    l.status,
+                    l.data,
+                    l.created_at,
+                    s.type AS step_type,
+                    s.key AS step_key
+                FROM {$logsTable} l
+                LEFT JOIN {$stepsTable} s ON s.automation_id = l.automation_id AND s.step_id = l.step_id
+                WHERE l.automation_id = %d
+                    AND l.user_id = %d
+                    AND l.created_at >= %s
+                ORDER BY l.created_at ASC",
                 $automationId,
                 $userId,
                 $jobData['job_created_at']
@@ -1850,6 +3892,8 @@ class Workflows
                     $stepData = json_decode($step['data'] ?? '{}', true);
                     return [
                         'step_id' => $step['step_id'],
+                        'step_type' => $step['step_type'] ?? null,
+                        'step_key' => $step['step_key'] ?? null,
                         'status' => $step['status'],
                         'created_at' => $step['created_at'],
                         'data' => $stepData,
@@ -1932,6 +3976,11 @@ class Workflows
                 'id' => $contact['user_id'],
                 'email' => $contact['email'] ?? __('No email', 'mailerpress'),
                 'name' => $contact['name'] ?? '',
+                'total_jobs' => $contact['total_jobs'] ?? 0,
+                'completed_jobs' => $contact['completed_jobs'] ?? 0,
+                'failed_jobs' => $contact['failed_jobs'] ?? 0,
+                'last_execution' => $contact['last_execution'] ?? null,
+                'workflows' => $contact['workflows'] ?? [],
             ];
         }, $contacts);
 
@@ -1939,6 +3988,138 @@ class Workflows
             'posts' => $posts,
             'count' => $total_count,
             'pages' => $total_pages,
+        ], 200);
+    }
+
+    #[Endpoint(
+        'workflows/failed-jobs',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canManageAutomations']
+    )]
+    public function getFailedJobs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        global $wpdb;
+
+        $intervalParam = $request->get_param('interval');
+        $isToday = ($intervalParam === 'today');
+        $interval = $isToday ? 1 : ((int) $intervalParam ?: 30);
+
+        $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
+        $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
+        $logsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_LOG);
+
+        // Construire la condition WHERE selon la période
+        if ($isToday) {
+            $dateCondition = "DATE(j.created_at) = CURDATE()";
+        } else {
+            $dateCondition = $wpdb->prepare("j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)", $interval);
+        }
+
+        // Récupérer tous les jobs échoués avec leurs détails
+        $failedJobsQuery = "SELECT
+                j.id,
+                j.automation_id,
+                j.user_id,
+                j.status,
+                j.created_at,
+                j.updated_at,
+                a.name as workflow_name
+            FROM {$jobsTable} j
+            INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+            WHERE j.status = 'FAILED'
+                AND {$dateCondition}
+            ORDER BY j.created_at DESC
+            LIMIT 500";
+
+        $failedJobs = $wpdb->get_results($failedJobsQuery, ARRAY_A);
+
+        // Enrichir avec les informations utilisateur et les steps
+        $enrichedJobs = [];
+        $contactsModel = new Contacts();
+
+        foreach ($failedJobs as $job) {
+            $userId = (int) $job['user_id'];
+            $jobId = (int) $job['id'];
+            $automationId = (int) $job['automation_id'];
+
+            // Récupérer l'email de l'utilisateur
+            $userEmail = '';
+            if ($userId > 0) {
+                $user = get_userdata($userId);
+                if ($user && $user->user_email) {
+                    $userEmail = $user->user_email;
+                } else {
+                    $contact = $contactsModel->get($userId);
+                    if ($contact) {
+                        $userEmail = $contact->email ?? '';
+                    }
+                }
+            }
+
+            // Si pas d'email trouvé, chercher dans les logs
+            if (empty($userEmail)) {
+                $logQuery = $wpdb->prepare(
+                    "SELECT data FROM {$logsTable}
+                     WHERE user_id = %d
+                     AND (data LIKE '%%\"customer_email\"%%' OR data LIKE '%%\"email\"%%')
+                     ORDER BY created_at DESC
+                     LIMIT 1",
+                    $userId
+                );
+                $logData = $wpdb->get_var($logQuery);
+
+                if ($logData) {
+                    $logContext = json_decode($logData, true);
+                    if (isset($logContext['customer_email'])) {
+                        $userEmail = $logContext['customer_email'];
+                    } elseif (isset($logContext['email'])) {
+                        $userEmail = $logContext['email'];
+                    }
+                }
+            }
+
+            // Récupérer les steps/logs pour ce job
+            $stepsQuery = $wpdb->prepare(
+                "SELECT
+                    step_id,
+                    status,
+                    data,
+                    created_at
+                FROM {$logsTable}
+                WHERE automation_id = %d
+                    AND user_id = %d
+                    AND created_at >= %s
+                ORDER BY created_at ASC",
+                $automationId,
+                $userId,
+                $job['created_at']
+            );
+            $steps = $wpdb->get_results($stepsQuery, ARRAY_A);
+
+            $enrichedJobs[] = [
+                'id' => $jobId,
+                'automation_id' => $automationId,
+                'workflow_name' => $job['workflow_name'],
+                'user_id' => $userId,
+                'user_email' => $userEmail,
+                'status' => $job['status'],
+                'created_at' => $job['created_at'],
+                'updated_at' => $job['updated_at'],
+                'steps' => array_map(function ($step) {
+                    $stepData = json_decode($step['data'] ?? '{}', true);
+                    return [
+                        'step_id' => $step['step_id'],
+                        'status' => $step['status'],
+                        'created_at' => $step['created_at'],
+                        'data' => $stepData,
+                    ];
+                }, $steps),
+            ];
+        }
+
+        return new \WP_REST_Response([
+            'failed_jobs' => $enrichedJobs,
+            'count' => count($enrichedJobs),
         ], 200);
     }
 
@@ -1990,7 +4171,7 @@ class Workflows
 
         // Get total count
         $totalQuery = $wpdb->prepare(
-            "SELECT COUNT(*) 
+            "SELECT COUNT(*)
              FROM {$logsTable} l
              WHERE l.automation_id = %d{$statusCondition}",
             $automationId
@@ -2000,21 +4181,21 @@ class Workflows
         // Get logs with job and step information
         // Use subquery to get only one job per log (most recent) to avoid duplicates
         $logsQuery = $wpdb->prepare(
-            "SELECT 
+            "SELECT
                 l.id,
                 l.step_id,
                 l.user_id,
                 l.status,
                 l.data,
                 l.created_at,
-                (SELECT j.id FROM {$jobsTable} j 
-                 WHERE j.automation_id = l.automation_id 
+                (SELECT j.id FROM {$jobsTable} j
+                 WHERE j.automation_id = l.automation_id
                  AND j.user_id = l.user_id
                  AND DATE(j.created_at) = DATE(l.created_at)
                  ORDER BY j.created_at DESC
                  LIMIT 1) as job_id,
-                (SELECT j.status FROM {$jobsTable} j 
-                 WHERE j.automation_id = l.automation_id 
+                (SELECT j.status FROM {$jobsTable} j
+                 WHERE j.automation_id = l.automation_id
                  AND j.user_id = l.user_id
                  AND DATE(j.created_at) = DATE(l.created_at)
                  ORDER BY j.created_at DESC
@@ -2022,7 +4203,7 @@ class Workflows
                 s.type as step_type,
                 s.key as step_key
              FROM {$logsTable} l
-             LEFT JOIN {$stepsTable} s ON l.step_id = s.step_id 
+             LEFT JOIN {$stepsTable} s ON l.step_id = s.step_id
                  AND l.automation_id = s.automation_id
              WHERE l.automation_id = %d{$statusCondition}
              ORDER BY l.created_at DESC
@@ -2071,8 +4252,8 @@ class Workflows
                 } else {
                     // Try to get from other logs for this user
                     $logQuery = $wpdb->prepare(
-                        "SELECT data FROM {$logsTable} 
-                         WHERE user_id = %d 
+                        "SELECT data FROM {$logsTable}
+                         WHERE user_id = %d
                          AND (data LIKE '%%\"customer_email\"%%' OR data LIKE '%%\"email\"%%')
                          ORDER BY created_at DESC
                          LIMIT 1",
@@ -2185,7 +4366,7 @@ class Workflows
 
     /**
      * Delete all AB tests and their participants related to an automation
-     * 
+     *
      * @param int $automationId
      * @return void
      */

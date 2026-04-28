@@ -9,6 +9,9 @@ class AutomationJob
     private ?int $userId = null;
     private ?string $nextStepId = null;
     private string $status = 'ACTIVE';
+    private int $retryCount = 0;
+    private int $maxRetries = 3;
+    private ?string $lastError = null;
     private ?string $scheduledAt = null;
     private ?string $createdAt = null;
     private ?string $updatedAt = null;
@@ -25,6 +28,9 @@ class AutomationJob
         if (isset($data['user_id'])) $this->userId = (int) $data['user_id'];
         if (isset($data['next_step_id'])) $this->nextStepId = $data['next_step_id'];
         if (isset($data['status'])) $this->status = $data['status'];
+        if (isset($data['retry_count'])) $this->retryCount = (int) $data['retry_count'];
+        if (isset($data['max_retries'])) $this->maxRetries = (int) $data['max_retries'];
+        if (isset($data['last_error'])) $this->lastError = $data['last_error'];
         if (isset($data['scheduled_at'])) $this->scheduledAt = $data['scheduled_at'];
         if (isset($data['created_at'])) $this->createdAt = $data['created_at'];
         if (isset($data['updated_at'])) $this->updatedAt = $data['updated_at'];
@@ -75,6 +81,44 @@ class AutomationJob
         return $this;
     }
 
+    public function getRetryCount(): int
+    {
+        return $this->retryCount;
+    }
+
+    public function setRetryCount(int $retryCount): self
+    {
+        $this->retryCount = $retryCount;
+        return $this;
+    }
+
+    public function getMaxRetries(): int
+    {
+        return $this->maxRetries;
+    }
+
+    public function setMaxRetries(int $maxRetries): self
+    {
+        $this->maxRetries = $maxRetries;
+        return $this;
+    }
+
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function setLastError(?string $lastError): self
+    {
+        $this->lastError = $lastError;
+        return $this;
+    }
+
+    public function canRetry(): bool
+    {
+        return $this->retryCount < $this->maxRetries;
+    }
+
     public function setScheduledAt(?string $scheduledAt): self
     {
         $this->scheduledAt = $scheduledAt;
@@ -106,6 +150,9 @@ class AutomationJob
             'user_id' => $this->userId,
             'next_step_id' => $this->nextStepId,
             'status' => $this->status,
+            'retry_count' => $this->retryCount,
+            'max_retries' => $this->maxRetries,
+            'last_error' => $this->lastError,
             'scheduled_at' => $this->scheduledAt,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,

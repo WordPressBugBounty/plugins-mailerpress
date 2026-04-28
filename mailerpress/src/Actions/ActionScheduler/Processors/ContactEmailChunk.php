@@ -252,6 +252,7 @@ class ContactEmailChunk
                     'contact_email' => \sprintf('%s', esc_html($contactEntity->email)),
                     'contact_first_name' => \sprintf('%s', esc_html($contactEntity->first_name)),
                     'contact_last_name' => \sprintf('%s', esc_html($contactEntity->last_name)),
+                    'campaign_online_url' => \MailerPress\Actions\Shortcodes\CampaignEmail::getPublicUrl((int) $chunkData['campaignId']),
                 ];
 
                 $clickTracking = $chunkData['clickTracking'] ?? 'yes';

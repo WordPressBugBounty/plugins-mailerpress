@@ -12,6 +12,7 @@ use MailerPress\Models\Tags;
 
 class Init
 {
+    private static bool $formBlockRendered = false;
     #[Action('init')]
     public function registerBlockType()
     {
@@ -19,6 +20,15 @@ class Init
         register_block_type(Kernel::$config['root'] . '/packages/gutenberg/mailerpress-form-input');
         register_block_type(Kernel::$config['root'] . '/packages/gutenberg/mailerpress-form-button');
         register_block_type(Kernel::$config['root'] . '/packages/gutenberg/mailerpress-archive');
+
+        // Detect form block rendering in any context (post content, FSE templates, patterns, widgets).
+        // has_block() only checks $post->post_content and misses blocks in FSE pattern files.
+        add_filter('render_block', static function ( string $blockContent, array $block ): string {
+            if ( 'mailerpress/mailerpress-form' === ( $block['blockName'] ?? '' ) ) {
+                self::$formBlockRendered = true;
+            }
+            return $blockContent;
+        }, 10, 2 );
     }
 
     #[Action('enqueue_block_editor_assets')]
@@ -51,6 +61,23 @@ class Init
         }
     }
 
+
+    /**
+     * Inject a WP REST nonce for the mailerpress-form block view script.
+     * Runs before footer scripts so window.mailerpressFormConfig is available to view.js.
+     */
+    #[Action('wp_print_footer_scripts', priority: 0)]
+    public function injectFormConfig(): void
+    {
+        if ( ! self::$formBlockRendered ) {
+            return;
+        }
+
+        echo '<script>window.mailerpressFormConfig=' . wp_json_encode(
+            ['nonce' => wp_create_nonce('wp_rest')],
+            JSON_HEX_TAG | JSON_HEX_AMP
+        ) . ';</script>' . "\n";
+    }
 
     #[Action('enqueue_block_assets')]
     public function block_assets()

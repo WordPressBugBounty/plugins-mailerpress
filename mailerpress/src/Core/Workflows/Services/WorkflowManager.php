@@ -18,14 +18,17 @@ class WorkflowManager
     private TriggerManager $triggerManager;
     private ActionSchedulerManager $schedulerManager;
 
-    public function __construct()
-    {
-        $this->automationRepo = new AutomationRepository();
-        $this->stepRepo = new StepRepository();
-        $this->jobRepo = new AutomationJobRepository();
-        $this->executor = new WorkflowExecutor();
-        // Pass the executor instance to ensure all services use the same instance
-        $this->triggerManager = new TriggerManager($this->executor);
+    public function __construct(
+        ?AutomationRepository $automationRepo = null,
+        ?StepRepository $stepRepo = null,
+        ?AutomationJobRepository $jobRepo = null,
+        ?WorkflowExecutor $executor = null
+    ) {
+        $this->automationRepo = $automationRepo ?? new AutomationRepository();
+        $this->stepRepo = $stepRepo ?? new StepRepository();
+        $this->jobRepo = $jobRepo ?? new AutomationJobRepository();
+        $this->executor = $executor ?? new WorkflowExecutor($this->automationRepo, $this->stepRepo, $this->jobRepo);
+        $this->triggerManager = new TriggerManager($this->executor, $this->automationRepo, $this->stepRepo, $this->jobRepo);
         $this->schedulerManager = new ActionSchedulerManager($this->executor);
     }
 

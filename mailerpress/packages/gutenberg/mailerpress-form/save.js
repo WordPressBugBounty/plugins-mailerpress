@@ -39,6 +39,7 @@ export default function save({attributes}) {
                 data-success-message={attributes.success_message}
                 data-error-message={attributes.error_message}
                 data-double-optin={attributes.double_optin ?? true}
+                data-redirect-url={attributes.redirect_url || undefined}
                 className="mailerpress-optin-form"
             >
                 <InnerBlocks.Content/>

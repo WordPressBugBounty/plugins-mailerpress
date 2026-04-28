@@ -57,11 +57,14 @@ class AutomationJobRepository
             [
                 'next_step_id' => $job->getNextStepId(),
                 'status' => $job->getStatus(),
+                'retry_count' => $job->getRetryCount(),
+                'max_retries' => $job->getMaxRetries(),
+                'last_error' => $job->getLastError(),
                 'scheduled_at' => $job->getScheduledAt(),
                 'updated_at' => current_time('mysql'),
             ],
             ['id' => $job->getId()],
-            ['%s', '%s', '%s', '%s'],
+            ['%s', '%s', '%d', '%d', '%s', '%s', '%s'],
             ['%d']
         ) !== false;
     }
@@ -70,9 +73,9 @@ class AutomationJobRepository
     {
         if ($includeWaiting) {
             $query = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table} 
-                 WHERE automation_id = %d 
-                 AND user_id = %d 
+                "SELECT * FROM {$this->table}
+                 WHERE automation_id = %d
+                 AND user_id = %d
                  AND status IN ('ACTIVE', 'PROCESSING', 'WAITING')
                  ORDER BY created_at DESC
                  LIMIT 1",
@@ -81,9 +84,9 @@ class AutomationJobRepository
             );
         } else {
             $query = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table} 
-                 WHERE automation_id = %d 
-                 AND user_id = %d 
+                "SELECT * FROM {$this->table}
+                 WHERE automation_id = %d
+                 AND user_id = %d
                  AND status IN ('ACTIVE', 'PROCESSING')
                  ORDER BY created_at DESC
                  LIMIT 1",
@@ -100,9 +103,9 @@ class AutomationJobRepository
     public function findCompletedByAutomationAndUser(int $automationId, int $userId): ?AutomationJob
     {
         $query = $this->wpdb->prepare(
-            "SELECT * FROM {$this->table} 
-             WHERE automation_id = %d 
-             AND user_id = %d 
+            "SELECT * FROM {$this->table}
+             WHERE automation_id = %d
+             AND user_id = %d
              AND status = 'COMPLETED'
              ORDER BY updated_at DESC
              LIMIT 1",
@@ -117,7 +120,7 @@ class AutomationJobRepository
     /**
      * Find completed job by automation and contact_id (via logs or user_id)
      * This works for both WordPress users and MailerPress contacts
-     * 
+     *
      * @param int $automationId
      * @param int $contactId
      * @return AutomationJob|null
@@ -159,7 +162,7 @@ class AutomationJobRepository
 
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
-             INNER JOIN {$logTable} l 
+             INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
              WHERE j.automation_id = %d
              AND j.status = 'COMPLETED'
@@ -178,7 +181,7 @@ class AutomationJobRepository
     /**
      * Find active job by automation and contact_id (via logs or user_id)
      * This works for both WordPress users and MailerPress contacts
-     * 
+     *
      * @param int $automationId
      * @param int $contactId
      * @param bool $includeWaiting
@@ -225,7 +228,7 @@ class AutomationJobRepository
 
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
-             INNER JOIN {$logTable} l 
+             INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
              WHERE j.automation_id = %d
              AND j.status IN {$statuses}
@@ -243,15 +246,15 @@ class AutomationJobRepository
 
     /**
      * Find all waiting jobs for a specific user
-     * 
+     *
      * @param int $userId
      * @return AutomationJob[]
      */
     public function findWaitingByUser(int $userId): array
     {
         $query = $this->wpdb->prepare(
-            "SELECT * FROM {$this->table} 
-             WHERE user_id = %d 
+            "SELECT * FROM {$this->table}
+             WHERE user_id = %d
              AND status = 'WAITING'
              ORDER BY updated_at DESC",
             $userId
@@ -263,7 +266,7 @@ class AutomationJobRepository
 
     /**
      * Find waiting jobs by user and campaign (for email opened/clicked conditions)
-     * 
+     *
      * @param int $userId
      * @param int $campaignId
      * @return AutomationJob[]
@@ -274,9 +277,9 @@ class AutomationJobRepository
         // This is a simplified version - in practice, you might want to store waiting_for in the job itself
         $query = $this->wpdb->prepare(
             "SELECT j.* FROM {$this->table} j
-             INNER JOIN {$this->wpdb->prefix}mailerpress_automations_log l 
+             INNER JOIN {$this->wpdb->prefix}mailerpress_automations_log l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
-             WHERE j.user_id = %d 
+             WHERE j.user_id = %d
              AND j.status = 'WAITING'
              AND l.data LIKE %s
              ORDER BY j.updated_at DESC",
@@ -290,7 +293,7 @@ class AutomationJobRepository
 
     /**
      * Find all active jobs for a specific automation and user
-     * 
+     *
      * @param int $automationId
      * @param int $userId
      * @return AutomationJob[]
@@ -298,9 +301,9 @@ class AutomationJobRepository
     public function findAllActiveByAutomationAndUser(int $automationId, int $userId): array
     {
         $query = $this->wpdb->prepare(
-            "SELECT * FROM {$this->table} 
-             WHERE automation_id = %d 
-             AND user_id = %d 
+            "SELECT * FROM {$this->table}
+             WHERE automation_id = %d
+             AND user_id = %d
              AND status IN ('ACTIVE', 'PROCESSING', 'WAITING')
              ORDER BY created_at DESC",
             $automationId,
@@ -313,7 +316,7 @@ class AutomationJobRepository
 
     /**
      * Cancel all active jobs for a specific automation and user
-     * 
+     *
      * @param int $automationId
      * @param int $userId
      * @return int Number of jobs cancelled
@@ -335,7 +338,7 @@ class AutomationJobRepository
 
     /**
      * Find and cancel jobs by cart_hash stored in logs
-     * 
+     *
      * @param int $automationId
      * @param int $userId
      * @param string $cartHash
@@ -352,10 +355,10 @@ class AutomationJobRepository
         // Find jobs that have this cart_hash in their log context
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
-             INNER JOIN {$logTable} l 
+             INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
-             WHERE j.automation_id = %d 
-             AND j.user_id = %d 
+             WHERE j.automation_id = %d
+             AND j.user_id = %d
              AND j.status IN ('ACTIVE', 'PROCESSING', 'WAITING')
              AND l.data LIKE %s
              ORDER BY j.created_at DESC",
@@ -380,7 +383,7 @@ class AutomationJobRepository
 
     /**
      * Delete a job completely (and its logs)
-     * 
+     *
      * @param int $jobId
      * @return bool
      */
@@ -402,7 +405,7 @@ class AutomationJobRepository
 
     /**
      * Delete all jobs for a specific automation and user (and their logs)
-     * 
+     *
      * @param int $automationId
      * @param int $userId
      * @return int Number of jobs deleted
@@ -423,7 +426,7 @@ class AutomationJobRepository
 
     /**
      * Delete jobs by cart_hash (and their logs)
-     * 
+     *
      * @param int $automationId
      * @param int $userId
      * @param string $cartHash
@@ -440,10 +443,10 @@ class AutomationJobRepository
         // Find jobs that have this cart_hash in their log context
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
-             INNER JOIN {$logTable} l 
+             INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
-             WHERE j.automation_id = %d 
-             AND j.user_id = %d 
+             WHERE j.automation_id = %d
+             AND j.user_id = %d
              AND j.status IN ('ACTIVE', 'PROCESSING', 'WAITING')
              AND l.data LIKE %s
              ORDER BY j.created_at DESC",

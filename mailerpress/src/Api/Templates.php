@@ -30,7 +30,7 @@ class Templates
 
         // Get parameters from the request
         $page = max(1, (int)$request->get_param('paged')); // Ensure the page is at least 1
-        $limit = $request->get_param('perPages'); // Ensure the limit is at least 1
+        $limit = (int)($request->get_param('perPages') ?: $request->get_param('limit') ?: 20);
         $category = $request->get_param('category');
         $categories = $request->get_param('categories');
         $offset = ($page - 1) * $limit;
@@ -38,21 +38,27 @@ class Templates
         $internal = $request->get_param('internal');
         $usage_type = $request->get_param('usage_type'); // 'newsletter' or 'automation'
 
+        // When white-label hide_premium_templates is active, force internal=0 (user templates only)
+        $whiteLabel = apply_filters( 'mailerpress_white_label_options', [] );
+        if ( ! empty( $whiteLabel['white_label_active'] ) && ! empty( $whiteLabel['hide_premium_templates'] ) ) {
+            $internal = '0';
+        }
+
         // Base query
         $where = '1=1'; // Default condition to make concatenation easier
         $params = [];
 
-        // CRITICAL: Always force usage_type to 'newsletter' - automation templates are completely hidden
-        // Never show automation templates in this listing, even if requested
-        $usage_type = 'newsletter';
+        // Filter by usage_type — only if column exists (migration may not have run yet)
+        $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table_name}", 0);
+        $hasUsageType = in_array('usage_type', $columns, true);
 
-        // Always apply usage_type filter - only show newsletter templates
-        // Include 'newsletter' and NULL values (for backward compatibility)
-        // Explicitly exclude 'automation' templates using COALESCE to handle NULL properly
-        $where .= ' AND (usage_type = %s OR usage_type IS NULL) AND COALESCE(usage_type, %s) != %s';
-        $params[] = $usage_type; // Always 'newsletter'
-        $params[] = 'newsletter'; // Default for NULL in COALESCE
-        $params[] = 'automation'; // Explicitly exclude automation
+        if ($hasUsageType) {
+            if (empty($usage_type) || !in_array($usage_type, ['newsletter', 'automation'], true)) {
+                $usage_type = 'newsletter';
+            }
+            $where .= ' AND (usage_type = %s OR usage_type IS NULL)';
+            $params[] = $usage_type;
+        }
 
         if (!empty($search)) {
             $where .= ' AND name LIKE %s';
@@ -122,7 +128,7 @@ class Templates
 
         $total_count = $wpdb->get_var($total_query);
 
-        $total_pages = ceil($total_count / $limit);
+        $total_pages = $limit > 0 ? ceil($total_count / $limit) : 1;
 
         // Construct response
         $response = [
@@ -364,6 +370,78 @@ class Templates
         ], 200);
     }
 
+
+    #[Endpoint(
+        'template/(?P<id>\d+)',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canManageTemplates']
+    )]
+    public function getById(\WP_REST_Request $request): \WP_Error|\WP_REST_Response
+    {
+        global $wpdb;
+
+        $table_name = Tables::get(Tables::MAILERPRESS_TEMPLATES);
+        $id = (int) $request->get_param('id');
+
+        $template = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM {$table_name} WHERE id = %d", $id),
+            ARRAY_A
+        );
+
+        if (!$template) {
+            return new \WP_Error('not_found', __('Template not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        return new \WP_REST_Response($template, 200);
+    }
+
+    #[Endpoint(
+        'template/(?P<id>\d+)/content',
+        methods: 'PUT',
+        permissionCallback: [Permissions::class, 'canManageTemplates']
+    )]
+    public function updateContent(\WP_REST_Request $request): \WP_Error|\WP_REST_Response
+    {
+        global $wpdb;
+
+        $table_name = Tables::get(Tables::MAILERPRESS_TEMPLATES);
+        $id = (int) $request->get_param('id');
+        $content = $request->get_param('content');
+
+        if (empty($content)) {
+            return new \WP_Error('missing_content', __('Content is required.', 'mailerpress'), ['status' => 400]);
+        }
+
+        // Ensure template exists
+        $exists = $wpdb->get_var(
+            $wpdb->prepare("SELECT id FROM {$table_name} WHERE id = %d", $id)
+        );
+
+        if (!$exists) {
+            return new \WP_Error('not_found', __('Template not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        $updated = $wpdb->update(
+            $table_name,
+            [
+                'content' => is_string($content) ? $content : wp_json_encode($content),
+                'updated_at' => current_time('mysql'),
+            ],
+            ['id' => $id],
+            ['%s', '%s'],
+            ['%d']
+        );
+
+        if ($updated === false) {
+            return new \WP_Error('db_error', __('Could not update template content.', 'mailerpress'), ['status' => 500]);
+        }
+
+        return new \WP_REST_Response([
+            'status' => 'success',
+            'message' => __('Template content updated successfully.', 'mailerpress'),
+            'template_id' => $id,
+        ], 200);
+    }
 
     #[Endpoint(
         'templates/(?P<id>\d+)',

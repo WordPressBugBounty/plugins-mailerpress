@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wpml-config>
+    <admin-texts>
+        <key name="mailerpress_signup_confirmation">
+            <key name="emailSubject" />
+            <key name="emailContent" />
+        </key>
+        <key name="woocommerce_mailerpress_settings">
+            <key name="subscribe_label" />
+        </key>
+        <key name="woocommerce_my_account_settings">
+            <key name="menu_title" />
+            <key name="page_title" />
+            <key name="page_heading" />
+            <key name="page_description" />
+            <key name="title" />
+            <key name="button_text" />
+            <key name="success_message" />
+            <key name="error_message" />
+        </key>
+        <key name="pmpro_mailerpress_settings">
+            <key name="subscribe_label" />
+        </key>
+        <key name="pmpro_my_account_settings">
+            <key name="page_heading" />
+            <key name="page_description" />
+            <key name="title" />
+            <key name="button_text" />
+            <key name="success_message" />
+            <key name="error_message" />
+        </key>
+        <key name="surecart_mailerpress_settings">
+            <key name="subscribe_label" />
+        </key>
+        <key name="fluentcart_mailerpress_settings">
+            <key name="subscribe_label" />
+        </key>
+        <key name="fluentcart_my_account_settings">
+            <key name="menu_title" />
+            <key name="page_heading" />
+            <key name="page_description" />
+            <key name="title" />
+            <key name="button_text" />
+            <key name="success_message" />
+            <key name="error_message" />
+        </key>
+    </admin-texts>
+</wpml-config>

@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 1.5.5
+Stable tag: 2.0.1
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -225,41 +225,26 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
-= 1.5.5 =
-* FIX: Resolved an issue where text edits in the editor were not saved in drafts.
+= 2.0.1 =
+* FIX: Dashboard access issue causing an error and dark screen for some users
+* FIX: MailerPress Opt-in Form Gutenberg block returning a 401 unauthorized error when used inside an FSE template
 
-= 1.5.4 =
-* IMPROVEMENT: Overall performance improvements across the plugin, including faster loading of certain data.
-* FIX: Resolved an issue where scheduled campaigns were sometimes sent immediately instead of at the planned time.
-* FIX: Fixed encoding issues with apostrophes in email subjects and campaign names.
-* FIX: Resolved conflicts with certain server-side caching mechanisms.
-
-= 1.5.3 =
-* FIX: Resolved an issue where campaigns could fail and be marked as error when sending to segmented contacts.
-* FIX: Bug in the pagination of the modal used to display contacts belonging to a created segment, where some contacts were not shown correctly.
-
-= 1.5.2 =
-* IMPROVEMENT: Reduced unnecessary database queries on page load.
-* FIX: Segment search returning no results in the Review & Send modal.
-* FIX: Resolved a fatal error that could occur when rendering opt-in forms in certain environments after the 1.5.1 update.
-
-= 1.5.1 =
-* FIX: Campaign scheduled date now uses WordPress locale formatting (correct date order and translation of "at").
-* FIX: Preserved spacing before punctuation (e.g. " !") in email button text.
-* FIX: Bulk actions on contacts now correctly apply to all filtered records instead of only the current page.
-* FIX: Default contact list can no longer trigger the edit action; a notice now explains that the default list is protected.
-* FIX: Double opt-in confirmation was not triggered for subscriptions created via shortcode forms.
-* FIX: Honeypot anti-spam check not working properly with Contact Form 7 integration.
-* SECURITY: Hardened various plugin endpoints and improved overall input validation and sanitization.
-
-= 1.5.0 <a href="https://mailerpress.com/mailerpress-1-5/">Read the blog post update</a> =
-* NEW: Webhooks: Support for both incoming and outgoing webhooks to integrate external systems and receive real-time events.
-* NEW: Flexible click and open tracking: Choose between Yes, No, or Anonymously in the Review & Send modal.
-* IMPROVEMENT: DataView Added support for ordering by columns.
-* IMPROVEMENT: Embed form, you can now customize all texts that were previously rendered in English only.
-* FIX: DataView fixed an issue where column display settings were not saved when navigating away.
-* FIX: Editor issues where unsaved changes were not correctly detected in some cases.
-* FIX: MailerPress option form (Gutenberg block): Fixed border radius settings so they now apply correctly to both the submit button and form fields.
-* SECURITY: Strengthened security around internal network requests.
+= 2.0 <a href="https://mailerpress.com/mailerpress-2-0/">Read the blog post update</a> =
+* NEW: Advanced Automation System [Beta] – Create sophisticated email workflows with a visual automation builder, including trigger-based campaigns, conditional logic, and multi-step workflows to automate your entire email marketing funnel.
+* NEW: Multiple Email Editors – Choose from three powerful editors when creating campaigns: Visual Editor (drag-and-drop builder with blocks and templates) and Raw HTML Editor (paste or write HTML code directly for pre-built templates).
+* NEW: WordPress Email Customization – Customize all system emails with your branded email templates using the MailerPress editor, including new user welcome emails, password resets, comment notifications, admin alerts, and automatic update notifications. Replace default WordPress emails with professional designs.
+* NEW: WooCommerce Email Customization – Fully customize WooCommerce transactional emails, including order confirmations, customer invoices, shipment notifications, low stock alerts, and more using the MailerPress email editor with dynamic merge tags for product details and order information.
+* NEW: Three New Email Service Providers – Added support for Resend, EmailIt, and SMTP2GO, expanding your sending options with reliable and scalable email delivery services. Each provider includes bounce tracking and webhook support.
+* NEW: WordPress Default ESP – Use the native WordPress wp_mail() function for email sending, fully compatible with all major third-party SMTP plugins (WP Mail SMTP, Brevo, Mailgun, etc.) for seamless integration with your existing WordPress email infrastructure.
+* NEW: Divi Builder Integration – Native integration with Divi Builder's opt-in email module, allowing seamless subscriber capture directly from Divi email modules with automatic list and tag assignment.
+* NEW: Notification Center – Intelligent notification system that automatically checks site configuration and displays contextual alerts for issues (WP-Cron disabled, missing setup steps) and product updates. Notifications can be dismissed permanently or temporarily.
+* NEW: WordPress users can now be synchronized directly with MailerPress.
+* NEW: You can now translate some MailerPress settings using the new wpml-config file.
+* IMPROVEMENT: The Query Block now supports post meta in addition to ACF.
+* IMPROVEMENT: White Label now allows you to hide premium templates if needed.
+* IMPROVEMENT: Improved Review & Send modal UX/UI.
+* IMPROVEMENT: Template Creation – Create and save email templates directly without needing to create a campaign first. Templates can now be managed independently for reuse across multiple campaigns.
+* IMPROVEMENT: API Key Management – Enhanced API key management to provide access to the MailerPress public API with granular permission controls, allowing you to restrict access to specific resources (contacts, campaigns, lists, etc.) and configure rate limits and IP restrictions per key.
+* SECURITY: Fixed REST API authentication to enforce API key scopes on all protected endpoints, preventing unauthorized access to restricted operations.
 
 <a href="https://mailerpress.com/docs/mailerpress-changelog/" target="_blank">View our complete changelog</a>

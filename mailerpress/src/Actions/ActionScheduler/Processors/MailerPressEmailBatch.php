@@ -471,15 +471,13 @@ class MailerPressEmailBatch
     }
 
     /**
-     * Convert scheduled_at string to Unix timestamp.
-     * The value is expected in UTC (stored that way since createBatchV2 passes UTC).
-     * Falls back to WP timezone interpretation for backward compatibility with
-     * any batches created before the UTC fix.
+     * Convert scheduled_at string (UTC) to Unix timestamp.
+     * The value is stored in UTC by createBatchV2, so we parse it as UTC
+     * to remain immune to WP timezone changes after scheduling.
      */
     private function convert_scheduled_at_to_timestamp(string $scheduledAt): int
     {
         try {
-            // Try UTC first (new behavior: createBatchV2 passes UTC)
             $dt = new \DateTime($scheduledAt, new \DateTimeZone('UTC'));
             return $dt->getTimestamp();
         } catch (\Exception $e) {

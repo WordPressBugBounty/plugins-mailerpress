@@ -26,12 +26,7 @@ class EmailServiceManager
      */
     public function getActiveService(): ?EmailServiceInterface
     {
-        // Si le service actif est déjà défini en mémoire, le retourner
-        if ($this->activeService) {
-            return $this->activeService;
-        }
-
-        // Récupérer la configuration en base
+        // Always reload configuration from DB to ensure fresh sender settings
         $configurations = $this->getConfigurations();
 
         $defaultServiceKey = $configurations['default_service'] ?? null;
@@ -126,7 +121,7 @@ class EmailServiceManager
 
         // Pour le service PHP, permettre une config vide si un plugin tiers est détecté
         $config = $configurations['services'][$key] ?? [];
-        
+
         // Pour les autres services, exiger une configuration
         if ($key !== 'php' && empty($config)) {
             throw new \Exception(
@@ -186,6 +181,20 @@ class EmailServiceManager
             return $defaultConfig;
         }
 
+        // Handle JSON-encoded string (e.g. from settings import)
+        if (is_string($config)) {
+            $decoded = json_decode($config, true);
+            if (is_array($decoded)) {
+                $config = $decoded;
+            } else {
+                return $defaultConfig;
+            }
+        }
+
+        if (isset($config['activated']) && is_array($config['activated'])) {
+            $config['activated'] = array_values($config['activated']);
+        }
+
         return $config;
     }
 
@@ -231,7 +240,7 @@ class EmailServiceManager
                     [$key]
                 ));
             } else {
-                $configurations['activated'] = array_diff($configurations['activated'], [$key]);
+                $configurations['activated'] = array_values(array_diff($configurations['activated'], [$key]));
             }
         }
 

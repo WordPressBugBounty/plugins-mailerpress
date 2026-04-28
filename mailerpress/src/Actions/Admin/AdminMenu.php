@@ -25,6 +25,7 @@ class AdminMenu
                 default => Capabilities::MANAGE_CONTACTS,
             },
             '/home/templates' => Capabilities::MANAGE_TEMPLATES,
+            '/home/workflow' => Capabilities::MANAGE_AUTOMATIONS,
             default => Capabilities::MANAGE_CAMPAIGNS,
         };
 
@@ -185,21 +186,19 @@ class AdminMenu
                 'cap' => Capabilities::MANAGE_CAMPAIGNS,
                 'callback' => 'mailpressCampaigns',
             ],
-            // Workflow menu items hidden - automation menu access disabled
-            // [
-            //     'title' => '',
-            //     'menu_title' => '',
-            //     'slug' => 'mailerpress/workflow',
-            //     'cap' => Capabilities::MANAGE_AUTOMATIONS,
-            //     'callback' => 'mailerpressWorkflow',
-            // ],
-            // [
-            //     'title' => $labels['workflow'],
-            //     'menu_title' => $labels['workflow'],
-            //     'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fworkflow',
-            //     'cap' => Capabilities::MANAGE_AUTOMATIONS,
-            //     'callback' => 'mailerpressWorkflow',
-            // ],
+            [
+                'title' => '',
+                'menu_title' => '',
+                'slug' => 'mailerpress/workflow',
+                'cap' => Capabilities::MANAGE_AUTOMATIONS, // Use base WordPress capability, check MANAGE_AUTOMATIONS in admin_init
+                'callback' => 'mailerpressWorkflow',
+            ],
+            [
+                'title' => $labels['workflow'],
+                'menu_title' => $labels['workflow'],
+                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fworkflow',
+                'cap' => Capabilities::MANAGE_AUTOMATIONS,
+            ],
             [
                 'title' => $labels['audience'],
                 'menu_title' => $labels['audience'],
@@ -225,6 +224,12 @@ class AdminMenu
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fwebhooks',
                 'cap' => Capabilities::MANAGE_SETTINGS,
             ],
+            // [
+            //     'title' => __('Add-ons', 'mailerpress'),
+            //     'menu_title' => __('Add-ons', 'mailerpress'),
+            //     'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
+            //     'cap' => 'edit_posts',
+            // ],
             [
                 'title' => $labels['settings'],
                 'menu_title' => $labels['settings'],
@@ -251,7 +256,7 @@ class AdminMenu
             $submenus[] = [
                 'title' => $labels['licence'],
                 'menu_title' => $labels['licence'],
-                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings&activeView=Licence',
+                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings&activeView=licence',
                 'cap' => Capabilities::MANAGE_SETTINGS,
             ];
         }
@@ -294,7 +299,7 @@ class AdminMenu
         global $submenu;
         if (isset($submenu['mailerpress/campaigns.php'])) {
             foreach ($submenu['mailerpress/campaigns.php'] as $key => $item) {
-                if (isset($item[2]) && strpos($item[2], 'https://mailerpress.com/docs/') === 0) {
+                if (isset($item[2]) && strpos($item[2], \MailerPress\Core\ExternalLinks::get('docs')) === 0) {
                     // Ensure the link is treated as external
                     $submenu['mailerpress/campaigns.php'][$key][2] = $item[2];
                 }
@@ -303,27 +308,74 @@ class AdminMenu
     }
 
 
+    #[Action('admin_menu', priority: 999)]
+    public function hideSubmenuItems(): void
+    {
+        global $submenu;
+
+        // Slugs to hide from WordPress admin menu (but still accessible via direct URL)
+        // Note: We don't remove 'mailerpress/new' and 'mailerpress/workflow' from $submenu
+        // because WordPress needs them to call the callbacks. We only hide them visually with CSS.
+        $hidden_slugs = [
+            'mailerpress%2Fcampaigns.php&path=%2Fhome&view=create-campaign', // New Campaign
+            // 'mailerpress/new' - NOT removed, only hidden with CSS so callback still works
+            // 'mailerpress/workflow' - NOT removed, only hidden with CSS so callback still works
+        ];
+
+        if (!isset($submenu['mailerpress/campaigns.php'])) {
+            return;
+        }
+
+        // Remove hidden menu items by matching slug (but keep mailerpress/new and mailerpress/workflow)
+        foreach ($submenu['mailerpress/campaigns.php'] as $key => $item) {
+            if (isset($item[2])) {
+                $slug = $item[2];
+                // Normalize slug for comparison (handle both encoded and decoded)
+                $normalized_slug = rawurldecode($slug);
+
+                // Don't remove mailerpress/new or mailerpress/workflow - they need to stay for callbacks to work
+                if (
+                    $slug === 'mailerpress/new' || $normalized_slug === 'mailerpress/new' ||
+                    $slug === 'mailerpress/workflow' || $normalized_slug === 'mailerpress/workflow'
+                ) {
+                    continue;
+                }
+
+                $normalized_hidden = array_map('rawurldecode', $hidden_slugs);
+                if (in_array($slug, $hidden_slugs, true) || in_array($normalized_slug, $normalized_hidden, true)) {
+                    unset($submenu['mailerpress/campaigns.php'][$key]);
+                }
+            }
+        }
+    }
+
     #[Action('admin_head')]
-    public function hideFirstMenuItem(): void
+    public function hideSubmenuHead(): void
     {
     ?>
         <style>
-            #toplevel_page_mailerpress-campaigns ul.wp-submenu li:nth-child(3),
-            #toplevel_page_mailerpress-campaigns ul.wp-submenu li:nth-child(6) {
+            #toplevel_page_mailerpress-campaigns .wp-submenu-head,
+            #toplevel_page_mailerpress-campaigns .wp-first-item {
+                display: none !important;
+            }
+
+            /* Hide mailerpress/new and mailerpress/workflow from menu but keep them accessible via direct URL */
+            #toplevel_page_mailerpress-campaigns .wp-submenu a[href*="page=mailerpress/new"],
+            #toplevel_page_mailerpress-campaigns .wp-submenu a[href*="page=mailerpress/workflow"] {
                 display: none !important;
             }
         </style>
         <script>
             (function() {
                 document.addEventListener('DOMContentLoaded', function() {
-                    const docLinks = document.querySelectorAll('#toplevel_page_mailerpress-campaigns ul.wp-submenu a[href="https://mailerpress.com/docs/"]');
+                    const docLinks = document.querySelectorAll('#toplevel_page_mailerpress-campaigns ul.wp-submenu a[href="<?php echo esc_url(\MailerPress\Core\ExternalLinks::get('docs')); ?>"]');
                     docLinks.forEach(function(link) {
                         link.setAttribute('target', '_blank');
                         link.setAttribute('rel', 'noopener noreferrer');
                         // Prevent WordPress from trying to load it as an admin page
                         link.addEventListener('click', function(e) {
                             e.preventDefault();
-                            window.open('https://mailerpress.com/docs/', '_blank', 'noopener,noreferrer');
+                            window.open('<?php echo esc_url(\MailerPress\Core\ExternalLinks::get('docs')); ?>', '_blank', 'noopener,noreferrer');
                         });
                     });
                 });
@@ -346,17 +398,15 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home&view=create-campaign',
             'mailerpress/new',
             'mailerpress/campaigns.php&path=/home/campaigns',
-            // Workflow menu items hidden - automation menu access disabled
-            // 'mailerpress/workflow',
-            // 'mailerpress-workflow',
-            // 'mailerpress-workflows',
-            // 'mailerpress/campaigns.php&path=/home/workflow',
+            'mailerpress/workflow',
+            'mailerpress/campaigns.php&path=/home/workflow',
             'mailerpress/campaigns.php&path=/home/contacts',
             'mailerpress/campaigns.php&path=/home/templates',
             'mailerpress/campaigns.php&path=/home/integrations',
             'mailerpress/campaigns.php&path=/home/webhooks',
             'mailerpress/campaigns.php&path=/home/settings',
             'mailerpress/campaigns.php&path=/home/getting-started',
+            'mailerpress/campaigns.php&path=/home/addons',
         ];
 
         if (in_array($page, $mailerpress_submenus, true)) {
@@ -391,16 +441,15 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home&view=create-campaign' => 'mailerpress%2Fcampaigns.php&path=%2Fhome&view=create-campaign',
             'mailerpress/new' => 'mailerpress%2Fcampaigns.php&path=%2Fhome&view=create-campaign',
             'mailerpress/campaigns.php&path=/home/campaigns' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fcampaigns',
-            // Workflow menu items hidden - automation menu access disabled
-            // 'mailerpress/workflow' => 'mailerpress/workflow',
-            // 'mailerpress-workflow' => 'mailerpress/workflow',
-            // 'mailerpress-workflows' => 'mailerpress/workflow',
+            'mailerpress/workflow' => 'mailerpress/workflow',
+            'mailerpress/campaigns.php&path=/home/workflow' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fworkflow',
             'mailerpress/campaigns.php&path=/home/contacts' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fcontacts',
             'mailerpress/campaigns.php&path=/home/templates' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftemplates',
             'mailerpress/campaigns.php&path=/home/integrations' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fintegrations',
             'mailerpress/campaigns.php&path=/home/webhooks' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fwebhooks',
             'mailerpress/campaigns.php&path=/home/settings' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings',
             'mailerpress/campaigns.php&path=/home/getting-started' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fgetting-started',
+            'mailerpress/campaigns.php&path=/home/addons' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
         ];
 
         $current_view = isset($_GET['view']) ? rawurldecode(sanitize_text_field(wp_unslash($_GET['view']))) : '';

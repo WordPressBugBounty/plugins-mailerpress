@@ -565,6 +565,21 @@ class DatabaseDiagnostic
                         unset($columnsMap[$columnToDrop]);
                     }
 
+                    // Process index drops BEFORE index additions (same rationale as FK drops:
+                    // a migration that drops then re-adds an index on the same column should
+                    // result in the index being present in the expected schema).
+                    $indexesToDropProperty = $managerReflection->getProperty('indexesToDrop');
+                    $indexesToDropProperty->setAccessible(true);
+                    $indexesToDropEarly = $indexesToDropProperty->getValue($manager);
+
+                    foreach ($indexesToDropEarly as $indexToDrop) {
+                        foreach (array_keys($indexesMap) as $key) {
+                            if (stripos($key, $indexToDrop) !== false) {
+                                unset($indexesMap[$key]);
+                            }
+                        }
+                    }
+
                     // Extract the indexes
                     $indexesProperty = $managerReflection->getProperty('indexes');
                     $indexesProperty->setAccessible(true);
@@ -637,16 +652,22 @@ class DatabaseDiagnostic
                         }
                     }
 
-                    // Handle the indexes to drop
-                    $indexesToDropProperty = $managerReflection->getProperty('indexesToDrop');
-                    $indexesToDropProperty->setAccessible(true);
-                    $indexesToDrop = $indexesToDropProperty->getValue($manager);
+                    // (index drops are now processed BEFORE additions — see block above)
 
-                    foreach ($indexesToDrop as $indexToDrop) {
-                        // Remove all indexes that contain this column
-                        foreach (array_keys($indexesMap) as $key) {
-                            if (stripos($key, $indexToDrop) !== false) {
-                                unset($indexesMap[$key]);
+                    // Process FK drops BEFORE FK additions so that a migration that does
+                    // dropForeign() + addForeignKey() on the same column (idempotent re-add
+                    // pattern) correctly results in the FK being present in the expected schema.
+                    // Previous order (add then drop) caused the re-added FK to be removed,
+                    // making the diagnostic report it as an unwanted extra FK.
+                    $foreignKeysToDropProperty = $managerReflection->getProperty('foreignKeysToDrop');
+                    $foreignKeysToDropProperty->setAccessible(true);
+                    $foreignKeysToDrop = $foreignKeysToDropProperty->getValue($manager);
+
+                    foreach ($foreignKeysToDrop as $fkToDrop) {
+                        // Remove all FKs that use this column
+                        foreach (array_keys($foreignKeysMap) as $key) {
+                            if (strpos($key, $fkToDrop . '_') === 0) {
+                                unset($foreignKeysMap[$key]);
                             }
                         }
                     }
@@ -663,20 +684,6 @@ class DatabaseDiagnostic
                             'referenced_table' => $fk['foreignTable'],
                             'referenced_column' => $fk['foreignColumn'],
                         ];
-                    }
-
-                    // Handle the foreign keys to drop
-                    $foreignKeysToDropProperty = $managerReflection->getProperty('foreignKeysToDrop');
-                    $foreignKeysToDropProperty->setAccessible(true);
-                    $foreignKeysToDrop = $foreignKeysToDropProperty->getValue($manager);
-
-                    foreach ($foreignKeysToDrop as $fkToDrop) {
-                        // Remove all FKs that use this column
-                        foreach (array_keys($foreignKeysMap) as $key) {
-                            if (strpos($key, $fkToDrop . '_') === 0) {
-                                unset($foreignKeysMap[$key]);
-                            }
-                        }
                     }
                 }
             } catch (\Throwable $e) {

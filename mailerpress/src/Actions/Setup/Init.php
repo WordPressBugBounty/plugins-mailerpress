@@ -19,6 +19,14 @@ class Init
     {
         $this->registerDefaultTemplateCategories();
         $this->disableEmojiConversion();
+        \MailerPress\Core\ProExtensions::registerWordPressEmailsEndpoints();
+        if (\function_exists('wc_get_order')) {
+            \MailerPress\Core\ProExtensions::registerWooCommerceEmailsEndpoints();
+        }
+
+        // Allow Pro plugin to register its endpoints
+        \MailerPress\Core\ProExtensions::registerEmbedEndpoints();
+        \MailerPress\Core\ProExtensions::registerWebhookEndpoints();
         add_rewrite_rule(
             '^unsubscribe/([0-9]+)/([^/]+)/?',
             'index.php?unsubscribe_user=$matches[1]&unsubscribe_token=$matches[2]',
@@ -34,7 +42,7 @@ class Init
     /**
      * Désactive la conversion automatique des emojis en images par WordPress
      * uniquement dans le contexte d'envoi d'emails MailerPress.
-     * 
+     *
      * On utilise un filtre sur wp_mail avec une priorité élevée pour désactiver
      * temporairement wp_staticize_emoji_for_email uniquement pour les emails MailerPress.
      */
@@ -85,6 +93,37 @@ class Init
             // Flush rewrite rules when version changes to ensure new rewrite rules are registered
             $this->flushRewriteRules();
         }
+    }
+
+    #[Action('admin_init', priority: 5)]
+    public function migrateJsonOptions(): void
+    {
+        if (get_option('mailerpress_migrated_json_options_v2')) {
+            return;
+        }
+
+        $optionNames = [
+            'mailerpress_signup_confirmation',
+            'woocommerce_mailerpress_settings',
+            'woocommerce_my_account_settings',
+            'pmpro_mailerpress_settings',
+            'pmpro_my_account_settings',
+            'surecart_mailerpress_settings',
+            'fluentcart_mailerpress_settings',
+            'fluentcart_my_account_settings',
+        ];
+
+        foreach ($optionNames as $optionName) {
+            $value = get_option($optionName);
+            if (is_string($value) && !empty($value)) {
+                $decoded = json_decode($value, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    update_option($optionName, $decoded);
+                }
+            }
+        }
+
+        update_option('mailerpress_migrated_json_options_v2', true);
     }
 
     /**

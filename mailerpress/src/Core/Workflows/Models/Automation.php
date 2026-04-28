@@ -22,7 +22,7 @@ class Automation
         if (isset($data['id'])) $this->id = (int) $data['id'];
         if (isset($data['name'])) $this->name = $data['name'];
         if (isset($data['author'])) $this->author = (int) $data['author'];
-        if (isset($data['status'])) $this->status = $data['status'];
+        if (isset($data['status'])) $this->status = strtoupper($data['status']);
         if (isset($data['run_once_per_subscriber'])) {
             $this->runOncePerSubscriber = (bool) $data['run_once_per_subscriber'];
         }

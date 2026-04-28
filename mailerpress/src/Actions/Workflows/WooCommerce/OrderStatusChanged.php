@@ -51,6 +51,41 @@ class OrderStatusChanged
                     'help' => __('Only trigger when order changes to this status (leave empty for any status)', 'mailerpress'),
                 ],
             ],
+            // Output fields available in context for mapping in actions
+            'output_fields' => [
+                // Customer fields
+                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'customer_id', 'label' => __('Customer ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
+                ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
+                // Order fields
+                ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                ['key' => 'order_number', 'label' => __('Order Number', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'order_date', 'label' => __('Order Date', 'mailerpress'), 'type' => 'date', 'group' => 'order'],
+                ['key' => 'order_status', 'label' => __('Order Status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'payment_method', 'label' => __('Payment Method', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'payment_method_title', 'label' => __('Payment Method Title', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                // Billing address (nested)
+                ['key' => 'billing_address.first_name', 'label' => __('Billing First Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.last_name', 'label' => __('Billing Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.email', 'label' => __('Billing Email', 'mailerpress'), 'type' => 'email', 'group' => 'billing'],
+                ['key' => 'billing_address.phone', 'label' => __('Billing Phone', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.company', 'label' => __('Billing Company', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.address_1', 'label' => __('Billing Address', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.city', 'label' => __('Billing City', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.state', 'label' => __('Billing State', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.postcode', 'label' => __('Billing Postcode', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.country', 'label' => __('Billing Country', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                // Shipping address (nested)
+                ['key' => 'shipping_address.first_name', 'label' => __('Shipping First Name', 'mailerpress'), 'type' => 'string', 'group' => 'shipping'],
+                ['key' => 'shipping_address.last_name', 'label' => __('Shipping Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'shipping'],
+                ['key' => 'shipping_address.address_1', 'label' => __('Shipping Address', 'mailerpress'), 'type' => 'string', 'group' => 'shipping'],
+                ['key' => 'shipping_address.city', 'label' => __('Shipping City', 'mailerpress'), 'type' => 'string', 'group' => 'shipping'],
+                ['key' => 'shipping_address.country', 'label' => __('Shipping Country', 'mailerpress'), 'type' => 'string', 'group' => 'shipping'],
+            ],
         ];
 
         // Register trigger for the generic order status change hook

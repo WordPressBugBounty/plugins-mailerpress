@@ -7,7 +7,7 @@ namespace MailerPress\Core\Migrations;
 class CustomTableManager
 {
     protected string $tableName;
-    protected string $version = '1.5.5';
+    protected string $version = '2.0.1';
     protected string $versionOptionName;
     protected array $columns = [];
     protected array|string|null $primaryKey = null;
@@ -361,16 +361,21 @@ class CustomTableManager
         $installedVersion = get_option($this->versionOptionName);
         $tableExists = $this->tableExists();
 
-        // Skip if version matches and table exists
-        if ($installedVersion === $this->version && $tableExists) {
-            return false;
-        }
+        // For CREATE operations only: skip if version matches or is already newer.
+        // ALTER operations are individually idempotent (column-exists / index-exists checks
+        // below), so version-based skipping would cause index/column migrations with a lower
+        // version number to be silently skipped when a later migration already bumped the
+        // stored version higher (e.g. automations sets 1.2.2 before performance_indexes sets 1.2.0).
+        if ($this->isCreateOperation) {
+            if ($installedVersion === $this->version && $tableExists) {
+                return false;
+            }
 
-        // Skip if installed version is already newer than this migration's version.
-        // A later migration has already upgraded this table — re-running an older
-        // migration would undo changes (e.g. re-adding dropped foreign keys).
-        if ($tableExists && $installedVersion !== false && version_compare($installedVersion, $this->version, '>')) {
-            return false;
+            // A later migration has already upgraded this table — re-running an older
+            // create migration would undo changes (e.g. re-adding dropped foreign keys).
+            if ($tableExists && $installedVersion !== false && version_compare($installedVersion, $this->version, '>')) {
+                return false;
+            }
         }
 
         try {
@@ -399,9 +404,11 @@ class CustomTableManager
                 $existingConstraints = $this->getExistingForeignKeys();
                 $alterParts = [];
 
-                // Add new columns
+                // Add new columns (from ColumnBuilder objects)
+                $builderNames = [];
                 foreach ($this->columnBuilders as $builder) {
                     $name = $builder->getName();
+                    $builderNames[] = $name;
 
                     if (!in_array($name, $currentCols, true)) {
                         $sql = "ADD COLUMN `$name` {$builder->getSQL()}";
@@ -416,6 +423,29 @@ class CustomTableManager
                     }
                 }
 
+                // Add new columns from addColumn() calls (raw SQL definitions)
+                foreach ($this->columns as $name => $definition) {
+                    if (in_array($name, $builderNames, true)) {
+                        continue;
+                    }
+                    if (!in_array($name, $currentCols, true)) {
+                        $alterParts[] = "ADD COLUMN `$name` $definition";
+                    }
+                }
+
+                // Build the effective column list: existing columns + columns being added in
+                // this same migration. This prevents index creation from being silently skipped
+                // when a migration adds a column and an index on that column together — the
+                // column has not yet been persisted when the index check runs.
+                $pendingCols = [];
+                foreach ($this->columnBuilders as $builder) {
+                    $pendingCols[] = $builder->getName();
+                }
+                foreach (array_keys($this->columns) as $colName) {
+                    $pendingCols[] = $colName;
+                }
+                $effectiveCols = array_unique(array_merge($currentCols, $pendingCols));
+
                 // Add new indexes
                 foreach ($this->indexes as $key => $clause) {
                     // Extract column names from index clause
@@ -423,10 +453,10 @@ class CustomTableManager
                     $cols = $matches[1] ?? [];
 
                     if (!empty($cols)) {
-                        // First, verify all columns exist before creating index
+                        // Verify all columns exist (including columns added in this same migration)
                         $allColumnsExist = true;
                         foreach ($cols as $col) {
-                            if (!in_array($col, $currentCols, true)) {
+                            if (!in_array($col, $effectiveCols, true)) {
                                 $allColumnsExist = false;
                                 break;
                             }
@@ -483,10 +513,19 @@ class CustomTableManager
 
                 // Drop foreign keys
                 foreach ($this->foreignKeysToDrop as $column) {
-                    $fkName = "fk_{$this->tableName}_$column";
-                    $existingFKs = $this->getExistingForeignKeys();
-                    if (in_array($fkName, $existingFKs, true)) {
-                        $alterParts[] = "DROP FOREIGN KEY `$fkName`";
+                    // Find ALL foreign keys on this column by querying information_schema
+                    // We can't rely on the constructed name alone because dbDelta may have
+                    // created the FK with a MySQL auto-generated name (e.g. tableName_ibfk_1)
+                    $fkConstraints = $wpdb->get_col(
+                        "SELECT CONSTRAINT_NAME
+                         FROM information_schema.KEY_COLUMN_USAGE
+                         WHERE TABLE_NAME = '{$this->tableName}'
+                           AND CONSTRAINT_SCHEMA = DATABASE()
+                           AND COLUMN_NAME = '{$column}'
+                           AND REFERENCED_TABLE_NAME IS NOT NULL"
+                    );
+                    foreach ($fkConstraints as $constraintName) {
+                        $alterParts[] = "DROP FOREIGN KEY `$constraintName`";
                     }
                 }
 
@@ -531,8 +570,18 @@ class CustomTableManager
                 }
             }
 
-            // Update version only if migration succeeded
-            update_option($this->versionOptionName, $this->version, false);
+            // Update version only if migration succeeded.
+            // For ALTER operations: never downgrade the stored version — only bump it if
+            // this migration's version is higher than what is already recorded.
+            // This preserves the highest-known version even when older migrations re-run.
+            if (
+                $this->isCreateOperation ||
+                $installedVersion === false ||
+                $this->version === '2.0.1' ||
+                version_compare($this->version, (string) $installedVersion, '>')
+            ) {
+                update_option($this->versionOptionName, $this->version, false);
+            }
             return true;
         } catch (\Throwable $e) {
             throw $e;

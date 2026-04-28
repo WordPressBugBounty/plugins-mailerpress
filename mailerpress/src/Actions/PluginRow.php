@@ -59,10 +59,10 @@ class PluginRow
         ) {
             // Use hardcoded English strings to avoid early translation loading
             // These will be displayed in English only on the plugin list page
-            $actions[] = '<a href="https://mailerpress.com/docs" target="_blank">Documentation</a>';
+            $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('docs')) . '" target="_blank">Documentation</a>';
 
             if (!is_plugin_active('mailerpress-pro/mailerpress-pro.php')) {
-                $actions[] = '<a href="https://mailerpress.com/pricing" target="_blank">Go Pro</a>';
+                $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('pricing')) . '" target="_blank">Go Pro</a>';
             }
         } elseif (!empty($options['custom_documentation_url'])) {
             $actions[] = '<a href="' . esc_url($options['custom_documentation_url']) . '" target="_blank">Documentation</a>';
@@ -154,7 +154,7 @@ class PluginRow
                 <li><?php _e('And much more!', 'mailerpress'); ?></li>
             </ul>
 
-            <a href="https://mailerpress.com/pricing" target="_blank" class="button button-primary">
+            <a href="<?php echo esc_url(\MailerPress\Core\ExternalLinks::get('pricing')); ?>" target="_blank" class="button button-primary">
                 <?php _e('Upgrade to Pro Now', 'mailerpress'); ?>
             </a>
 

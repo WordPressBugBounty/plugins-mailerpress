@@ -37,7 +37,7 @@ class AutomationRepository
      * Find automations by trigger type (legacy support)
      * Note: trigger_type column doesn't exist anymore - triggers are in mailerpress_automations_steps
      * This method is kept for backward compatibility but should not be used
-     * 
+     *
      * @deprecated Use StepRepository::findByTriggerKey() instead
      */
     public function findByTriggerType(string $triggerType): array
@@ -45,6 +45,11 @@ class AutomationRepository
         // This method should not be used - triggers are now in mailerpress_automations_steps
         // Return empty array to prevent errors
         return [];
+    }
+
+    public function count(): int
+    {
+        return (int) $this->wpdb->get_var("SELECT COUNT(*) FROM {$this->table}");
     }
 
     public function findAll(): array

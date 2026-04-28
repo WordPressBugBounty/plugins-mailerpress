@@ -29,7 +29,7 @@ class ManageSubscription
 
         check_ajax_referer('mailerpress_update_contact_nonce', 'mailerpress_nonce');
 
-        $accessToken = isset($_POST['mailerpress_cid']) ? wp_unslash($_POST['mailerpress_cid']) : '';
+        $accessToken = isset($_POST['mailerpress_cid']) ? sanitize_text_field(wp_unslash($_POST['mailerpress_cid'])) : '';
         if (empty($accessToken)) {
             wp_send_json_error([
                 'message' => __('Invalid contact token.', 'mailerpress'),
@@ -56,7 +56,13 @@ class ManageSubscription
         }
 
         $contactIdInt = (int) $contactEntity->contact_id;
-        $skipLists = !empty($_POST['skip_lists']);
+
+        $allowed_statuses = [ 'subscribed', 'unsubscribed' ];
+        $raw_status       = sanitize_key( wp_unslash( $_POST['status'] ?? '' ) );
+        $newStatus        = in_array( $raw_status, $allowed_statuses, true ) ? $raw_status : 'subscribed';
+
+        $previousStatus = $contactEntity->subscription_status ?? '';
+        $skipLists      = ! empty( $_POST['skip_lists'] );
 
         if ($skipLists) {
             // Only update name fields, keep lists and subscription status untouched
@@ -73,9 +79,6 @@ class ManageSubscription
         } else {
             // Lists sent from form (array of list IDs)
             $submittedLists = isset($_POST['subscribed_lists']) ? array_map('intval', $_POST['subscribed_lists']) : [];
-
-            // Infer subscription status from lists checked
-            $newStatus = !empty($submittedLists) ? 'subscribed' : 'unsubscribed';
 
             // Update contact
             $update = $wpdb->query(
@@ -109,6 +112,11 @@ class ManageSubscription
         }
 
         if ($update !== false) {
+            // Trigger workflow when contact becomes subscribed (re-subscription)
+            if ($newStatus === 'subscribed' && $previousStatus !== 'subscribed') {
+                \do_action('mailerpress_contact_created', $contactIdInt);
+            }
+
             wp_send_json_success([
                 'message' => __('Your subscription preferences have been updated successfully.', 'mailerpress'),
             ]);

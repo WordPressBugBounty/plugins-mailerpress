@@ -307,10 +307,12 @@ class DynamicPostRenderer
                 $blockNameWithKey = trim($blockMatches[1]);
                 $blockContent = $blockMatches[2];
 
-                // Extract block name and optional field key (for ACF fields)
+                // Extract block name and optional field key (for ACF fields) or block params
                 $blockName = $blockNameWithKey;
                 $fieldKey = null;
                 $linkToPost = false;
+                $blockParams = '';
+
                 if (strpos($blockNameWithKey, 'post acf field:') === 0) {
                     // Parse: "post acf field:fieldKey:linkToPost=1" or "post acf field:fieldKey:linkToPost=0"
                     $blockName = 'post acf field';
@@ -324,6 +326,9 @@ class DynamicPostRenderer
                         // Old format without linkToPost (backward compatibility)
                         $fieldKey = $rest;
                     }
+                } elseif (preg_match('/^([a-zA-Z ]+):(.+)$/', trim($blockNameWithKey), $paramMatch)) {
+                    $blockName = trim($paramMatch[1]);
+                    $blockParams = trim($paramMatch[2]);
                 } else {
                     $blockName = trim($blockNameWithKey);
                 }
@@ -354,18 +359,29 @@ class DynamicPostRenderer
                         break;
 
                     case 'post excerpt':
+                        $wordCount = ! empty( $blockParams ) ? (int) $blockParams : 30;
                         $node = $xpath->query('.//div', $wrapper)->item(0);
-                        if ($node) {
-                            $node->nodeValue = wp_trim_words(strip_tags($post->post_content), 30);
+                        if ( $node ) {
+                            if ( $wordCount <= 0 ) {
+                                $node->nodeValue = wp_strip_all_tags( $post->post_content );
+                            } else {
+                                $node->nodeValue = wp_trim_words( strip_tags( $post->post_content ), $wordCount );
+                            }
                         }
                         break;
 
                     case 'post media':
-                        // Only update if post has featured image
                         $img = $xpath->query('.//img', $wrapper)->item(0);
-                        if ($img && has_post_thumbnail($post)) {
-                            $img->setAttribute('src', get_the_post_thumbnail_url($post, 'full'));
-                            $img->setAttribute('alt', get_the_title($post));
+                        if ( $img && has_post_thumbnail( $post ) ) {
+                            $resolution = ! empty( $blockParams ) ? $blockParams : 'full';
+                            $allowedSizes = [ 'thumbnail', 'medium', 'medium_large', 'large', 'full' ];
+                            if ( ! in_array( $resolution, $allowedSizes, true ) ) {
+                                $resolution = 'full';
+                            }
+                            $img->setAttribute( 'src', get_the_post_thumbnail_url( $post, $resolution ) );
+                            $img->setAttribute( 'alt', get_the_title( $post ) );
+                            $img->setAttribute( 'width', '100%' );
+                            $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
                         }
                         break;
 
@@ -445,7 +461,7 @@ class DynamicPostRenderer
                     case 'post content':
                         $td = $xpath->query('.//td', $wrapper)->item(0);
                         if ($td) {
-                            $rawContent = apply_filters('the_content', $post->post_content);
+                            $rawContent = apply_filters( 'the_content', $post->post_content );
                             $safeContent = $this->sanitizeHtmlForEmail($rawContent);
 
                             $styleMap = [];
@@ -521,6 +537,12 @@ class DynamicPostRenderer
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
         );
         libxml_clear_errors();
+
+        $images = $dom->getElementsByTagName( 'img' );
+        foreach ( $images as $img ) {
+            $img->setAttribute( 'width', '100%' );
+            $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
+        }
 
         $container = $dom->getElementsByTagName('div')->item(0);
         $rows = '';

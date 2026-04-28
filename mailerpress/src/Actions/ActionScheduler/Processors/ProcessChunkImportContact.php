@@ -428,6 +428,12 @@ class ProcessChunkImportContact
     {
         global $wpdb;
         $importChunks = Tables::get(Tables::MAILERPRESS_IMPORT_CHUNKS);
+        $contactBatch = Tables::get(Tables::MAILERPRESS_CONTACT_BATCHES);
+
+        // Read force_update from the batch so the flag is preserved for all background chunks.
+        $force_update = (bool) $wpdb->get_var(
+            $wpdb->prepare("SELECT force_update FROM {$contactBatch} WHERE batch_id = %d", $batch_id)
+        );
 
         // Number of chunks to schedule in parallel - filterable for performance tuning
         $parallel_chunks = apply_filters('mailerpress_import_parallel_chunks', 20);
@@ -450,14 +456,14 @@ class ProcessChunkImportContact
             foreach ($nextChunks as $chunk) {
                 // Check if action is already scheduled
                 if (function_exists('as_has_scheduled_action')) {
-                    $alreadyScheduled = as_has_scheduled_action('process_import_chunk', [$chunk->id, false]);
+                    $alreadyScheduled = as_has_scheduled_action('process_import_chunk', [$chunk->id, $force_update]);
 
                     if (!$alreadyScheduled && function_exists('as_schedule_single_action')) {
                         // Schedule with staggered delay
                         as_schedule_single_action(
                             time() + (int)($scheduled_count * $stagger_delay),
                             'process_import_chunk',
-                            [$chunk->id, false]
+                            [$chunk->id, $force_update]
                         );
                         $scheduled_count++;
                     }
@@ -474,6 +480,12 @@ class ProcessChunkImportContact
     {
         global $wpdb;
         $importChunks = Tables::get(Tables::MAILERPRESS_IMPORT_CHUNKS);
+        $contactBatch = Tables::get(Tables::MAILERPRESS_CONTACT_BATCHES);
+
+        // Read force_update from the batch so the flag is preserved on retry.
+        $force_update = (bool) $wpdb->get_var(
+            $wpdb->prepare("SELECT force_update FROM {$contactBatch} WHERE batch_id = %d", $batch_id)
+        );
 
         // Stale timeout in minutes - filterable for performance tuning
         $stale_timeout_minutes = apply_filters('mailerpress_import_stale_timeout_minutes', 5);
@@ -507,14 +519,14 @@ class ProcessChunkImportContact
                     // Schedule for immediate processing
                     if (function_exists('as_schedule_single_action')) {
                         $alreadyScheduled = function_exists('as_has_scheduled_action')
-                            ? as_has_scheduled_action('process_import_chunk', [$chunk->id, false])
+                            ? as_has_scheduled_action('process_import_chunk', [$chunk->id, $force_update])
                             : false;
 
                         if (!$alreadyScheduled) {
                             as_schedule_single_action(
                                 time(),
                                 'process_import_chunk',
-                                [$chunk->id, false]
+                                [$chunk->id, $force_update]
                             );
                         }
                     }

@@ -27,7 +27,7 @@ class CampaignEmail
         }
 
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-        $request_uri = strtok($request_uri, '?'); // Remove query string
+        $request_uri = strtok($request_uri, '?') ?: '';
         $request_uri = trim($request_uri, '/');
 
         // Remove site subdirectory if WordPress is installed in a subdirectory
@@ -48,11 +48,22 @@ class CampaignEmail
         // Get campaign from database
         $campaign = $this->getCampaignBySlug($campaign_slug);
 
-        if (!$campaign || $campaign['status'] !== 'sent') {
+        $allowedStatuses = ['sent', 'pending', 'scheduled', 'in_progress'];
+        if (!$campaign) {
             status_header(404);
             nocache_headers();
             wp_die(
-                __('Campaign not found or not available.', 'mailerpress'),
+                __('Campaign not found.', 'mailerpress'),
+                __('Not Found', 'mailerpress'),
+                ['response' => 404]
+            );
+        }
+
+        if (!in_array($campaign['status'], $allowedStatuses, true)) {
+            status_header(404);
+            nocache_headers();
+            wp_die(
+                sprintf(__('Campaign not available (status: %s).', 'mailerpress'), esc_html($campaign['status'])),
                 __('Not Found', 'mailerpress'),
                 ['response' => 404]
             );
@@ -146,7 +157,7 @@ class CampaignEmail
 
         nocache_headers();
 
-        echo $html;
+        echo wp_kses_post($html);
     }
 
     /**

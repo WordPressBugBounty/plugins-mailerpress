@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name: MailerPress
  * Plugin URI: https://mailerpress.com/
  * Description: Create beautiful emails simply inside WordPress connected to your favorite Email Service Provider
- * Version: 1.5.5
+ * Version: 2.0.1
  * Author: Team MailerPress
  * License: GPLv3 or later
  * Text Domain: mailerpress
@@ -35,6 +35,7 @@ defined('ABSPATH') || exit;
 use MailerPress\Core\CapabilitiesManager;
 use MailerPress\Core\Kernel;
 use MailerPress\Core\Uninstall;
+use MailerPress\Core\Notifications\NotificationBootstrap;
 use MailerPress\Core\Workflows\Handlers\AddTagStepHandler;
 use MailerPress\Core\Workflows\Handlers\SendEmailStepHandler;
 use MailerPress\Core\Workflows\WorkflowSystem;
@@ -42,7 +43,7 @@ use MailerPress\Services\Activation;
 use MailerPress\Services\DeactivatePro;
 
 // Define constants
-define('MAILERPRESS_VERSION', '1.5.5');
+define('MAILERPRESS_VERSION', '2.0.1');
 define('MAILERPRESS_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 define('MAILERPRESS_PLUGIN_DIR_URL', plugin_dir_url(__FILE__));
 define('MAILERPRESS_ASSETS_DIR', MAILERPRESS_PLUGIN_DIR_URL . 'assets');
@@ -98,6 +99,9 @@ try {
         // Hook pour permettre à d'autres parties du plugin d'enregistrer des triggers personnalisés
         do_action('mailerpress_register_custom_triggers', $manager->getTriggerManager());
 
+        // Initialize notification messages
+        NotificationBootstrap::init();
+
         // Enregistrer des triggers personnalisés (WooCommerce, etc.)
         //        $manager->registerTrigger(
         //            'product_purchased',
@@ -148,12 +152,7 @@ try {
         }, 999);
     });
 
-    // Uninstall hook
-    register_uninstall_hook(__FILE__, function (): void {
-        require_once __DIR__ . '/src/Core/Uninstall.php';
-        $uninstall = new Uninstall();
-        $uninstall->run();
-        do_action('mailerpress_uninstall');
-    });
+    // Uninstall hook — must use a static callable (not a Closure) because WP serializes the callback
+    register_uninstall_hook(__FILE__, [Uninstall::class, 'handleUninstall']);
 } catch (Exception $e) {
 }

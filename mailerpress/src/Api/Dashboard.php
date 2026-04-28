@@ -641,15 +641,16 @@ class Dashboard
         // Période précédente : 30 jours avant (jours 31-60)
         $previousInterval = 30;
 
-        // Total actuel (global)
-        $currentTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable}");
+        // Total subscribed contacts only
+        $currentTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable} WHERE subscription_status = 'subscribed'");
 
-        // Total pour la période précédente (il y a 30 jours)
+        // Total subscribed pour la période précédente (il y a 30 jours)
         $previousTotal = (int)$wpdb->get_var(
             $wpdb->prepare("
                 SELECT COUNT(*)
                 FROM {$contactsTable}
-                WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)
+                WHERE subscription_status = 'subscribed'
+                AND created_at < DATE_SUB(NOW(), INTERVAL %d DAY)
             ", $currentInterval)
         );
 
@@ -664,10 +665,14 @@ class Dashboard
         // Total bounced contacts
         $bouncedTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable} WHERE subscription_status = 'bounced'");
 
+        // Total unsubscribed contacts
+        $unsubscribedTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable} WHERE subscription_status = 'unsubscribed'");
+
         return rest_ensure_response([
             'total_count' => $currentTotal,
             'change' => round($change, 2),
             'bounced' => $bouncedTotal,
+            'unsubscribed' => $unsubscribedTotal,
         ]);
     }
 
@@ -1122,6 +1127,7 @@ class Dashboard
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
+        $clickTrackingTable = Tables::get(Tables::MAILERPRESS_CLICK_TRACKING);
         $limit = (int)$request->get_param('limit') ?: 5;
 
         $query = $wpdb->prepare("
@@ -1155,14 +1161,13 @@ class Dashboard
         $batch_ids = array_filter(array_map(fn($r) => (int)$r->batch_id, $results));
         $batch_placeholders = implode(',', array_fill(0, count($batch_ids), '%d'));
 
-        // Récupérer les statistiques de tracking
+        // Récupérer les statistiques d'ouverture et désinscription depuis email_tracking
         // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
         $tracking_stats = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT batch_id,
                     COALESCE(COUNT(DISTINCT CASE WHEN opened_at IS NOT NULL AND contact_id > 0 THEN contact_id END), 0) +
                     COALESCE(COUNT(DISTINCT CASE WHEN opened_at IS NOT NULL AND contact_id = 0 AND anonymous_key IS NOT NULL THEN anonymous_key END), 0) AS total_opens,
-                    SUM(clicks) AS total_clicks,
                     COALESCE(COUNT(DISTINCT CASE WHEN unsubscribed_at IS NOT NULL AND contact_id > 0 THEN contact_id END), 0) +
                     COALESCE(COUNT(DISTINCT CASE WHEN unsubscribed_at IS NOT NULL AND contact_id = 0 AND anonymous_key IS NOT NULL THEN anonymous_key END), 0) AS total_unsubscribes
                  FROM {$trackingTable}
@@ -1173,12 +1178,33 @@ class Dashboard
             ARRAY_A
         );
 
+        // Récupérer les clics depuis click_tracking par campaign_id
+        $campaign_ids = array_filter(array_map(fn($r) => (int)$r->campaign_id, $results));
+        $click_stats_map = [];
+        if (!empty($campaign_ids)) {
+            $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids), '%d'));
+            $click_stats = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT campaign_id,
+                        COALESCE(COUNT(DISTINCT CASE WHEN contact_id > 0 THEN CONCAT(contact_id, '|', url) END), 0) +
+                        COALESCE(COUNT(DISTINCT CASE WHEN contact_id = 0 AND anonymous_key IS NOT NULL THEN CONCAT(anonymous_key, '|', url) END), 0) AS total_clicks
+                     FROM {$clickTrackingTable}
+                     WHERE campaign_id IN ($campaign_placeholders)
+                     GROUP BY campaign_id",
+                    ...$campaign_ids
+                ),
+                ARRAY_A
+            );
+            foreach ($click_stats as $cs) {
+                $click_stats_map[(int)$cs['campaign_id']] = (int)$cs['total_clicks'];
+            }
+        }
+
         // Créer un map des statistiques par batch_id
         $statistics_map = [];
         foreach ($tracking_stats as $ts) {
             $statistics_map[(int)$ts['batch_id']] = [
                 'total_opens' => (int)$ts['total_opens'],
-                'total_clicks' => (int)$ts['total_clicks'],
                 'total_unsubscribes' => (int)$ts['total_unsubscribes'],
             ];
         }
@@ -1187,16 +1213,17 @@ class Dashboard
         $campaigns = [];
         foreach ($results as $row) {
             $batch_id = (int)$row->batch_id;
+            $campaign_id = (int)$row->campaign_id;
             $sent_emails = (int)$row->sent_emails;
             $stats = $statistics_map[$batch_id] ?? [
                 'total_opens' => 0,
-                'total_clicks' => 0,
                 'total_unsubscribes' => 0,
             ];
+            $total_clicks = $click_stats_map[$campaign_id] ?? 0;
 
             // Calculer les taux
             $open_rate = $sent_emails > 0 ? ($stats['total_opens'] / $sent_emails) * 100 : 0;
-            $click_rate = $sent_emails > 0 ? ($stats['total_clicks'] / $sent_emails) * 100 : 0;
+            $click_rate = $sent_emails > 0 ? ($total_clicks / $sent_emails) * 100 : 0;
 
             // Score de performance (combinaison de taux d'ouverture et de clic)
             $performance_score = ($open_rate * 0.6) + ($click_rate * 0.4);
@@ -1211,7 +1238,7 @@ class Dashboard
                 'sent_emails' => $sent_emails,
                 'statistics' => [
                     'total_opens' => $stats['total_opens'],
-                    'total_clicks' => $stats['total_clicks'],
+                    'total_clicks' => $total_clicks,
                     'total_unsubscribes' => $stats['total_unsubscribes'],
                     'open_rate' => round($open_rate, 2),
                     'click_rate' => round($click_rate, 2),
@@ -1402,63 +1429,195 @@ class Dashboard
     }
 
     #[Endpoint(
-        'dashboard/webhook-stats',
+        'dashboard/automation-activity',
         methods: 'GET',
         permissionCallback: [Permissions::class, 'canView'],
     )]
-    public function webhookStats(\WP_REST_Request $request)
+    public function automationActivity(\WP_REST_Request $request)
     {
-        // Vérifier que Pro est actif
-        if (!function_exists('is_plugin_active')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
+        global $wpdb;
 
-        $isProActive = function_exists('is_plugin_active')
-            && is_plugin_active('mailerpress-pro/mailerpress-pro.php');
+        $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
+        $interval = (int) $request->get_param('interval') ?: 7;
 
-        if (!$isProActive) {
-            return rest_ensure_response([
-                'total_webhooks' => 0,
-                'incoming_webhooks' => 0,
-                'outgoing_webhooks' => 0,
-                'enabled_outgoing_webhooks' => 0,
-                'change' => 0,
-            ]);
-        }
+        // Get jobs grouped by day within the interval
+        $results = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    DATE(created_at) as date,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed
+                FROM {$jobsTable}
+                WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC",
+                $interval
+            ),
+            ARRAY_A
+        );
 
-        // Récupérer les webhooks entrants
-        $incomingWebhooks = get_option('mailerpress_webhook_configs', []);
-        $incomingCount = is_array($incomingWebhooks) ? count($incomingWebhooks) : 0;
-
-        // Récupérer les webhooks sortants
-        $outgoingWebhooks = get_option('mailerpress_outgoing_webhook_configs', []);
-        if (is_string($outgoingWebhooks)) {
-            $outgoingWebhooks = json_decode($outgoingWebhooks, true) ?: [];
-        }
-        $outgoingCount = is_array($outgoingWebhooks) ? count($outgoingWebhooks) : 0;
-
-        // Compter les webhooks sortants activés
-        $enabledOutgoingCount = 0;
-        if (is_array($outgoingWebhooks)) {
-            foreach ($outgoingWebhooks as $config) {
-                if (isset($config['enabled']) && $config['enabled']) {
-                    $enabledOutgoingCount++;
-                }
+        // Build a map of existing data
+        $dataMap = [];
+        if (!empty($results)) {
+            foreach ($results as $row) {
+                $dataMap[$row['date']] = [
+                    'date' => $row['date'],
+                    'total' => (int) $row['total'],
+                    'completed' => (int) $row['completed'],
+                    'failed' => (int) $row['failed'],
+                ];
             }
         }
 
-        $totalWebhooks = $incomingCount + $outgoingCount;
+        // Fill missing dates with zeros
+        $data = [];
+        $totalJobs = 0;
+        $totalCompleted = 0;
 
-        // Calculer le changement (comparaison avec la période précédente - 30 jours)
-        // On ne peut pas vraiment calculer l'historique, donc on retourne 0 pour le changement
-        $change = 0;
+        for ($i = $interval; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-{$i} days"));
+            if (isset($dataMap[$date])) {
+                $data[] = $dataMap[$date];
+                $totalJobs += $dataMap[$date]['total'];
+                $totalCompleted += $dataMap[$date]['completed'];
+            } else {
+                $data[] = [
+                    'date' => $date,
+                    'total' => 0,
+                    'completed' => 0,
+                    'failed' => 0,
+                ];
+            }
+        }
+
+        $successRate = $totalJobs > 0 ? round(($totalCompleted / $totalJobs) * 100, 1) : 0;
 
         return rest_ensure_response([
-            'total_webhooks' => $totalWebhooks,
-            'incoming_webhooks' => $incomingCount,
-            'outgoing_webhooks' => $outgoingCount,
-            'enabled_outgoing_webhooks' => $enabledOutgoingCount,
-            'change' => $change,
+            'data' => $data,
+            'total_jobs' => $totalJobs,
+            'success_rate' => $successRate,
         ]);
     }
+
+    #[Endpoint(
+        'dashboard/best-open-day',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canView'],
+    )]
+    public function bestOpenDay(\WP_REST_Request $request)
+    {
+        global $wpdb, $wp_locale;
+
+        $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
+        $batchesTable  = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+
+        // Get open rate for ALL days, ordered by open_rate DESC (best first)
+        $results = $wpdb->get_results("
+            SELECT
+                DAYOFWEEK(b.created_at) AS day_number,
+                SUM(b.total_emails) AS total_sent,
+                COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) AS total_opened,
+                ROUND(
+                    COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) * 100.0
+                    / NULLIF(SUM(b.total_emails), 0),
+                2) AS open_rate
+            FROM {$batchesTable} b
+            LEFT JOIN {$trackingTable} t ON t.batch_id = b.id
+            WHERE b.status = 'sent'
+            GROUP BY DAYOFWEEK(b.created_at)
+            HAVING SUM(b.total_emails) >= 50
+            ORDER BY open_rate DESC
+        ", ARRAY_A);
+
+        if ( empty( $results ) ) {
+            return rest_ensure_response([
+                'best_day' => null,
+                'all_days' => [],
+            ]);
+        }
+
+        $allDays = [];
+        foreach ( $results as $row ) {
+            $wpDayIndex = (int) $row['day_number'] - 1;
+            $allDays[]  = [
+                'day'          => $wp_locale->get_weekday( $wpDayIndex ),
+                'day_abbrev'   => $wp_locale->get_weekday_abbrev( $wp_locale->get_weekday( $wpDayIndex ) ),
+                'day_of_week'  => (int) $row['day_number'],
+                'total_sent'   => (int) $row['total_sent'],
+                'total_opened' => (int) $row['total_opened'],
+                'open_rate'    => (float) $row['open_rate'],
+            ];
+        }
+
+        return rest_ensure_response([
+            'best_day' => $allDays[0],
+            'all_days' => $allDays,
+        ]);
+    }
+
+    #[Endpoint(
+        'dashboard/best-open-hour',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canView'],
+    )]
+    public function bestOpenHour(\WP_REST_Request $request)
+    {
+        global $wpdb;
+
+        $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
+        $batchesTable  = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $timeFormat    = get_option('time_format', 'H:i');
+
+        // Optional day filter: MySQL DAYOFWEEK (1=Sunday … 7=Saturday)
+        $dayFilter = '';
+        $day       = absint( $request->get_param( 'day' ) );
+        if ( $day >= 1 && $day <= 7 ) {
+            $dayFilter = $wpdb->prepare( 'AND DAYOFWEEK(b.created_at) = %d', $day );
+        }
+
+        // Get open rate for ALL hours, ordered by open_rate DESC (best first)
+        $results = $wpdb->get_results("
+            SELECT
+                HOUR(b.created_at) AS hour_number,
+                SUM(b.total_emails) AS total_sent,
+                COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) AS total_opened,
+                ROUND(
+                    COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) * 100.0
+                    / NULLIF(SUM(b.total_emails), 0),
+                2) AS open_rate
+            FROM {$batchesTable} b
+            LEFT JOIN {$trackingTable} t ON t.batch_id = b.id
+            WHERE b.status = 'sent'
+            {$dayFilter}
+            GROUP BY HOUR(b.created_at)
+            HAVING SUM(b.total_emails) >= 50
+            ORDER BY open_rate DESC
+        ", ARRAY_A);
+
+        if ( empty( $results ) ) {
+            return rest_ensure_response([
+                'best_hour' => null,
+                'all_hours' => [],
+            ]);
+        }
+
+        $allHours = [];
+        foreach ( $results as $row ) {
+            $h = (int) $row['hour_number'];
+            $allHours[] = [
+                'hour'         => $h,
+                'formatted'    => date_i18n( $timeFormat, mktime( $h, 0, 0 ) ),
+                'total_sent'   => (int) $row['total_sent'],
+                'total_opened' => (int) $row['total_opened'],
+                'open_rate'    => (float) $row['open_rate'],
+            ];
+        }
+
+        return rest_ensure_response([
+            'best_hour' => $allHours[0],
+            'all_hours' => $allHours,
+        ]);
+    }
+
 }

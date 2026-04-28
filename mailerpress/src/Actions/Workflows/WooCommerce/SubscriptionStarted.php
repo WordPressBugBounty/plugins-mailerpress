@@ -55,6 +55,25 @@ class SubscriptionStarted
             'icon' => 'woocommerce',
             'category' => 'woocommerce',
             'settings_schema' => [],
+            'output_fields' => [
+                // Customer fields
+                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
+                // Subscription fields
+                ['key' => 'subscription_id', 'label' => __('Subscription ID', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
+                ['key' => 'subscription_status', 'label' => __('Subscription Status', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
+                ['key' => 'order_id', 'label' => __('Parent Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
+                ['key' => 'billing_period', 'label' => __('Billing Period', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
+                ['key' => 'billing_interval', 'label' => __('Billing Interval', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
+                ['key' => 'next_payment_date', 'label' => __('Next Payment Date', 'mailerpress'), 'type' => 'date', 'group' => 'subscription'],
+                ['key' => 'subscription_total', 'label' => __('Subscription Total', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
+                // Billing address
+                ['key' => 'billing_address.first_name', 'label' => __('Billing First Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.last_name', 'label' => __('Billing Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_address.email', 'label' => __('Billing Email', 'mailerpress'), 'type' => 'email', 'group' => 'billing'],
+            ],
         ];
 
         // Register trigger for subscription started hook

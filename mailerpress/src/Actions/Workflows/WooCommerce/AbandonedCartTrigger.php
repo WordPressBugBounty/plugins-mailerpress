@@ -8,22 +8,22 @@ namespace MailerPress\Actions\Workflows\WooCommerce;
 
 /**
  * WooCommerce Abandoned Cart Trigger
- * 
+ *
  * Fires when a cart is updated in WooCommerce.
  * This trigger captures cart events and extracts relevant
  * cart data to be used in workflow automations for abandoned cart recovery.
- * 
+ *
  * The trigger listens to multiple WooCommerce cart hooks:
  * - woocommerce_add_to_cart: When an item is added to cart
  * - woocommerce_after_cart_item_quantity_update: When cart item quantity is updated
  * - woocommerce_cart_item_removed: When an item is removed from cart
- * 
+ *
  * Usage in workflows:
  * 1. Add this trigger to detect cart updates
  * 2. Add a DELAY step (e.g., wait 1 hour or 24 hours)
  * 3. Add a CONDITION step to check if order was created (if order_id exists, cart was completed)
  * 4. If condition fails (no order), send abandoned cart email
- * 
+ *
  * Data available in the workflow context:
  * - user_id: The WordPress user ID (0 for guests)
  * - customer_email: The customer's email (from session or user account)
@@ -35,7 +35,7 @@ namespace MailerPress\Actions\Workflows\WooCommerce;
  * - cart_updated_at: Timestamp when cart was last updated
  * - cart_item_count: Number of items in cart
  * - cart_hash: Unique hash for this cart session
- * 
+ *
  * @since 1.2.0
  */
 class AbandonedCartTrigger
@@ -47,7 +47,7 @@ class AbandonedCartTrigger
 
     /**
      * Register the custom trigger
-     * 
+     *
      * @param mixed $manager The trigger manager instance
      */
     public static function register($manager): void
@@ -80,6 +80,25 @@ class AbandonedCartTrigger
                     'default' => false,
                     'help' => __('Only trigger when customer email is available', 'mailerpress'),
                 ],
+            ],
+            'output_fields' => [
+                // Customer fields
+                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
+                ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
+                // Cart fields
+                ['key' => 'cart_total', 'label' => __('Cart Total', 'mailerpress'), 'type' => 'number', 'group' => 'cart'],
+                ['key' => 'cart_currency', 'label' => __('Cart Currency', 'mailerpress'), 'type' => 'string', 'group' => 'cart'],
+                ['key' => 'cart_item_count', 'label' => __('Cart Item Count', 'mailerpress'), 'type' => 'number', 'group' => 'cart'],
+                ['key' => 'cart_updated_at', 'label' => __('Cart Updated At', 'mailerpress'), 'type' => 'date', 'group' => 'cart'],
+                ['key' => 'cart_hash', 'label' => __('Cart Hash', 'mailerpress'), 'type' => 'string', 'group' => 'cart'],
+                ['key' => 'cart_recovery_url', 'label' => __('Cart Recovery URL', 'mailerpress'), 'type' => 'url', 'group' => 'cart'],
+                // Billing fields
+                ['key' => 'billing_email', 'label' => __('Billing Email', 'mailerpress'), 'type' => 'email', 'group' => 'billing'],
+                ['key' => 'billing_first_name', 'label' => __('Billing First Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_last_name', 'label' => __('Billing Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
+                ['key' => 'billing_phone', 'label' => __('Billing Phone', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],
             ],
         ];
 
@@ -121,7 +140,7 @@ class AbandonedCartTrigger
 
     /**
      * Handle cart emptied event - mark cart as emptied in tracking table
-     * 
+     *
      * @param bool $clear_persistent_cart
      */
     public static function handleCartEmptied($clear_persistent_cart = true): void
@@ -179,7 +198,7 @@ class AbandonedCartTrigger
 
     /**
      * Handle order created event - mark cart as completed
-     * 
+     *
      * @param int $orderId
      */
     public static function handleOrderCreated($orderId): void
@@ -227,13 +246,13 @@ class AbandonedCartTrigger
 
     /**
      * Build context from hook parameters
-     * 
+     *
      * Note: This trigger fires immediately when cart is updated.
      * For abandoned cart recovery, you should:
      * 1. Add a DELAY step after this trigger (e.g., wait 1 hour or 24 hours)
      * 2. Add a CONDITION step to check if an order was created (if order_id exists in context, cart was completed)
      * 3. If condition fails (no order), send abandoned cart email
-     * 
+     *
      * @param mixed ...$args Hook arguments (varies by hook)
      * @return array Context data for the workflow
      */
@@ -306,6 +325,39 @@ class AbandonedCartTrigger
                 }
 
                 $product = $cartItem['data'];
+
+                // Get product thumbnail URL with multiple fallbacks
+                $thumbnailUrl = '';
+                $thumbnailId = $product->get_image_id();
+
+                if ($thumbnailId) {
+                    // Try woocommerce_thumbnail size first
+                    $thumbnailUrl = wp_get_attachment_image_url($thumbnailId, 'woocommerce_thumbnail');
+
+                    // Fallback to medium size
+                    if (empty($thumbnailUrl)) {
+                        $thumbnailUrl = wp_get_attachment_image_url($thumbnailId, 'medium');
+                    }
+
+                    // Fallback to full size
+                    if (empty($thumbnailUrl)) {
+                        $thumbnailUrl = wp_get_attachment_image_url($thumbnailId, 'full');
+                    }
+                }
+
+                // Final fallback: try to get any product image
+                if (empty($thumbnailUrl) && method_exists($product, 'get_image')) {
+                    $imageHtml = $product->get_image('woocommerce_thumbnail');
+                    if (preg_match('/src="([^"]+)"/', $imageHtml, $matches)) {
+                        $thumbnailUrl = $matches[1];
+                    }
+                }
+
+                // If still empty, use WooCommerce placeholder
+                if (empty($thumbnailUrl) && function_exists('wc_placeholder_img_src')) {
+                    $thumbnailUrl = wc_placeholder_img_src('woocommerce_thumbnail');
+                }
+
                 $cartItems[] = [
                     'cart_item_key' => $cartItemKey,
                     'product_id' => $cartItem['product_id'],
@@ -316,6 +368,7 @@ class AbandonedCartTrigger
                     'line_subtotal' => $cartItem['line_subtotal'],
                     'sku' => $product->get_sku(),
                     'price' => $product->get_price(),
+                    'thumbnail_url' => $thumbnailUrl,
                 ];
                 $totalQuantity += $quantity;
             }
@@ -376,6 +429,12 @@ class AbandonedCartTrigger
                 return [];
             }
 
+            // Build cart recovery URL
+            $cartRecoveryUrl = wc_get_cart_url();
+            if (!empty($cartHash)) {
+                $cartRecoveryUrl = add_query_arg('recover_cart', $cartHash, $cartRecoveryUrl);
+            }
+
             $context = [
                 'user_id' => $workflowUserId,
                 'customer_email' => $customerEmail,
@@ -387,6 +446,7 @@ class AbandonedCartTrigger
                 'cart_currency' => get_woocommerce_currency(),
                 'cart_item_count' => $cart->get_cart_contents_count(),
                 'cart_hash' => $cartHash,
+                'cart_recovery_url' => $cartRecoveryUrl,
                 'cart_updated_at' => current_time('mysql'),
                 'is_new_cart' => $isNewCart, // Indicates if this is the first time this cart is detected
                 // Store original customer_id for reference (0 for guests)
