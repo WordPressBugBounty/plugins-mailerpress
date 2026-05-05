@@ -189,6 +189,8 @@ class Editor
                     ],
                 ],
                 'acfActive' => function_exists('acf_get_field_groups'),
+                'dateFormat' => get_option( 'date_format', 'F j, Y' ),
+                'timeFormat' => get_option( 'time_format', 'g:i a' ),
                 'hasWooCommerce' => function_exists('wc_get_products'),
                 'locale' => get_user_locale(),
                 'links' => \MailerPress\Core\ExternalLinks::all(),

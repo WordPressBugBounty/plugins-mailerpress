@@ -133,13 +133,19 @@ class PreparePost
             }
         }
 
-        // Add post meta (non-private keys only)
+        // Add post meta (skip WP internal keys, allow plugin-prefixed keys like _EventStartDate)
         $all_meta = get_post_meta( $post->ID );
         $post_meta = [];
         $post_meta_resolved = [];
 
+        $wp_internal_meta = [
+            '_edit_lock', '_edit_last', '_wp_page_template', '_wp_attachment_metadata',
+            '_wp_attached_file', '_thumbnail_id', '_wp_old_slug', '_wp_trash_meta_status',
+            '_wp_trash_meta_time', '_wp_desired_post_slug', '_encloseme',
+        ];
+
         foreach ( $all_meta as $key => $values ) {
-            if ( str_starts_with( $key, '_' ) ) {
+            if ( in_array( $key, $wp_internal_meta, true ) ) {
                 continue;
             }
             $value = count( $values ) === 1 ? $values[0] : $values;

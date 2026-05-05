@@ -1036,7 +1036,6 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Core\\Synchronisation\\Connectors\\MailjetConnectorStub' => __DIR__ . '/../..' . '/src/Core/Synchronisation/Connectors/MailjetConnectorStub.php',
         'MailerPress\\Core\\Synchronisation\\Connectors\\ResendConnectorStub' => __DIR__ . '/../..' . '/src/Core/Synchronisation/Connectors/ResendConnectorStub.php',
         'MailerPress\\Core\\Synchronisation\\Connectors\\SendgridConnectorStub' => __DIR__ . '/../..' . '/src/Core/Synchronisation/Connectors/SendgridConnectorStub.php',
-        'MailerPress\\Core\\Synchronisation\\Connectors\\WordPressUsersConnector' => __DIR__ . '/../..' . '/src/Core/Synchronisation/Connectors/WordPressUsersConnector.php',
         'MailerPress\\Core\\Synchronisation\\Connectors\\WordPressUsersConnectorStub' => __DIR__ . '/../..' . '/src/Core/Synchronisation/Connectors/WordPressUsersConnectorStub.php',
         'MailerPress\\Core\\Synchronisation\\ProConnectorStub' => __DIR__ . '/../..' . '/src/Core/Synchronisation/ProConnectorStub.php',
         'MailerPress\\Core\\Synchronisation\\SynchronisationManager' => __DIR__ . '/../..' . '/src/Core/Synchronisation/SynchronisationManager.php',

@@ -139,33 +139,6 @@ class Pages
                 if ($contact) {
                     $this->contacts->subscribe($contact->contact_id);
 
-                    // Check for redirect URL from settings
-                    $redirect_url = '';
-                    $confirmation_data = mailerpress_get_signup_confirmation_option();
-                    if ($confirmation_data) {
-                        if (!empty($confirmation_data['confirmRedirectUrl'])) {
-                            $redirect_url = $confirmation_data['confirmRedirectUrl'];
-
-                            // If it's a numeric value, it's a page ID - convert to URL
-                            if (is_numeric($redirect_url)) {
-                                $redirect_url = get_permalink((int) $redirect_url);
-                            }
-                        }
-                    }
-
-                    // Check for redirect URL from shortcode attribute (takes precedence)
-                    if (!empty($atts['redirect_url'])) {
-                        $redirect_url = $atts['redirect_url'];
-                    }
-
-                    // If redirect URL is provided, redirect
-                    if (!empty($redirect_url)) {
-                        $redirect_url = esc_url_raw($redirect_url);
-                        wp_safe_redirect($redirect_url);
-                        exit;
-                    }
-
-                    // Otherwise, show default confirmation message
                     $content = $renderer->render('double-option-confirmation', [
                         'contact' => $contact,
                         'title' => !empty($atts['confirm_title'])
@@ -219,17 +192,6 @@ class Pages
                 }
                 do_action('mailerpress_unsubscribe');
 
-                // Only use after_unsubscribe_url from shortcode attributes (trusted source), never from query params
-                $after_unsubscribe_url = !empty($atts['after_unsubscribe_url']) ? $atts['after_unsubscribe_url'] : '';
-
-                // If after_unsubscribe_url is provided, redirect to it (only same-site allowed)
-                if (!empty($after_unsubscribe_url)) {
-                    $redirect_url = esc_url_raw($after_unsubscribe_url);
-                    wp_safe_redirect($redirect_url);
-                    exit;
-                }
-
-                // Otherwise, show default unsubscribe confirmation message
                 $content = $renderer->render('double-option-confirmation', [
                     'contact' => $contact,
                     'title' => esc_html__('You have successfully unsubscribed from our emails.', 'mailerpress'),
@@ -237,16 +199,6 @@ class Pages
                 break;
 
             case self::ACTION_CONFIRM_UNSUBSCRIBE:
-                // If redirect_url is provided, redirect instead of showing template
-                if ( ! empty( $atts['redirect_url'] ) && ! $is_preview ) {
-                    $redirect_url = esc_url_raw($atts['redirect_url']);
-
-                    // Perform redirect (safe redirect to prevent open redirect)
-                    wp_safe_redirect($redirect_url);
-                    exit;
-                }
-
-                // Otherwise, show the template as before
                 if ( ! $is_preview ) {
                     // Build unsubscribe URL with query parameters
                     $unsubscribe_params = [
@@ -376,6 +328,105 @@ class Pages
         return $meta;
     }
 
+    #[Action('template_redirect', priority: 5)]
+    public function handleEarlyRedirects(): void
+    {
+        global $post;
+
+        if ( empty( $post ) ) {
+            return;
+        }
+
+        if (
+            $post->post_type !== Kernel::getContainer()->get( 'cpt-page-slug' ) &&
+            ! has_shortcode( $post->post_content, 'mailerpress_pages' )
+        ) {
+            return;
+        }
+
+        if ( $this->isBuilderPreview() ) {
+            return;
+        }
+
+        $action = isset( $_GET['action'] ) ? sanitize_text_field( wp_unslash( $_GET['action'] ) ) : '';
+
+        if ( '' === $action ) {
+            return;
+        }
+
+        $atts = $this->getShortcodeAttributesFromContent( $post->post_content );
+
+        switch ( $action ) {
+            case self::ACTION_CONFIRM:
+                $redirect_url      = '';
+                $confirmation_data = mailerpress_get_signup_confirmation_option();
+                if ( $confirmation_data && ! empty( $confirmation_data['confirmRedirectUrl'] ) ) {
+                    $redirect_url = $confirmation_data['confirmRedirectUrl'];
+                    if ( is_numeric( $redirect_url ) ) {
+                        $redirect_url = get_permalink( (int) $redirect_url );
+                    }
+                }
+
+                if ( ! empty( $atts['redirect_url'] ) ) {
+                    $redirect_url = $atts['redirect_url'];
+                }
+
+                if ( ! empty( $redirect_url ) ) {
+                    $contact = isset( $_GET['cid'] ) ? $this->contacts->getByAccessToken( sanitize_text_field( wp_unslash( $_GET['cid'] ) ) ) : null;
+                    if ( $contact ) {
+                        $this->contacts->subscribe( $contact->contact_id );
+                    }
+                    wp_redirect( esc_url_raw( $redirect_url ) );
+                    exit;
+                }
+                break;
+
+            case self::ACTION_UNSUBSCRIBE:
+                $after_unsubscribe_url = ! empty( $atts['after_unsubscribe_url'] ) ? $atts['after_unsubscribe_url'] : '';
+
+                if ( ! empty( $after_unsubscribe_url ) ) {
+                    $contact = isset( $_GET['data'] ) ? $this->contacts->getContactByToken( sanitize_text_field( wp_unslash( $_GET['data'] ) ) ) : null;
+                    $batchId = ! empty( $_GET['batchId'] ) ? sanitize_text_field( wp_unslash( $_GET['batchId'] ) ) : null;
+                    if ( $contact ) {
+                        $this->contacts->unsubscribe( $contact->contact_id, $batchId );
+                        do_action( 'mailerpress_contact_unsubscribed', (int) $contact->contact_id );
+                    }
+                    do_action( 'mailerpress_unsubscribe' );
+                    wp_redirect( esc_url_raw( $after_unsubscribe_url ) );
+                    exit;
+                }
+                break;
+
+            case self::ACTION_CONFIRM_UNSUBSCRIBE:
+                if ( ! empty( $atts['redirect_url'] ) ) {
+                    wp_redirect( esc_url_raw( $atts['redirect_url'] ) );
+                    exit;
+                }
+                break;
+        }
+    }
+
+    private function getShortcodeAttributesFromContent( string $content ): array
+    {
+        $defaults = [
+            'redirect_url'         => '',
+            'after_unsubscribe_url' => '',
+            'confirm_title'        => '',
+        ];
+
+        $pattern = get_shortcode_regex( [ 'mailerpress_pages' ] );
+        if ( preg_match( "/$pattern/s", $content, $matches ) ) {
+            $parsed = shortcode_parse_atts( $matches[3] );
+            if ( ! is_array( $parsed ) ) {
+                $parsed = [];
+            }
+
+            return shortcode_atts( $defaults, $parsed, 'mailerpress_pages' );
+        }
+
+        return $defaults;
+    }
+
     #[Action('template_redirect', priority: 10)]
     public function redirectTo404(): void
     {
@@ -429,26 +480,27 @@ class Pages
                 }
                 exit;
             }
-        } {
-            if (
-                ($post->post_type === Kernel::getContainer()->get('cpt-page-slug')
-                    || has_shortcode($post->post_content, 'mailerpress_pages')
-                )
-                && (
-                    (!empty($_GET['data']) && null === $this->contacts->getContactByToken(sanitize_text_field(wp_unslash($_GET['data']))))
-                    || (!empty($_GET['cid']) && null === $this->contacts->getByAccessToken(sanitize_text_field(wp_unslash($_GET['cid']))))
-                )
-            ) {
-                $wp_query->set_404();
-                status_header(404);
-                nocache_headers();
+        }
 
-                $template_404 = get_query_template( '404' );
-                if ( $template_404 ) {
-                    include $template_404;
-                }
-                exit;
+        if (
+            (
+                $post->post_type === Kernel::getContainer()->get('cpt-page-slug') ||
+                has_shortcode($post->post_content, 'mailerpress_pages')
+            )
+            && (
+                (!empty($_GET['data']) && null === $this->contacts->getContactByToken(sanitize_text_field(wp_unslash($_GET['data']))))
+                || (!empty($_GET['cid']) && null === $this->contacts->getByAccessToken(sanitize_text_field(wp_unslash($_GET['cid']))))
+            )
+        ) {
+            $wp_query->set_404();
+            status_header(404);
+            nocache_headers();
+
+            $template_404 = get_query_template( '404' );
+            if ( $template_404 ) {
+                include $template_404;
             }
+            exit;
         }
     }
 

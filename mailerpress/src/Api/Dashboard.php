@@ -1512,21 +1512,25 @@ class Dashboard
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $batchesTable  = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
 
-        // Get open rate for ALL days, ordered by open_rate DESC (best first)
+        // Get open rate by day people actually opened (not send day).
+        // total_sent is computed in a subquery to avoid LEFT JOIN inflation.
         $results = $wpdb->get_results("
             SELECT
-                DAYOFWEEK(b.created_at) AS day_number,
-                SUM(b.total_emails) AS total_sent,
-                COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) AS total_opened,
+                DAYOFWEEK(t.opened_at) AS day_number,
+                bs.total_sent,
+                COUNT(t.id) AS total_opened,
                 ROUND(
-                    COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) * 100.0
-                    / NULLIF(SUM(b.total_emails), 0),
+                    COUNT(t.id) * 100.0 / NULLIF(bs.total_sent, 0),
                 2) AS open_rate
-            FROM {$batchesTable} b
-            LEFT JOIN {$trackingTable} t ON t.batch_id = b.id
-            WHERE b.status = 'sent'
-            GROUP BY DAYOFWEEK(b.created_at)
-            HAVING SUM(b.total_emails) >= 50
+            FROM {$trackingTable} t
+            INNER JOIN (
+                SELECT SUM(total_emails) AS total_sent
+                FROM {$batchesTable}
+                WHERE status = 'sent'
+            ) bs ON 1=1
+            WHERE t.opened_at IS NOT NULL
+            GROUP BY DAYOFWEEK(t.opened_at)
+            HAVING COUNT(t.id) >= 10
             ORDER BY open_rate DESC
         ", ARRAY_A);
 
@@ -1570,28 +1574,33 @@ class Dashboard
         $timeFormat    = get_option('time_format', 'H:i');
 
         // Optional day filter: MySQL DAYOFWEEK (1=Sunday … 7=Saturday)
-        $dayFilter = '';
-        $day       = absint( $request->get_param( 'day' ) );
+        $day = absint( $request->get_param( 'day' ) );
+
+        // Get open rate by hour people actually opened (not send hour).
+        // total_sent is computed in a subquery to avoid LEFT JOIN inflation.
+        $dayFilterTracking = '';
         if ( $day >= 1 && $day <= 7 ) {
-            $dayFilter = $wpdb->prepare( 'AND DAYOFWEEK(b.created_at) = %d', $day );
+            $dayFilterTracking = $wpdb->prepare( 'AND DAYOFWEEK(t.opened_at) = %d', $day );
         }
 
-        // Get open rate for ALL hours, ordered by open_rate DESC (best first)
         $results = $wpdb->get_results("
             SELECT
-                HOUR(b.created_at) AS hour_number,
-                SUM(b.total_emails) AS total_sent,
-                COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) AS total_opened,
+                HOUR(t.opened_at) AS hour_number,
+                bs.total_sent,
+                COUNT(t.id) AS total_opened,
                 ROUND(
-                    COUNT(DISTINCT CASE WHEN t.opened_at IS NOT NULL THEN t.id END) * 100.0
-                    / NULLIF(SUM(b.total_emails), 0),
+                    COUNT(t.id) * 100.0 / NULLIF(bs.total_sent, 0),
                 2) AS open_rate
-            FROM {$batchesTable} b
-            LEFT JOIN {$trackingTable} t ON t.batch_id = b.id
-            WHERE b.status = 'sent'
-            {$dayFilter}
-            GROUP BY HOUR(b.created_at)
-            HAVING SUM(b.total_emails) >= 50
+            FROM {$trackingTable} t
+            INNER JOIN (
+                SELECT SUM(total_emails) AS total_sent
+                FROM {$batchesTable}
+                WHERE status = 'sent'
+            ) bs ON 1=1
+            WHERE t.opened_at IS NOT NULL
+            {$dayFilterTracking}
+            GROUP BY HOUR(t.opened_at)
+            HAVING COUNT(t.id) >= 10
             ORDER BY open_rate DESC
         ", ARRAY_A);
 

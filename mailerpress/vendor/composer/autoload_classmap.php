@@ -807,7 +807,6 @@ return array(
     'MailerPress\\Core\\Synchronisation\\Connectors\\MailjetConnectorStub' => $baseDir . '/src/Core/Synchronisation/Connectors/MailjetConnectorStub.php',
     'MailerPress\\Core\\Synchronisation\\Connectors\\ResendConnectorStub' => $baseDir . '/src/Core/Synchronisation/Connectors/ResendConnectorStub.php',
     'MailerPress\\Core\\Synchronisation\\Connectors\\SendgridConnectorStub' => $baseDir . '/src/Core/Synchronisation/Connectors/SendgridConnectorStub.php',
-    'MailerPress\\Core\\Synchronisation\\Connectors\\WordPressUsersConnector' => $baseDir . '/src/Core/Synchronisation/Connectors/WordPressUsersConnector.php',
     'MailerPress\\Core\\Synchronisation\\Connectors\\WordPressUsersConnectorStub' => $baseDir . '/src/Core/Synchronisation/Connectors/WordPressUsersConnectorStub.php',
     'MailerPress\\Core\\Synchronisation\\ProConnectorStub' => $baseDir . '/src/Core/Synchronisation/ProConnectorStub.php',
     'MailerPress\\Core\\Synchronisation\\SynchronisationManager' => $baseDir . '/src/Core/Synchronisation/SynchronisationManager.php',

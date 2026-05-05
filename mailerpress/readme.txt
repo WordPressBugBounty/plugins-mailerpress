@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -225,6 +225,16 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.2 =
+* FIX: Fixed a bug where inserting columns in the editor removed previously added content
+* FIX: Fixed a fatal error occurring in the workflow system under certain conditions
+* FIX: Fixed incorrect calculations in the “Best open days/hours” widget
+* FIX: Fixed an issue where confirming a subscription with a custom URL could result in a blank page
+* FIX: Fixed an issue where the public URL displayed unwanted HTML code
+* IMPROVEMENT: You can now filter your contact list using the new segment filters
+* IMPROVEMENT: WordPress user sync now loads all roles directly from the settings page
+* IMPROVEMENT: Enhanced Query Block support for post meta with improved date format display
+
 = 2.0.1 =
 * FIX: Dashboard access issue causing an error and dark screen for some users
 * FIX: MailerPress Opt-in Form Gutenberg block returning a 401 unauthorized error when used inside an FSE template

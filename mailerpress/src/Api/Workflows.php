@@ -6,6 +6,7 @@ use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Workflows\WorkflowSystem;
 use MailerPress\Core\Workflows\Repositories\AutomationRepository;
+use MailerPress\Core\Workflows\Repositories\AutomationJobRepository;
 use MailerPress\Core\Workflows\Repositories\StepRepository;
 use MailerPress\Api\Permissions;
 use MailerPress\Models\Contacts;
@@ -3383,7 +3384,11 @@ PROMPT;
             // Last error per workflow
             $lastErrorQuery = $wpdb->prepare(
                 "SELECT j.automation_id, j.id as job_id, j.created_at, j.user_id, u.user_email,
-                        l.data as error_data
+                        (SELECT l.data FROM {$logsTable} l
+                         WHERE l.automation_id = j.automation_id
+                         AND l.user_id = j.user_id
+                         AND l.status = 'EXITED'
+                         ORDER BY l.created_at DESC LIMIT 1) as error_data
                  FROM {$jobsTable} j
                  INNER JOIN (
                      SELECT automation_id, MAX(id) as max_id
@@ -3391,8 +3396,7 @@ PROMPT;
                      WHERE automation_id IN ({$idPlaceholders}) AND status = 'FAILED'
                      GROUP BY automation_id
                  ) latest ON j.id = latest.max_id
-                 LEFT JOIN {$wpdb->users} u ON j.user_id = u.ID
-                 LEFT JOIN {$logsTable} l ON l.job_id = j.id AND l.status = 'FAILED'",
+                 LEFT JOIN {$wpdb->users} u ON j.user_id = u.ID",
                 ...$workflowIds
             );
             $lastErrorRows = $wpdb->get_results($lastErrorQuery, ARRAY_A);

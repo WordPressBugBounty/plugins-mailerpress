@@ -157,7 +157,8 @@ class CampaignEmail
 
         nocache_headers();
 
-        echo wp_kses_post($html);
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Full HTML email document; CSP blocks scripts; system-generated content
+        echo $html;
     }
 
     /**

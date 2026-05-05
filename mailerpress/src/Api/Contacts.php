@@ -619,16 +619,53 @@ class Contacts
             $params = array_merge($params, $tagIds);
         }
 
+        // Filter by segment (handled by pro plugin via filter hook)
+        $segmentParam = $request->get_param( 'segment' );
+        if ( ! empty( $segmentParam ) && is_array( $segmentParam ) ) {
+            $segmentIds = [];
+            foreach ( $segmentParam as $seg ) {
+                if ( isset( $seg['id'] ) ) {
+                    $segmentIds[] = (int) $seg['id'];
+                }
+            }
+            if ( ! empty( $segmentIds ) ) {
+                $segmentWhere = apply_filters( 'mailerpress_contacts_segment_where', '', $segmentIds );
+                if ( ! empty( $segmentWhere ) ) {
+                    $where .= " AND ({$segmentWhere})";
+                }
+            }
+        }
+
         // Order - Use whitelist to prevent SQL injection
         $allowed_orderby = ['contact_id', 'email', 'first_name', 'last_name', 'created_at', 'updated_at', 'subscription_status', 'opt_in_source'];
         $allowed_order = ['ASC', 'DESC'];
         $orderby_param = $request->get_param('orderby');
         $order_param = strtoupper($request->get_param('order') ?? 'DESC');
-        $orderby = in_array($orderby_param, $allowed_orderby, true) ? $orderby_param : 'contact_id';
         $order = in_array($order_param, $allowed_order, true) ? $order_param : 'DESC';
-        $orderBy = sprintf('c.%s %s', esc_sql($orderby), esc_sql($order));
+        $custom_field_sort = false;
 
-        $hasJoins = !empty($listIds) || !empty($tagIds);
+        if ( is_string( $orderby_param ) && str_starts_with( $orderby_param, 'custom_' ) ) {
+            $custom_sort_key = substr( $orderby_param, 7 );
+            $field_exists = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$field_definitions_table} WHERE field_key = %s",
+                $custom_sort_key
+            ) );
+            if ( $field_exists ) {
+                $custom_field_sort = true;
+                $joins .= $wpdb->prepare(
+                    " LEFT JOIN {$custom_fields_table} cf_sort ON cf_sort.contact_id = c.contact_id AND cf_sort.field_key = %s",
+                    $custom_sort_key
+                );
+                $orderBy = sprintf( 'cf_sort.field_value %s', esc_sql( $order ) );
+            } else {
+                $orderBy = sprintf( 'c.contact_id %s', esc_sql( $order ) );
+            }
+        } else {
+            $orderby = in_array( $orderby_param, $allowed_orderby, true ) ? $orderby_param : 'contact_id';
+            $orderBy = sprintf( 'c.%s %s', esc_sql( $orderby ), esc_sql( $order ) );
+        }
+
+        $hasJoins = !empty($listIds) || !empty($tagIds) || $custom_field_sort;
 
         // Run COUNT query first — use COUNT(*) when no JOINs (faster than COUNT(DISTINCT))
         $countSelect = $hasJoins ? 'COUNT(DISTINCT c.contact_id)' : 'COUNT(*)';

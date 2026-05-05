@@ -24,12 +24,12 @@ class EmailItConnectorStub extends ProConnectorStub
 
     public function getLabel(): string
     {
-        return __('EmailIt', 'mailerpress');
+        return __('Emailit', 'mailerpress');
     }
 
     public function getDescription(): string
     {
-        return __('Import and synchronize contacts from all your EmailIt audiences.', 'mailerpress');
+        return __('Import and synchronize contacts from all your Emailit audiences.', 'mailerpress');
     }
 
     public function getIcon(): string

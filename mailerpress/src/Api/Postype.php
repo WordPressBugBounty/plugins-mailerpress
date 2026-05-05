@@ -69,17 +69,21 @@ class Postype
             return new WP_Error('invalid_post_type', 'Invalid post type.', ['status' => 400]);
         }
 
+        $search = $request->get_param('search');
+
         $args = [
             'post_type' => $post_type,
             'post_status' => 'publish',
             'posts_per_page' => $request->get_param('per_page') ?? 10,
             'orderby' => $request->get_param('orderby') ?? 'date',
             'order' => $request->get_param('order') ?? 'DESC',
-            's' => $request->get_param('search'),
             'paged' => $request->get_param('page') ?? 1,
-            // ✅ Optimization: Suppress filters to avoid heavy hooks from WooCommerce and other plugins
-            'suppress_filters' => true,
+            'suppress_filters' => false,
         ];
+
+        if ( ! empty( $search ) ) {
+            $args['s'] = sanitize_text_field( $search );
+        }
 
         // Handle taxonomy filters
         $taxQuery = [];
@@ -145,6 +149,78 @@ class Postype
         }
 
         $query = new \WP_Query($args);
+
+        // Fallback: some CPT plugins (The Events Calendar, etc.) hook into
+        // pre_get_posts / parse_query / posts_pre_query and intercept queries.
+        // If the first query returns nothing, retry with ALL query hooks removed.
+        if ( ! $query->have_posts() ) {
+            global $wp_filter;
+
+            $hooks_to_bypass = [ 'posts_pre_query', 'pre_get_posts', 'parse_query' ];
+            $saved_hooks     = [];
+
+            foreach ( $hooks_to_bypass as $hook ) {
+                if ( isset( $wp_filter[ $hook ] ) ) {
+                    $saved_hooks[ $hook ] = clone $wp_filter[ $hook ];
+                    remove_all_filters( $hook );
+                }
+            }
+
+            $args['suppress_filters'] = true;
+            $query = new \WP_Query( $args );
+
+            foreach ( $saved_hooks as $hook => $filter_obj ) {
+                $wp_filter[ $hook ] = $filter_obj;
+            }
+        }
+
+        // Ultimate fallback: direct SQL query bypassing WP_Query entirely.
+        // Catches CPTs that override the query at levels we can't intercept.
+        if ( ! $query->have_posts() ) {
+            global $wpdb;
+
+            $per_page  = absint( $request->get_param( 'per_page' ) ?? 10 );
+            $paged     = absint( $request->get_param( 'page' ) ?? 1 );
+            $offset_db = ( $paged - 1 ) * $per_page;
+            $orderby   = in_array( $request->get_param( 'orderby' ), [ 'date', 'title', 'modified' ], true )
+                ? 'post_' . $request->get_param( 'orderby' )
+                : 'post_date';
+            $order     = strtoupper( $request->get_param( 'order' ) ?? 'DESC' ) === 'ASC' ? 'ASC' : 'DESC';
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $raw_posts = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->posts} WHERE post_type = %s AND post_status = 'publish' ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
+                    $post_type,
+                    $per_page,
+                    $offset_db
+                )
+            );
+
+            if ( ! empty( $raw_posts ) ) {
+                $total = (int) $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = %s AND post_status = 'publish'",
+                        $post_type
+                    )
+                );
+
+                $posts = array_map( fn( $row ) => new \WP_Post( $row ), $raw_posts );
+
+                $data = [];
+                foreach ( $posts as $post ) {
+                    $response = rest_ensure_response( $post );
+                    $filtered = apply_filters( "mailerpress_rest_prepare_{$post_type}", $response, $post, $request );
+                    $data[]   = $filtered instanceof WP_REST_Response ? $filtered->get_data() : $filtered;
+                }
+
+                $response = rest_ensure_response( $data );
+                $response->header( 'X-WP-Total', $total );
+                $response->header( 'X-WP-TotalPages', (int) ceil( $total / $per_page ) );
+
+                return $response;
+            }
+        }
 
         $data = [];
 
