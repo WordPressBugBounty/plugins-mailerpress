@@ -45,6 +45,11 @@ class EmailContentRenderer
         // Render product showcase blocks
         $htmlContent = $this->renderProductShowcaseBlocks($htmlContent, $context);
 
+        // Render product review blocks
+        if (isset($context['order_id']) && !empty($context['order_id'])) {
+            $htmlContent = $this->renderProductReviewBlocks($htmlContent, $context);
+        }
+
         // Decode HTML entities and URL-encoded merge tags
         $htmlContent = $this->decodeMergeTags($htmlContent);
 
@@ -1478,6 +1483,249 @@ class EmailContentRenderer
             $html .= '<div style="margin-top:8px;">';
             $html .= '<a href="' . \esc_url($data['product_url']) . '" style="display:inline-block;background-color:' . \esc_attr($config['buttonBgColor']) . ';color:' . \esc_attr($config['buttonTextColor']) . ';padding:12px 28px;border-radius:' . \esc_attr($config['buttonBorderRadius']) . ';text-decoration:none;font-weight:bold;font-size:14px;">' . \esc_html($config['buttonText']) . '</a>';
             $html .= '</div>';
+        }
+
+        return $html;
+    }
+
+    // ─── Product Review Block Rendering ────────────────────────────────────
+
+    private function renderProductReviewBlocks(string $htmlContent, array $context): string
+    {
+        preg_match_all(
+            '/(<!-- START product review: BLOCK_CONFIG:)(.*?)(-->)(.*?)(<!-- END product review -->)/is',
+            $htmlContent,
+            $blocks,
+            PREG_SET_ORDER
+        );
+
+        if (count($blocks) === 0) {
+            return $htmlContent;
+        }
+
+        $reviewProducts = $this->resolveProductReviewData($context);
+
+        if (empty($reviewProducts)) {
+            return $htmlContent;
+        }
+
+        foreach ($blocks as $block) {
+            $fullMatch = $block[0];
+            $startComment = $block[1];
+            $configJson = $block[2];
+            $endStartComment = $block[3];
+            $blockContent = $block[4];
+            $endComment = $block[5];
+
+            $config = $this->extractBlockConfig($configJson, [
+                'showImage' => true,
+                'imageSize' => '80px',
+                'imageRadius' => '8px',
+                'productNameColor' => '#333333',
+                'productNameFontSize' => '16px',
+                'productNameFontWeight' => 'bold',
+                'buttonText' => \__('Leave a Review', 'mailerpress'),
+                'buttonBgColor' => '#0073aa',
+                'buttonTextColor' => '#ffffff',
+                'buttonBorderRadius' => '4px',
+                'buttonFontSize' => '14px',
+                'cardBackgroundColor' => '#ffffff',
+                'cardPadding' => '12px',
+                'cardBorderRadius' => '8px',
+                'showSeparator' => true,
+                'separatorColor' => '#e0e0e0',
+                'separatorStyle' => 'solid',
+                'separatorWidth' => '1px',
+            ]);
+
+            $html = $this->generateProductReviewCardsHtml($reviewProducts, $config);
+
+            $mjTextAttributes = '';
+            if (preg_match('/<mj-text([^>]*)>/i', $blockContent, $attrMatches)) {
+                $mjTextAttributes = $attrMatches[1];
+            }
+
+            $newMjText = '<mj-text' . $mjTextAttributes . '>' . $html . '</mj-text>';
+            $newBlock = $startComment . $configJson . $endStartComment . $newMjText . $endComment;
+
+            $htmlContent = str_replace($fullMatch, $newBlock, $htmlContent);
+        }
+
+        return $htmlContent;
+    }
+
+    private function resolveProductReviewData(array $context): array
+    {
+        $products = [];
+        $processedProductIds = [];
+        $orderId = $context['order_id'] ?? 0;
+
+        if (!function_exists('wc_get_order') || empty($orderId)) {
+            return $this->resolveProductReviewFromContextItems($context);
+        }
+
+        try {
+            $order = \wc_get_order($orderId);
+            if (!$order) {
+                return $this->resolveProductReviewFromContextItems($context);
+            }
+
+            foreach ($order->get_items() as $item) {
+                $productId = $item->get_product_id();
+                $variationId = $item->get_variation_id();
+
+                $resolvedId = $productId;
+                if ($variationId > 0) {
+                    $variation = \wc_get_product($variationId);
+                    if ($variation && $variation->get_parent_id()) {
+                        $resolvedId = $variation->get_parent_id();
+                    }
+                }
+
+                if (in_array($resolvedId, $processedProductIds, true)) {
+                    continue;
+                }
+                $processedProductIds[] = $resolvedId;
+
+                $product = \wc_get_product($resolvedId);
+                if (!$product) {
+                    continue;
+                }
+
+                $thumbnailUrl = '';
+                $thumbnailId = $product->get_image_id();
+                if ($thumbnailId) {
+                    $thumbnailUrl = \wp_get_attachment_image_url($thumbnailId, 'woocommerce_thumbnail')
+                        ?: \wp_get_attachment_image_url($thumbnailId, 'medium')
+                        ?: \wp_get_attachment_image_url($thumbnailId, 'full');
+                }
+                if (empty($thumbnailUrl) && function_exists('wc_placeholder_img_src')) {
+                    $thumbnailUrl = \wc_placeholder_img_src('woocommerce_thumbnail');
+                }
+
+                $reviewUrl = \get_permalink($resolvedId);
+                if ($reviewUrl) {
+                    $reviewUrl .= '#reviews';
+                }
+
+                $products[] = [
+                    'product_id' => $resolvedId,
+                    'product_name' => $product->get_name(),
+                    'thumbnail_url' => $thumbnailUrl ?: '',
+                    'review_url' => $reviewUrl ?: '#',
+                ];
+            }
+        } catch (\Throwable $e) {
+            return $this->resolveProductReviewFromContextItems($context);
+        }
+
+        return $products;
+    }
+
+    private function resolveProductReviewFromContextItems(array $context): array
+    {
+        if (empty($context['order_items']) || !is_array($context['order_items'])) {
+            return [];
+        }
+
+        $products = [];
+        $processedProductIds = [];
+
+        foreach ($context['order_items'] as $item) {
+            $productId = $item['product_id'] ?? 0;
+            if (empty($productId) || in_array($productId, $processedProductIds, true)) {
+                continue;
+            }
+            $processedProductIds[] = $productId;
+
+            $thumbnailUrl = $item['thumbnail_url'] ?? '';
+            $reviewUrl = '#';
+
+            if (function_exists('wc_get_product')) {
+                try {
+                    $product = \wc_get_product($productId);
+                    if ($product) {
+                        if (empty($thumbnailUrl)) {
+                            $thumbnailId = $product->get_image_id();
+                            if ($thumbnailId) {
+                                $thumbnailUrl = \wp_get_attachment_image_url($thumbnailId, 'woocommerce_thumbnail')
+                                    ?: \wp_get_attachment_image_url($thumbnailId, 'medium')
+                                    ?: '';
+                            }
+                        }
+                        $permalink = \get_permalink($productId);
+                        if ($permalink) {
+                            $reviewUrl = $permalink . '#reviews';
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // use context data as-is
+                }
+            }
+
+            $products[] = [
+                'product_id' => $productId,
+                'product_name' => $item['product_name'] ?? '',
+                'thumbnail_url' => $thumbnailUrl,
+                'review_url' => $reviewUrl,
+            ];
+        }
+
+        return $products;
+    }
+
+    private function generateProductReviewCardsHtml(array $products, array $config): string
+    {
+        $showImage = $config['showImage'] ?? true;
+        $imageSize = $config['imageSize'] ?? '80px';
+        $imageRadius = $config['imageRadius'] ?? '8px';
+        $productNameColor = $config['productNameColor'] ?? '#333333';
+        $productNameFontSize = $config['productNameFontSize'] ?? '16px';
+        $productNameFontWeight = $config['productNameFontWeight'] ?? 'bold';
+        $buttonText = $config['buttonText'] ?? \__('Leave a Review', 'mailerpress');
+        $buttonBgColor = $config['buttonBgColor'] ?? '#0073aa';
+        $buttonTextColor = $config['buttonTextColor'] ?? '#ffffff';
+        $buttonBorderRadius = $config['buttonBorderRadius'] ?? '4px';
+        $buttonFontSize = $config['buttonFontSize'] ?? '14px';
+        $cardBackgroundColor = $config['cardBackgroundColor'] ?? '#ffffff';
+        $cardPadding = $config['cardPadding'] ?? '12px';
+        $cardBorderRadius = $config['cardBorderRadius'] ?? '8px';
+        $showSeparator = $config['showSeparator'] ?? true;
+        $separatorColor = $config['separatorColor'] ?? '#e0e0e0';
+        $separatorStyle = $config['separatorStyle'] ?? 'solid';
+        $separatorWidth = $config['separatorWidth'] ?? '1px';
+
+        $imageSizeNum = (int) preg_replace('/[^0-9]/', '', $imageSize);
+
+        $html = '';
+
+        foreach ($products as $index => $item) {
+            $productName = $item['product_name'] ?? '';
+            $thumbnailUrl = $item['thumbnail_url'] ?? '';
+            $reviewUrl = $item['review_url'] ?? '#';
+
+            $html .= '<!-- ITEM_START -->';
+            $html .= '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:' . \esc_attr($cardBackgroundColor) . ';border-radius:' . \esc_attr($cardBorderRadius) . ';"><tbody><tr>';
+
+            if ($showImage) {
+                $html .= '<td style="padding:' . \esc_attr($cardPadding) . ';width:' . ($imageSizeNum + 16) . 'px;vertical-align:middle;">';
+                if (!empty($thumbnailUrl)) {
+                    $html .= '<img src="' . \esc_url($thumbnailUrl) . '" alt="' . \esc_attr($productName) . '" width="' . $imageSizeNum . '" style="width:' . \esc_attr($imageSize) . ';height:auto;border-radius:' . \esc_attr($imageRadius) . ';display:block;" />';
+                }
+                $html .= '</td>';
+            }
+
+            $html .= '<td style="padding:' . \esc_attr($cardPadding) . ';vertical-align:middle;">';
+            $html .= '<div style="font-size:' . \esc_attr($productNameFontSize) . ';font-weight:' . \esc_attr($productNameFontWeight) . ';color:' . \esc_attr($productNameColor) . ';padding-bottom:8px;">' . \esc_html($productName) . '</div>';
+            $html .= '<a href="' . \esc_url($reviewUrl) . '" style="display:inline-block;background-color:' . \esc_attr($buttonBgColor) . ';color:' . \esc_attr($buttonTextColor) . ';padding:8px 20px;border-radius:' . \esc_attr($buttonBorderRadius) . ';text-decoration:none;font-weight:bold;font-size:' . \esc_attr($buttonFontSize) . ';">' . \esc_html($buttonText) . '</a>';
+            $html .= '</td>';
+
+            $html .= '</tr></tbody></table>';
+            $html .= '<!-- ITEM_END -->';
+
+            if ($showSeparator && $index < count($products) - 1) {
+                $html .= '<div style="border-top:' . \esc_attr($separatorWidth) . ' ' . \esc_attr($separatorStyle) . ' ' . \esc_attr($separatorColor) . ';margin:4px 0;"></div>';
+            }
         }
 
         return $html;

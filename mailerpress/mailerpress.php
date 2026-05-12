@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name: MailerPress
  * Plugin URI: https://mailerpress.com/
  * Description: Create beautiful emails simply inside WordPress connected to your favorite Email Service Provider
- * Version: 2.0.2
+ * Version: 2.0.3
  * Author: Team MailerPress
  * License: GPLv3 or later
  * Text Domain: mailerpress
@@ -43,7 +43,7 @@ use MailerPress\Services\Activation;
 use MailerPress\Services\DeactivatePro;
 
 // Define constants
-define('MAILERPRESS_VERSION', '2.0.2');
+define('MAILERPRESS_VERSION', '2.0.3');
 define('MAILERPRESS_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 define('MAILERPRESS_PLUGIN_DIR_URL', plugin_dir_url(__FILE__));
 define('MAILERPRESS_ASSETS_DIR', MAILERPRESS_PLUGIN_DIR_URL . 'assets');

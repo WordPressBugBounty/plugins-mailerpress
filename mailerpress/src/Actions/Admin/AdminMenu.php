@@ -187,19 +187,6 @@ class AdminMenu
                 'callback' => 'mailpressCampaigns',
             ],
             [
-                'title' => '',
-                'menu_title' => '',
-                'slug' => 'mailerpress/workflow',
-                'cap' => Capabilities::MANAGE_AUTOMATIONS, // Use base WordPress capability, check MANAGE_AUTOMATIONS in admin_init
-                'callback' => 'mailerpressWorkflow',
-            ],
-            [
-                'title' => $labels['workflow'],
-                'menu_title' => $labels['workflow'],
-                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fworkflow',
-                'cap' => Capabilities::MANAGE_AUTOMATIONS,
-            ],
-            [
                 'title' => $labels['audience'],
                 'menu_title' => $labels['audience'],
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fcontacts',
@@ -210,6 +197,19 @@ class AdminMenu
                 'menu_title' => $labels['templates'],
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftemplates',
                 'cap' => Capabilities::MANAGE_TEMPLATES,
+            ],
+            [
+                'title' => '',
+                'menu_title' => '',
+                'slug' => 'mailerpress/workflow',
+                'cap' => Capabilities::MANAGE_AUTOMATIONS,
+                'callback' => 'mailerpressWorkflow',
+            ],
+            [
+                'title' => $labels['workflow'],
+                'menu_title' => $labels['workflow'],
+                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fworkflow',
+                'cap' => Capabilities::MANAGE_AUTOMATIONS,
             ],
             [
                 'title' => $labels['integrations'],

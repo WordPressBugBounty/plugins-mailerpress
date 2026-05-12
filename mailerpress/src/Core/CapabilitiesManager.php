@@ -27,7 +27,7 @@ class CapabilitiesManager
             Capabilities::MANAGE_TAGS => 'manage_categories',
             Capabilities::DELETE_TAGS => 'manage_categories',
             Capabilities::MANAGE_TEMPLATES => 'edit_themes',
-            Capabilities::MANAGE_AUTOMATIONS => 'edit_posts',
+            Capabilities::MANAGE_AUTOMATIONS => 'publish_posts',
             Capabilities::MANAGE_CONTACT_SEGMENTATION => 'edit_posts',
         ];
 
@@ -39,11 +39,11 @@ class CapabilitiesManager
                 continue;
             }
 
-            // Loop through mapping
             foreach ($mapping as $custom_cap => $base_cap) {
-                // Only add the custom capability if the role has the base capability
                 if ($role->has_cap($base_cap)) {
                     $role->add_cap($custom_cap);
+                } else {
+                    $role->remove_cap($custom_cap);
                 }
             }
         }

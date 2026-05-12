@@ -16,7 +16,21 @@ class CampaignRevisions
     {
         global $wpdb;
         $campaign_id = intval($request['id']);
-        $new_json = wp_json_encode($request->get_param('json')); // encode new revision
+        $campaignTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        $campaign_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT campaign_id FROM $campaignTable WHERE campaign_id = %d",
+            $campaign_id
+        ));
+
+        if ( ! $campaign_exists ) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => 'Campaign not found.'
+            ], 404);
+        }
+
+        $new_json = wp_json_encode($request->get_param('json'));
         $user_id = get_current_user_id();
         $tableName = Tables::get(Tables::MAILERPRESS_CAMPAIGN_REVISIONS);
 

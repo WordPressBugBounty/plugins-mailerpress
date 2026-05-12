@@ -194,8 +194,7 @@ class CountDown
         $fontSizeNumParam = $config['fontSizeNumParam'];
         $fontSizeLblParam = $config['fontSizeLblParam'];
 
-        // Determine background pixel
-        $bgPixel = (empty($bgColor) || $bgColor === '#') ? new ImagickPixel('transparent') : new ImagickPixel($bgColor);
+        $bgPixel = $this->safePixel( $bgColor, 'transparent' );
 
         // Labels
         $labels = [
@@ -245,7 +244,7 @@ class CountDown
 
             $draw = new ImagickDraw();
             $draw->setTextAlignment(Imagick::ALIGN_CENTER);
-            $draw->setFillColor(new ImagickPixel($fontColor));
+            $draw->setFillColor($this->safePixel( $fontColor, '#000000' ));
             $draw->setFontSize(intval($height * 0.25));
             $im->annotateImage($draw, $width / 2, $height / 2 + ($height * 0.08), 0, $passedLabel);
 
@@ -283,7 +282,7 @@ class CountDown
 
                     // Box
                     $box = new ImagickDraw();
-                    $box->setFillColor(new ImagickPixel($boxColor));
+                    $box->setFillColor($this->safePixel( $boxColor, '#000000' ));
                     $box->roundRectangle(
                         $xCenter - ($blockWidth * 0.4),
                         $yTop,
@@ -295,12 +294,12 @@ class CountDown
 
                     // Number
                     $draw->setFontSize($fontSizeNum);
-                    $draw->setFillColor(new ImagickPixel($numberColor));
+                    $draw->setFillColor($this->safePixel( $numberColor, '#ffffff' ));
                     $im->annotateImage($draw, $xCenter, $yTop + ($blockHeight / 2) + ($fontSizeNum / 3), 0, $val);
 
                     // Label
                     $draw->setFontSize($fontSizeLbl);
-                    $draw->setFillColor(new ImagickPixel($fontColor));
+                    $draw->setFillColor($this->safePixel( $fontColor, '#000000' ));
                     $im->annotateImage($draw, $xCenter, $height - 10, 0, $labels[$idx]);
                 }
 
@@ -319,7 +318,14 @@ class CountDown
         file_put_contents($hashPath, json_encode($config));
     }
 
-    // Helper to get WP timezone
+    private function safePixel( string $color, string $fallback = 'transparent' ): ImagickPixel {
+        $hex = ltrim( $color, '#' );
+        if ( '' !== $hex && preg_match( '/^[0-9a-f]{3}([0-9a-f]{3})?$/i', $hex ) ) {
+            return new ImagickPixel( '#' . $hex );
+        }
+        return new ImagickPixel( $fallback );
+    }
+
     private function getWpTimezone(): DateTimeZone
     {
         $tzString = get_option('timezone_string');

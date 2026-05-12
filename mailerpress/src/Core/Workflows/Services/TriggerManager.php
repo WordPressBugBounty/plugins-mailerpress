@@ -60,6 +60,22 @@ class TriggerManager
     }
 
     /**
+     * Register an additional WordPress hook for an already-registered trigger.
+     *
+     * @param string $key Trigger key (must already be registered)
+     * @param string $hookName Additional WordPress hook name to listen to
+     * @param callable|null $contextBuilder Optional override context builder; falls back to the one from registerTrigger
+     */
+    public function registerAdditionalHook(string $key, string $hookName, ?callable $contextBuilder = null): void
+    {
+        $builder = $contextBuilder ?? ($this->registeredTriggers[$key]['context_builder'] ?? null);
+
+        add_action($hookName, function (...$args) use ($key, $builder) {
+            $this->handleTrigger($key, $args, $builder);
+        }, 10, 10);
+    }
+
+    /**
      * Get trigger definition by key
      *
      * @param string $key Trigger key

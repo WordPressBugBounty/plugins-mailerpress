@@ -113,12 +113,26 @@ class MailerPressConditionProvider
 
 		if ($field === 'mp_has_tag') {
 			if (!$contact) {
-				// Tags require a MailerPress contact
 				return false;
 			}
 			$contactId = (int) $contact->contact_id;
-			$tagIds = \is_array($value) ? $value : [$value];
-			$tagIds = \array_filter(\array_map('intval', $tagIds));
+			$rawValues = \is_array($value) ? $value : [$value];
+			$tagIds = [];
+			$tagsTable = $wpdb->prefix . Tables::MAILERPRESS_TAGS;
+			foreach ($rawValues as $rv) {
+				if (\is_numeric($rv) && (int) $rv > 0) {
+					$tagIds[] = (int) $rv;
+				} elseif (\is_string($rv) && $rv !== '') {
+					$resolved = (int) $wpdb->get_var($wpdb->prepare(
+						"SELECT tag_id FROM {$tagsTable} WHERE name = %s LIMIT 1",
+						\trim($rv)
+					));
+					if ($resolved > 0) {
+						$tagIds[] = $resolved;
+					}
+				}
+			}
+			$tagIds = \array_unique(\array_filter($tagIds));
 			if (empty($tagIds)) {
 				return false;
 			}
@@ -143,12 +157,26 @@ class MailerPressConditionProvider
 
 		if ($field === 'mp_in_list') {
 			if (!$contact) {
-				// Lists require a MailerPress contact
 				return false;
 			}
 			$contactId = (int) $contact->contact_id;
-			$listIds = \is_array($value) ? $value : [$value];
-			$listIds = \array_filter(\array_map('intval', $listIds));
+			$rawValues = \is_array($value) ? $value : [$value];
+			$listIds = [];
+			$listsTable = $wpdb->prefix . Tables::MAILERPRESS_LIST;
+			foreach ($rawValues as $rv) {
+				if (\is_numeric($rv) && (int) $rv > 0) {
+					$listIds[] = (int) $rv;
+				} elseif (\is_string($rv) && $rv !== '') {
+					$resolved = (int) $wpdb->get_var($wpdb->prepare(
+						"SELECT list_id FROM {$listsTable} WHERE name = %s LIMIT 1",
+						\trim($rv)
+					));
+					if ($resolved > 0) {
+						$listIds[] = $resolved;
+					}
+				}
+			}
+			$listIds = \array_unique(\array_filter($listIds));
 			if (empty($listIds)) {
 				return false;
 			}

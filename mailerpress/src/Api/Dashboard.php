@@ -980,21 +980,21 @@ class Dashboard
         }
 
         // Créer un map des statistiques par batch_id
+        // Pre-populate for all batches so clicks are not lost when there are no opens/unsubscribes
         $statistics_map = [];
+        foreach ($batch_to_campaign as $bid => $cid) {
+            $statistics_map[$bid] = [
+                'total_opens' => 0,
+                'total_clicks' => isset($click_stats_map[$cid]) ? $click_stats_map[$cid] : 0,
+                'total_unsubscribes' => 0,
+            ];
+        }
         foreach ($tracking_stats as $ts) {
             $batch_id = (int)$ts['batch_id'];
-            $campaign_id = $batch_to_campaign[$batch_id] ?? null;
-
-            // Récupérer les clics depuis click_tracking pour cette campagne
-            $total_clicks = $campaign_id && isset($click_stats_map[$campaign_id])
-                ? $click_stats_map[$campaign_id]
-                : 0;
-
-            $statistics_map[$batch_id] = [
-                'total_opens' => (int)$ts['total_opens'],
-                'total_clicks' => $total_clicks,
-                'total_unsubscribes' => (int)$ts['total_unsubscribes'],
-            ];
+            if ( isset( $statistics_map[$batch_id] ) ) {
+                $statistics_map[$batch_id]['total_opens'] = (int)$ts['total_opens'];
+                $statistics_map[$batch_id]['total_unsubscribes'] = (int)$ts['total_unsubscribes'];
+            }
         }
 
         // Formater les résultats
@@ -1626,6 +1626,111 @@ class Dashboard
         return rest_ensure_response([
             'best_hour' => $allHours[0],
             'all_hours' => $allHours,
+        ]);
+    }
+
+    #[Endpoint(
+        'dashboard/audience-growth',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canView'],
+    )]
+    public function audienceGrowth(\WP_REST_Request $request)
+    {
+        global $wpdb;
+
+        $contactsTable  = Tables::get(Tables::MAILERPRESS_CONTACT);
+        $trackingTable  = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
+
+        $startDateParam = sanitize_text_field( $request->get_param('start_date') ?? '' );
+        $endDateParam   = sanitize_text_field( $request->get_param('end_date') ?? '' );
+
+        if ( $startDateParam && $endDateParam ) {
+            $startDate = new \DateTime( $startDateParam );
+            $endDate   = new \DateTime( $endDateParam );
+            $startSql  = $startDate->format('Y-m-d');
+            $endSql    = $endDate->format('Y-m-d 23:59:59');
+        } else {
+            $interval  = absint( $request->get_param('interval') ?? 30 ) ?: 30;
+            $startDate = new \DateTime( "-{$interval} days" );
+            $endDate   = new \DateTime();
+            $startSql  = $startDate->format('Y-m-d');
+            $endSql    = $endDate->format('Y-m-d 23:59:59');
+        }
+
+        $newSubsQuery = $wpdb->prepare("
+            SELECT DATE(created_at) AS date, COUNT(DISTINCT contact_id) AS total
+            FROM {$contactsTable}
+            WHERE created_at IS NOT NULL
+              AND created_at >= %s
+              AND created_at <= %s
+            GROUP BY DATE(created_at)
+        ", $startSql, $endSql);
+
+        $unsubsContactQuery = $wpdb->prepare("
+            SELECT DATE(updated_at) AS date, COUNT(DISTINCT contact_id) AS total
+            FROM {$contactsTable}
+            WHERE subscription_status = 'unsubscribed'
+              AND updated_at IS NOT NULL
+              AND updated_at >= %s
+              AND updated_at <= %s
+            GROUP BY DATE(updated_at)
+        ", $startSql, $endSql);
+
+        $unsubsTrackingQuery = $wpdb->prepare("
+            SELECT DATE(unsubscribed_at) AS date, COUNT(DISTINCT anonymous_key) AS total
+            FROM {$trackingTable}
+            WHERE unsubscribed_at IS NOT NULL
+              AND (contact_id = 0 OR contact_id IS NULL)
+              AND anonymous_key IS NOT NULL
+              AND unsubscribed_at >= %s
+              AND unsubscribed_at <= %s
+            GROUP BY DATE(unsubscribed_at)
+        ", $startSql, $endSql);
+
+        $newSubsResults          = $wpdb->get_results($newSubsQuery);
+        $unsubsContactResults    = $wpdb->get_results($unsubsContactQuery);
+        $unsubsTrackingResults   = $wpdb->get_results($unsubsTrackingQuery);
+
+        $newSubsByDate = [];
+        foreach ($newSubsResults as $row) {
+            $newSubsByDate[$row->date] = (int) $row->total;
+        }
+
+        $unsubsByDate = [];
+        foreach ($unsubsContactResults as $row) {
+            $unsubsByDate[$row->date] = (int) $row->total;
+        }
+        foreach ($unsubsTrackingResults as $row) {
+            $unsubsByDate[$row->date] = ($unsubsByDate[$row->date] ?? 0) + (int) $row->total;
+        }
+
+        $filledData     = [];
+        $totalNew       = 0;
+        $totalUnsubs    = 0;
+        $currentDate    = clone $startDate;
+
+        while ($currentDate <= $endDate) {
+            $dateStr    = $currentDate->format('Y-m-d');
+            $newSubs    = $newSubsByDate[$dateStr] ?? 0;
+            $unsubs     = $unsubsByDate[$dateStr] ?? 0;
+            $totalNew   += $newSubs;
+            $totalUnsubs += $unsubs;
+
+            $filledData[] = [
+                'date'            => $dateStr,
+                'new_subscribers' => $newSubs,
+                'unsubscribes'    => $unsubs,
+                'net_growth'      => $newSubs - $unsubs,
+            ];
+
+            $currentDate->modify('+1 day');
+        }
+
+        return rest_ensure_response([
+            'data'              => $filledData,
+            'total_new'         => $totalNew,
+            'total_unsubscribes' => $totalUnsubs,
+            'net_growth'        => $totalNew - $totalUnsubs,
         ]);
     }
 

@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -225,6 +225,22 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.3 =
+* NEW: Introduced the new Product Review block for post-purchase review request emails with dynamic product cards and “Leave a Review” buttons
+* IMPROVEMENT: Added new ESP sending configurations for improved flexibility and compatibility
+* IMPROVEMENT: Added more spacing and padding controls for the Post Content block
+* IMPROVEMENT: Enhanced workflow editor navigation with a clearer “Back to automation” experience
+* FIX: Fixed workflows not being re-evaluated after double opt-in confirmation
+* FIX: Fixed MailerPress workflow conditions not being evaluated correctly
+* FIX: Fixed incorrect contacts API filtering results for certain fields
+* FIX: Fixed Countdown block timezone and display inconsistencies
+* FIX: Fixed campaign revisions not loading correctly in some cases
+* FIX: Fixed manage subscription page layout and styling issues
+* FIX: Fixed ESP bounce webhook handlers returning HTTP 500 errors for unknown email addresses, preventing endless retries from providers such as SMTP2GO, Mailgun, and Brevo
+* FIX: Raw HTML campaigns now enforce unsubscribe and manage subscription links for GDPR compliance, including warning notices and quick-insert helpers
+* SECURITY: Fixed a privilege escalation vulnerability in the workflow REST API
+* SECURITY: Restricted the “Create WordPress User” action from assigning the Administrator role
+
 = 2.0.2 =
 * FIX: Fixed a bug where inserting columns in the editor removed previously added content
 * FIX: Fixed a fatal error occurring in the workflow system under certain conditions

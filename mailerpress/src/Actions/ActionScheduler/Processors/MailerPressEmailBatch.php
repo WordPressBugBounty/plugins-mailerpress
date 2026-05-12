@@ -10,6 +10,7 @@ use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\HtmlParser;
 use MailerPress\Core\Interfaces\ContactFetcherInterface;
 use MailerPress\Core\Kernel;
+use MailerPress\Models\Campaigns;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\ClassicContactFetcher;
 use MailerPress\Services\SegmentContactFetcher;
@@ -189,12 +190,22 @@ class MailerPressEmailBatch
             if (!empty($htmlContent) && containsStartQueryBlock($htmlContent)) {
                 $renderer = new DynamicPostRenderer($htmlContent);
                 $renderer->setCampaignId($post);
+
+                $campaignModel = Kernel::getContainer()->get(Campaigns::class)->find($post);
+                if ($campaignModel && 'automated' === $campaignModel->campaign_type) {
+                    $renderer->setSkipIfNoNewContent(true);
+                }
+
                 $renderedHtml = $renderer->render();
 
                 // Check if there are any new posts (not processed yet)
                 if (empty($renderedHtml)) {
-                    // No new posts to send, stop the process
-                    return new \WP_REST_Response(__('No new content to send for this automated campaign'), 400);
+                    $wpdb->delete(
+                        Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES),
+                        ['id' => $batch_id],
+                        ['%d']
+                    );
+                    return;
                 }
 
                 $htmlContent = $renderedHtml;

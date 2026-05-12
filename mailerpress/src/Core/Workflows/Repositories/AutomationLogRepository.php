@@ -89,20 +89,47 @@ class AutomationLogRepository
     /**
      * Get the context from log entries for a job
      * Tries to find context from PROCESSING logs first, then any log entry
-     * 
+     *
      * @param int $automationId
      * @param int $userId
+     * @param int|null $jobId When provided, filter logs to this specific job
      * @return array|null Context data or null if not found
      */
-    public function getTriggerContext(int $automationId, int $userId): ?array
+    public function getTriggerContext(int $automationId, int $userId, ?int $jobId = null): ?array
     {
-        // First try to get from PROCESSING logs (these contain the context passed to handlers)
+        // If we have a job_id, find the exact PROCESSING log for this job
+        if ($jobId) {
+            $query = $this->wpdb->prepare(
+                "SELECT data FROM {$this->table}
+                 WHERE automation_id = %d
+                 AND user_id = %d
+                 AND status = 'PROCESSING'
+                 AND data LIKE %s
+                 ORDER BY created_at ASC
+                 LIMIT 1",
+                $automationId,
+                $userId,
+                '%' . $this->wpdb->esc_like('"_job_id":' . $jobId) . '%'
+            );
+
+            $result = $this->wpdb->get_var($query);
+
+            if ($result) {
+                $data = json_decode($result, true);
+                if (is_array($data) && !empty($data)) {
+                    unset($data['_job_id']);
+                    return $data;
+                }
+            }
+        }
+
+        // Fallback: get most recent PROCESSING log for this automation+user
         $query = $this->wpdb->prepare(
-            "SELECT data FROM {$this->table} 
-             WHERE automation_id = %d 
-             AND user_id = %d 
+            "SELECT data FROM {$this->table}
+             WHERE automation_id = %d
+             AND user_id = %d
              AND status = 'PROCESSING'
-             ORDER BY created_at ASC
+             ORDER BY created_at DESC
              LIMIT 1",
             $automationId,
             $userId
@@ -113,16 +140,17 @@ class AutomationLogRepository
         if ($result) {
             $data = json_decode($result, true);
             if (is_array($data) && !empty($data)) {
+                unset($data['_job_id']);
                 return $data;
             }
         }
 
         // Fallback: try any log entry
         $query = $this->wpdb->prepare(
-            "SELECT data FROM {$this->table} 
-             WHERE automation_id = %d 
-             AND user_id = %d 
-             ORDER BY created_at ASC
+            "SELECT data FROM {$this->table}
+             WHERE automation_id = %d
+             AND user_id = %d
+             ORDER BY created_at DESC
              LIMIT 1",
             $automationId,
             $userId
@@ -133,6 +161,7 @@ class AutomationLogRepository
         if ($result) {
             $data = json_decode($result, true);
             if (is_array($data) && !empty($data)) {
+                unset($data['_job_id']);
                 return $data;
             }
         }

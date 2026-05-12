@@ -81,7 +81,8 @@ class WorkflowExecutor
         if (empty($context)) {
             $triggerContext = $this->logRepo->getTriggerContext(
                 $job->getAutomationId(),
-                $job->getUserId()
+                $job->getUserId(),
+                $job->getId()
             );
             if ($triggerContext) {
                 $context = $triggerContext;
@@ -146,12 +147,13 @@ class WorkflowExecutor
                     $this->jobRepo->update($job);
 
                     // Log the step with context - this preserves context for later retrieval
+                    $logData = array_merge($context, ['_job_id' => $job->getId()]);
                     $this->logRepo->log(
                         $job->getAutomationId(),
                         $step->getStepId(),
                         $job->getUserId(),
                         'PROCESSING',
-                        $context
+                        $logData
                     );
 
                     $stepKey = $step->getKey();

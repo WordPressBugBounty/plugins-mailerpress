@@ -14,6 +14,7 @@ class DynamicPostRenderer
     protected array $excludedPostIds = [];
     protected array $usedPostIds = [];
     protected ?int $campaignId = null;
+    protected bool $skipIfNoNewContent = false;
 
     protected array $postTypeMap = [
         'posts' => 'post',
@@ -41,6 +42,12 @@ class DynamicPostRenderer
         return $this;
     }
 
+    public function setSkipIfNoNewContent(bool $skip): self
+    {
+        $this->skipIfNoNewContent = $skip;
+        return $this;
+    }
+
     public function render(): string
     {
         preg_match_all(
@@ -63,6 +70,18 @@ class DynamicPostRenderer
             if (!$queryArgs) {
                 $this->html = str_replace($fullMatch, '', $this->html);
                 continue;
+            }
+
+            if ($this->skipIfNoNewContent && !empty($this->excludedPostIds)) {
+                $checkArgs = $this->parseQueryArgs($queryJson, []);
+                if ($checkArgs) {
+                    $checkArgs['posts_per_page'] = 1;
+                    $newestPosts = $this->fetchPosts($checkArgs);
+                    if (!empty($newestPosts) && in_array($newestPosts[0]->ID, array_merge($this->excludedPostIds, $this->usedPostIds), true)) {
+                        $this->html = str_replace($fullMatch, '', $this->html);
+                        continue;
+                    }
+                }
             }
 
             $posts = $this->fetchPosts($queryArgs);
@@ -768,6 +787,10 @@ HTML;
 
                 $trStyle = $styleMap[$category]['tr'] ?? '';
                 $tdStyle = $styleMap[$category]['td'] ?? '';
+
+                if ( in_array( $category, [ 'text-block', 'heading-block', 'link-block' ], true ) && strpos( $tdStyle, 'padding-bottom' ) === false ) {
+                    $tdStyle = rtrim( $tdStyle, '; ' ) . ( $tdStyle ? ';' : '' ) . 'padding-bottom:10px;';
+                }
 
                 $rows[] = '<tr style="' . $trStyle . '"><td style="' . $tdStyle . '">' . $innerHtml . '</td></tr>';
                 continue;

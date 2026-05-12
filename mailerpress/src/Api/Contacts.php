@@ -1079,15 +1079,23 @@ class Contacts
             $default_list_id = $wpdb->get_var("SELECT list_id FROM {$table_lists} WHERE is_default = 1 LIMIT 1");
 
             if ($default_list_id) {
-                $wpdb->insert(
-                    $listsTable,
-                    [
-                        'contact_id' => $contactId,
-                        'list_id' => $default_list_id,
-                    ],
-                    ['%d', '%d']
-                );
-                do_action('mailerpress_contact_list_added', $contactId, $default_list_id);
+                $exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT 1 FROM {$listsTable} WHERE contact_id = %d AND list_id = %d",
+                    $contactId,
+                    $default_list_id
+                ));
+
+                if ( ! $exists ) {
+                    $wpdb->insert(
+                        $listsTable,
+                        [
+                            'contact_id' => $contactId,
+                            'list_id' => $default_list_id,
+                        ],
+                        ['%d', '%d']
+                    );
+                    do_action('mailerpress_contact_list_added', $contactId, $default_list_id);
+                }
             }
         }
 

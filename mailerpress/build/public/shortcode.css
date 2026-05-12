@@ -1,3 +1,10 @@
+.mailerpress-change-email-info {
+    font-size: 0.9rem;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
 .mailerpress-form-line {
     display: flex;
     flex-direction: column;

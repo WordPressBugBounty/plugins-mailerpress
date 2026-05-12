@@ -21,11 +21,16 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
         return $key === 'create_wp_user';
     }
 
+    private const BLOCKED_ROLES = ['administrator'];
+
     public function getDefinition(): array
     {
         $roles = wp_roles()->get_names();
         $roleOptions = [];
         foreach ($roles as $roleKey => $roleName) {
+            if (in_array($roleKey, self::BLOCKED_ROLES, true)) {
+                continue;
+            }
             $roleOptions[] = [
                 'value' => $roleKey,
                 'label' => translate_user_role($roleName),
@@ -131,9 +136,15 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
         $username  = sanitize_user($this->replacePlaceholders($settings['username'] ?? '', $context));
         $firstName = sanitize_text_field($this->replacePlaceholders($settings['first_name'] ?? '', $context));
         $lastName  = sanitize_text_field($this->replacePlaceholders($settings['last_name'] ?? '', $context));
-        $role             = $settings['role'] ?? 'subscriber';
+        $role             = sanitize_text_field($settings['role'] ?? 'subscriber');
         $sendNotification = (bool) ($settings['send_notification'] ?? true);
         $updateExisting   = (bool) ($settings['update_existing'] ?? false);
+
+        if (in_array($role, self::BLOCKED_ROLES, true)) {
+            return StepResult::failed(
+                sprintf(__('Role "%s" is not allowed in automated workflows.', 'mailerpress'), $role)
+            );
+        }
 
         if (empty($email) || !is_email($email)) {
             return StepResult::failed(

@@ -39,15 +39,16 @@ $disableListManagement = !empty($disableListManagement)
 
 <form novalidate action="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" method="post"
       class="mailerpress-manage-subscription">
-    <p class="mailerpress_paragraph">
-        <label><?php esc_html_e('Email*', 'mailerpress'); ?>
-            <br><strong><?php echo esc_html($contact->email ?? ''); ?></strong></label>
-        <?php if (!$disableListManagement) : ?>
-            <span class="mailerpress-change-email-info">
-                <?php esc_html_e('Uncheck lists to unsubscribe from them, then save your preferences.', 'mailerpress'); ?>
-            </span>
-        <?php endif; ?>
-    </p>
+    <?php if (!$disableListManagement) : ?>
+        <p class="mailerpress-change-email-info">
+            <?php esc_html_e('Uncheck lists to unsubscribe from them, then save your preferences.', 'mailerpress'); ?>
+        </p>
+    <?php endif; ?>
+
+    <div class="mailerpress-form-line">
+        <label><?php esc_html_e('Email*', 'mailerpress'); ?></label>
+        <strong><?php echo esc_html($contact->email ?? ''); ?></strong>
+    </div>
 
     <div class="mailerpress-form-line">
         <label for="contact_first_name"><?php esc_html_e('First Name', 'mailerpress'); ?></label>

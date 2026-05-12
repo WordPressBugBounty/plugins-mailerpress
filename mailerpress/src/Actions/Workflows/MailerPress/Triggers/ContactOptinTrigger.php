@@ -48,6 +48,11 @@ class ContactOptinTrigger
     public const HOOK_NAME = 'mailerpress_contact_created';
 
     /**
+     * Fires when a pending contact confirms via the double opt-in link.
+     */
+    public const CONFIRMATION_HOOK_NAME = 'mailerpress_subscription_confirmed';
+
+    /**
      * Register the custom trigger
      * 
      * @param mixed $manager The trigger manager instance
@@ -155,6 +160,15 @@ class ContactOptinTrigger
             self::HOOK_NAME,
             self::contextBuilder(...),
             $definition
+        );
+
+        // Also fire when a pending contact confirms via the double opt-in link.
+        // The same contextBuilder re-reads the contact from DB, so subscription_status
+        // will now be 'subscribed' and the condition check will pass.
+        $manager->registerAdditionalHook(
+            self::TRIGGER_KEY,
+            self::CONFIRMATION_HOOK_NAME,
+            self::contextBuilder(...)
         );
     }
 
