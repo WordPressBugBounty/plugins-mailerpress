@@ -8,6 +8,7 @@ namespace MailerPress\Actions\ActionScheduler;
 
 use MailerPress\Actions\ActionScheduler\Processors\ProcessChunkDeleteContact;
 use MailerPress\Actions\ActionScheduler\Processors\ProcessChunkImportContact;
+use MailerPress\Api\CountDown;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Attributes\Filter;
 use MailerPress\Core\Kernel;
@@ -22,7 +23,7 @@ final class AsInit
         $this->registerImportChunkProcessor();
         $this->registerDeleteChunkProcessor();
 
-
+        CountDown::cleanupExpired();
 
         if (\function_exists('as_has_scheduled_action') && \function_exists('as_schedule_recurring_action')) {
             $existing = as_get_scheduled_actions([
@@ -77,15 +78,34 @@ final class AsInit
             }
         }
 
-        // Refresh audience counts for scheduled campaigns (every 15 minutes)
-        if (\function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mailerpress_refresh_scheduled_counts')) {
-            as_schedule_recurring_action(
-                time(),
-                15 * MINUTE_IN_SECONDS,
-                'mailerpress_refresh_scheduled_counts',
-                [],
-                'mailerpress'
-            );
+        // Refresh audience counts for scheduled campaigns (every hour)
+        if (\function_exists('as_has_scheduled_action') && \function_exists('as_get_scheduled_actions')) {
+            $refreshActions = as_get_scheduled_actions([
+                'hook'   => 'mailerpress_refresh_scheduled_counts',
+                'status' => \ActionScheduler_Store::STATUS_PENDING,
+            ], 'ARRAY_A');
+
+            $needsReschedule = true;
+            foreach ( $refreshActions as $action ) {
+                $interval = $action['schedule'] ?? null;
+                if ( $interval instanceof \ActionScheduler_IntervalSchedule ) {
+                    if ( (int) $interval->get_recurrence() === HOUR_IN_SECONDS ) {
+                        $needsReschedule = false;
+                        break;
+                    }
+                }
+            }
+
+            if ( $needsReschedule ) {
+                as_unschedule_all_actions( 'mailerpress_refresh_scheduled_counts' );
+                as_schedule_recurring_action(
+                    time(),
+                    HOUR_IN_SECONDS,
+                    'mailerpress_refresh_scheduled_counts',
+                    [],
+                    'mailerpress'
+                );
+            }
         }
 
         // Workflow cleanup cron (daily)

@@ -543,6 +543,9 @@ class Campaigns
 
         foreach ($results as &$result) {
             $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
+            if ( is_string( $result->content_html ) ) {
+                $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+            }
             $result->config = !empty($result->config) ? json_decode($result->config, true) : null;
 
             // Utiliser les données préchargées
@@ -1279,6 +1282,9 @@ class Campaigns
         foreach ($results as &$result) {
             // Décoder content_html et config (déjà dans la requête)
             $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
+            if ( is_string( $result->content_html ) ) {
+                $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+            }
             $result->config = !empty($result->config) ? json_decode($result->config, true) : null;
 
             // Batch avec stats (préchargé)
@@ -1377,6 +1383,9 @@ class Campaigns
             $campaign['content_html'],
             true
         ) : null;
+        if ( is_string( $campaign['content_html'] ) ) {
+            $campaign['content_html'] = $this->sanitizeEmailHtml( $campaign['content_html'] );
+        }
         $campaign['config'] = !empty($campaign['config']) ? json_decode($campaign['config'], true) : null;
 
         // Récupérer les informations de l'automation si elle existe
@@ -1479,10 +1488,12 @@ class Campaigns
             return new \WP_Error('db_insert_error', __('Failed to create campaign.', 'mailerpress'), ['status' => 500]);
         }
 
-        do_action('mailerpress_campaign_created', $wpdb->insert_id);
+        $campaign_id = (int) $wpdb->insert_id;
+
+        do_action('mailerpress_campaign_created', $campaign_id);
 
         // Return success response
-        return new \WP_REST_Response($wpdb->insert_id, 201);
+        return new \WP_REST_Response($campaign_id, 201);
     }
 
     #[Endpoint(
@@ -1598,6 +1609,15 @@ class Campaigns
         }
 
         $placeholders = implode(',', array_fill(0, count($campaign_type_ids), '%s'));
+
+        // Cleanup countdown AS actions for campaigns being deleted
+        $trash_campaign_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT campaign_id FROM {$table_name} WHERE campaign_type IN ($placeholders) AND status = 'trash'",
+            ...$campaign_type_ids
+        ));
+        foreach ($trash_campaign_ids as $cid) {
+            CountDown::unscheduleForCampaign((string) $cid);
+        }
 
         // Delete batches linked to campaigns of these types AND with trash status
         $delete_batches_query = "
@@ -1831,6 +1851,11 @@ class Campaigns
             $sql_select = "SELECT campaign_id FROM {$table_name} WHERE " . implode(' AND ', $where_parts);
             $campaign_ids_to_delete = $wpdb->get_col($wpdb->prepare($sql_select, ...$params_select));
 
+            // Cleanup countdown AS actions for these campaigns
+            foreach ($campaign_ids_to_delete as $cid) {
+                CountDown::unscheduleForCampaign((string) $cid);
+            }
+
             // Delete batches for these campaigns
             $deleted_batches = 0;
             if (!empty($campaign_ids_to_delete)) {
@@ -1881,6 +1906,11 @@ class Campaigns
 
         if (empty($existing_ids)) {
             return new \WP_Error('not_found', __('No campaign(s) in trash found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        // Cleanup countdown AS actions for these campaigns
+        foreach ($existing_ids as $cid) {
+            CountDown::unscheduleForCampaign((string) $cid);
         }
 
         // Delete associated batches first
@@ -2134,7 +2164,7 @@ class Campaigns
         // Si le HTML est fourni (notamment pour les campagnes automation en draft), le stocker
         if (!empty($html)) {
             $optionKey = 'mailerpress_batch_' . $campaign_id . '_html';
-            update_option($optionKey, $html, false);
+            update_option($optionKey, $this->sanitizeEmailHtml( $html ), false);
         }
 
         return new \WP_REST_Response([
@@ -2208,9 +2238,9 @@ class Campaigns
                     )
                 ),
                 'CONTACT_NAME' => esc_html($contactEntity->first_name) . ' ' . esc_html($contactEntity->last_name),
-                'TRACK_OPEN' => get_rest_url(
-                    null,
-                    \sprintf('mailerpress/v1/campaign/track-open?contactId=%s&batchId=%s', $contactId, '')
+                'TRACK_OPEN' => \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
+                    (int) $contactId,
+                    0
                 ),
                 'contact_name' => \sprintf(
                     '%s %s',
@@ -2448,7 +2478,7 @@ class Campaigns
         $openTracking = $request->get_param('openTracking') ?? 'yes';
         $clickTracking = $request->get_param('clickTracking') ?? 'yes';
 
-        update_option('mailerpress_batch_' . $post . '_html', $html, false);
+        update_option('mailerpress_batch_' . $post . '_html', $this->sanitizeEmailHtml( $html ), false);
 
         // Get subject from config or fallback to campaign title
         $subject = $config['subject'] ?? '';
@@ -2683,7 +2713,7 @@ class Campaigns
         // Update the HTML version in the WordPress options
         // Stocker le HTML même si l'option n'existe pas encore (pour les campagnes automation en draft)
         $optionKey = 'mailerpress_batch_' . $campaignId . '_html';
-        update_option($optionKey, $html, false);
+        update_option($optionKey, $this->sanitizeEmailHtml( $html ), false);
 
         return new \WP_REST_Response([
             'success' => true,
@@ -2716,7 +2746,7 @@ class Campaigns
         $automateSettings = $request->get_param('automateSettings') ?? null;
 
         // Store HTML separately
-        update_option('mailerpress_batch_' . $post . '_html', $html, false);
+        update_option('mailerpress_batch_' . $post . '_html', $this->sanitizeEmailHtml( $html ), false);
 
         // Get existing config from DB
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
@@ -3566,10 +3596,16 @@ class Campaigns
             do_action('mailerpress_email_opened', $contact_id, $campaign_id, $batch_id);
         }
 
-        // Send a transparent 1x1 pixel image
+        // Send a transparent 1x1 pixel image with proper headers
+        // Headers must be set here because exit() bypasses rest_post_dispatch filters
         header('Content-Type: image/png');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
         $base64_image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
-        echo base64_decode($base64_image);
+        $pixel = base64_decode($base64_image);
+        header('Content-Length: ' . strlen($pixel));
+        echo $pixel;
         exit;
     }
 
@@ -4393,5 +4429,35 @@ class Campaigns
         );
 
         return new \WP_REST_Response($campaigns ?: [], 200);
+    }
+
+    /**
+     * Sanitize rendered email HTML to prevent stored XSS.
+     *
+     * Only strips truly dangerous XSS vectors while preserving everything
+     * MJML generates: conditional comments (<!--[if mso]>), VML elements
+     * (v:rect, v:roundrect, v:textbox, o:OfficeDocumentSettings),
+     * XML namespaces (xmlns:v, xmlns:o), <!DOCTYPE>, <style>, and
+     * MailerPress dynamic block markers (<!-- START/END -->).
+     */
+    private function sanitizeEmailHtml( string $html ): string {
+        if ( empty( $html ) ) {
+            return $html;
+        }
+
+        $html = preg_replace( '/<script\b[^>]*>.*?<\/script>/is', '', $html );
+        $html = preg_replace( '/<script\b[^>]*\/?>/is', '', $html );
+
+        $html = preg_replace(
+            '/(<[^>]*)\s+on(?:click|load|error|mouseover|mouseout|mouseenter|mouseleave|focus|blur|submit|change|input|keydown|keyup|keypress|dblclick|contextmenu|wheel|copy|cut|paste|drag|drop|abort|resize|scroll|unload|beforeunload|hashchange|popstate|message|online|offline|storage|pageshow|pagehide|animationstart|animationend|animationiteration|transitionend|toggle|pointerdown|pointerup|pointermove)\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i',
+            '$1',
+            $html
+        );
+
+        $html = preg_replace( '/\bhref\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'href=$1#$1', $html );
+        $html = preg_replace( '/\bsrc\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'src=$1#$1', $html );
+        $html = preg_replace( '/\bformaction\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'formaction=$1#$1', $html );
+
+        return $html;
     }
 }

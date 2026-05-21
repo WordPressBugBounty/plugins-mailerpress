@@ -122,7 +122,24 @@ class ContactEmailChunk
             $chunkData['contacts'] = $contact_chunk;
         }
 
-        $html = $chunkData['html'];
+        // Load HTML from batch-level transient (deduplicated storage)
+        // Falls back to per-chunk html for backward compatibility with pre-update chunks
+        $html = null;
+        $batchHtmlTransientKey = 'mailerpress_batch_' . $batch_id . '_html_processed';
+        $batchHtml = get_transient($batchHtmlTransientKey);
+        if (false !== $batchHtml) {
+            $html = $batchHtml;
+        } elseif (!empty($chunkData['html'])) {
+            $html = $chunkData['html'];
+        } else {
+            $campaignId = $chunkData['campaignId'] ?? 0;
+            $html = get_option('mailerpress_batch_' . $campaignId . '_html', '');
+        }
+
+        if (empty($html)) {
+            $this->markChunkAsFailed($chunk_id, $batch_id, 'HTML content not found');
+            return;
+        }
 
         // 5. Traiter les emails (logique existante)
         try {
@@ -136,6 +153,19 @@ class ContactEmailChunk
                 ['%s', '%s'],
                 ['%d']
             );
+
+            // Cleanup per-chunk transient now that it's no longer needed
+            $transient_key = 'mailerpress_chunk_' . $batch_id . '_' . $chunk->chunk_index;
+            delete_transient($transient_key);
+
+            // Cleanup batch-level HTML transient if all chunks are completed
+            $remaining = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$chunksTable} WHERE batch_id = %d AND status IN ('pending', 'processing')",
+                $batch_id
+            ));
+            if ( 0 === $remaining ) {
+                delete_transient('mailerpress_batch_' . $batch_id . '_html_processed');
+            }
 
             $processing_duration = round(microtime(true) - $start_time, 2);
 
@@ -269,19 +299,13 @@ class ContactEmailChunk
                     // For anonymous tracking, we use contact_id = 0
                     $trackContactId = ('anonymously' === $openTracking) ? 0 : (int) $contactEntity->contact_id;
 
-                    $contact_variables['TRACK_OPEN'] = get_rest_url(
+                    $contact_variables['TRACK_OPEN'] = \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
+                        $trackContactId,
+                        (int) $chunkData['campaignId'],
+                        (int) $batch_id,
                         null,
-                        \sprintf(
-                            'mailerpress/v1/campaign/track-open?token=%s',
-                            \MailerPress\Core\HtmlParser::generateTrackOpenToken(
-                                $trackContactId,
-                                (int) $chunkData['campaignId'],
-                                (int) $batch_id,
-                                null, // jobId
-                                null, // stepId
-                                $anonymousKey
-                            )
-                        )
+                        null,
+                        $anonymousKey
                     );
                 }
 
@@ -423,6 +447,8 @@ class ContactEmailChunk
                 ['%s', '%d', '%s', '%s', '%s'],
                 ['%d']
             );
+
+            ChunkWorker::ensureWorkerRunning();
 
             Logger::info('Chunk scheduled for retry (will be picked up by ChunkWorker)', [
                 'chunk_id' => $chunk_id,

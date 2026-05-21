@@ -31,6 +31,280 @@ class Frontend
         }
     }
 
+    #[Action('init', priority: 1)]
+    public function handleOpenTracking()
+    {
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+        $request_path = strtok($request_uri, '?#') ?: '';
+
+        if (!preg_match('|/?mp/o/([^/?#]+)|', $request_path, $matches)) {
+            return;
+        }
+
+        $rawToken = rawurldecode($matches[1]);
+        $token = sanitize_text_field($rawToken);
+
+        $this->sendTrackingGif();
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        } else {
+            if (ob_get_level()) {
+                ob_end_flush();
+            }
+            flush();
+        }
+
+        if (!empty($token)) {
+            $this->processOpenTracking($token);
+        }
+
+        exit;
+    }
+
+    private function sendTrackingGif(): void
+    {
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        // 1x1 transparent GIF — 43 bytes, industry standard (Brevo, Mailchimp, SendGrid)
+        $gif = base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+
+        header('Content-Type: image/gif');
+        header('Content-Length: ' . strlen($gif));
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Cache-Control: post-check=0, pre-check=0', false);
+        header('Pragma: no-cache');
+        header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+        header('X-Content-Type-Options: nosniff');
+
+        echo $gif;
+    }
+
+    private function processOpenTracking(string $token): void
+    {
+        global $wpdb;
+
+        $data = \MailerPress\Core\HtmlParser::decodeTrackingToken($token);
+
+        if (!$data || !isset($data['cid']) || empty($data['cmp'])) {
+            return;
+        }
+
+        $contact_id = (int) ($data['cid'] ?? 0);
+        $campaign_id = (int) ($data['cmp'] ?? 0);
+        $batch_id = isset($data['batch']) ? (int) $data['batch'] : null;
+        $job_id = isset($data['job']) ? (int) $data['job'] : null;
+        $step_id = isset($data['step']) ? (string) $data['step'] : null;
+        $anonymous_key = isset($data['ank']) ? sanitize_text_field($data['ank']) : null;
+
+        if ($batch_id !== null && $batch_id <= 0) {
+            $batch_id = null;
+        }
+        if ($campaign_id <= 0) {
+            return;
+        }
+
+        $isAnonymousTracking = ($contact_id === 0);
+
+        if ($contact_id <= 0 && !empty($job_id) && empty($batch_id)) {
+            $job = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT user_id FROM {$wpdb->prefix}mailerpress_automations_jobs WHERE id = %d",
+                    (int) $job_id
+                )
+            );
+            if ($job && !empty($job->user_id)) {
+                $contact_id = (int) $job->user_id;
+                $isAnonymousTracking = false;
+            }
+        }
+
+        if ($contact_id <= 0 && empty($batch_id)) {
+            return;
+        }
+
+        $isTransactional = empty($batch_id);
+        $contactStatsTable = $wpdb->prefix . 'mailerpress_contact_stats';
+        $openedAt = current_time('mysql');
+
+        if ($isTransactional) {
+            if (empty($campaign_id)) {
+                return;
+            }
+
+            $userId = null;
+            if (!empty($job_id)) {
+                $job = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT user_id FROM {$wpdb->prefix}mailerpress_automations_jobs WHERE id = %d",
+                        (int) $job_id
+                    )
+                );
+                if ($job && !empty($job->user_id)) {
+                    $userId = (int) $job->user_id;
+                }
+            }
+
+            if (!empty($userId) && $contact_id <= 0) {
+                $contact_id = $userId;
+            }
+
+            $this->upsertContactStats($contactStatsTable, $contact_id, $campaign_id, $openedAt);
+
+            if ($campaign_id && $userId) {
+                \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $userId);
+            }
+
+            if ($userId) {
+                $workflowSystem = \MailerPress\Core\Workflows\WorkflowSystem::getInstance();
+                $executor = $workflowSystem->getManager()->getExecutor();
+                $executor->reevaluateWaitingJobs($userId, $campaign_id, 'mp_email_opened');
+            }
+        } else {
+            if (empty($campaign_id)) {
+                $campaign_id = (int) $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT campaign_id FROM {$wpdb->prefix}mailerpress_email_batches WHERE id = %d",
+                        (int) $batch_id
+                    )
+                );
+            }
+
+            if (empty($campaign_id)) {
+                return;
+            }
+
+            $table = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
+
+            if ($isAnonymousTracking) {
+                $existing = null;
+                if (!empty($anonymous_key)) {
+                    $existing = $wpdb->get_var(
+                        $wpdb->prepare(
+                            "SELECT id FROM {$table} WHERE batch_id = %d AND anonymous_key = %s",
+                            $batch_id,
+                            $anonymous_key
+                        )
+                    );
+                }
+                if (empty($existing)) {
+                    $wpdb->insert($table, [
+                        'batch_id' => $batch_id,
+                        'contact_id' => 0,
+                        'anonymous_key' => $anonymous_key,
+                        'opened_at' => $openedAt,
+                        'clicks' => 0,
+                        'unsubscribed_at' => null,
+                    ], ['%d', '%d', '%s', '%s', '%d', '%s']);
+                }
+            } else {
+                $row_exists = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT id FROM {$table} WHERE batch_id = %d AND contact_id = %d",
+                        $batch_id,
+                        $contact_id
+                    )
+                );
+                if ($row_exists) {
+                    $wpdb->update(
+                        $table,
+                        ['opened_at' => $openedAt],
+                        ['batch_id' => $batch_id, 'contact_id' => $contact_id],
+                        ['%s'],
+                        ['%d', '%d']
+                    );
+                } else {
+                    $wpdb->insert($table, [
+                        'batch_id' => $batch_id,
+                        'contact_id' => $contact_id,
+                        'opened_at' => $openedAt,
+                        'clicks' => 0,
+                        'unsubscribed_at' => null,
+                    ], ['%d', '%d', '%s', '%d', '%s']);
+                }
+            }
+
+            if (!$isAnonymousTracking && $contact_id > 0) {
+                $contactStats = $this->upsertContactStats($contactStatsTable, $contact_id, $campaign_id, $openedAt);
+
+                $contact = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT email FROM {$wpdb->prefix}mailerpress_contact WHERE contact_id = %d",
+                        $contact_id
+                    )
+                );
+
+                $userId = null;
+                if ($contact && !empty($contact->email)) {
+                    $user = \get_user_by('email', $contact->email);
+                    if ($user) {
+                        $userId = (int) $user->ID;
+                    }
+                }
+
+                $abTestUserId = $userId ?: $contact_id;
+                if ($campaign_id && $abTestUserId) {
+                    \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $abTestUserId);
+                }
+
+                if ($userId) {
+                    $workflowSystem = \MailerPress\Core\Workflows\WorkflowSystem::getInstance();
+                    $executor = $workflowSystem->getManager()->getExecutor();
+                    $executor->reevaluateWaitingJobs($userId, $campaign_id, 'mp_email_opened');
+                }
+            }
+        }
+
+        if (!$isAnonymousTracking && $contact_id > 0) {
+            do_action('mailerpress_email_opened', $contact_id, $campaign_id, $batch_id);
+        }
+    }
+
+    private function upsertContactStats(string $table, int $contactId, int $campaignId, string $openedAt): ?object
+    {
+        global $wpdb;
+
+        $contactStats = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT opened, clicked, click_count FROM {$table} WHERE contact_id = %d AND campaign_id = %d",
+                $contactId,
+                $campaignId
+            )
+        );
+
+        if ($contactStats) {
+            $newOpened = (int) $contactStats->opened + 1;
+            $wpdb->update(
+                $table,
+                ['opened' => $newOpened, 'updated_at' => $openedAt],
+                ['contact_id' => $contactId, 'campaign_id' => $campaignId],
+                ['%d', '%s'],
+                ['%d', '%d']
+            );
+        } else {
+            $wpdb->insert(
+                $table,
+                [
+                    'contact_id' => $contactId,
+                    'campaign_id' => $campaignId,
+                    'opened' => 1,
+                    'clicked' => 0,
+                    'click_count' => 0,
+                    'status' => 'neutral',
+                    'created_at' => $openedAt,
+                    'updated_at' => $openedAt,
+                ],
+                ['%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s']
+            );
+        }
+
+        return $contactStats;
+    }
+
     #[Action('template_redirect')]
     public function handleClickTracking()
     {

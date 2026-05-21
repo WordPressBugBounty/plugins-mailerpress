@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.0.3\n"
+"Project-Id-Version: MailerPress 2.0.4\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-12T13:01:25+00:00\n"
+"POT-Creation-Date: 2026-05-21T08:55:28+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: mailerpress\n"
@@ -45,7 +45,7 @@ msgid "No campaigns found."
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php:126
-#: src/Api/Contacts.php:3113
+#: src/Api/Contacts.php:3127
 #: src/functions.php:643
 #: build/dist/js/mail-editor.js:1
 msgid "Confirm your subscription to [site:title]"
@@ -235,8 +235,8 @@ msgid "Invalid contact token."
 msgstr ""
 
 #: src/Actions/Ajax/ManageSubscription.php:47
-#: src/Api/Contacts.php:3096
-#: src/Api/Contacts.php:3232
+#: src/Api/Contacts.php:3110
+#: src/Api/Contacts.php:3246
 msgid "Contact not found."
 msgstr ""
 
@@ -431,11 +431,11 @@ msgstr ""
 msgid "Authentication required."
 msgstr ""
 
-#: src/Actions/Setup/Init.php:176
+#: src/Actions/Setup/Init.php:182
 msgid "Marketing communication"
 msgstr ""
 
-#: src/Actions/Setup/Init.php:179
+#: src/Actions/Setup/Init.php:185
 #: src/Blocks/TemplatesCategories.php:136
 msgid "Ecommerce"
 msgstr ""
@@ -453,11 +453,11 @@ msgid "Default list"
 msgstr ""
 
 #: src/Actions/Shortcodes/CampaignEmail.php:56
-#: src/Api/Campaigns.php:1372
-#: src/Api/Campaigns.php:1936
-#: src/Api/Campaigns.php:1990
-#: src/Api/Campaigns.php:2055
-#: src/Api/Campaigns.php:2110
+#: src/Api/Campaigns.php:1378
+#: src/Api/Campaigns.php:1966
+#: src/Api/Campaigns.php:2020
+#: src/Api/Campaigns.php:2085
+#: src/Api/Campaigns.php:2140
 #: src/Api/Tags.php:294
 msgid "Campaign not found."
 msgstr ""
@@ -1937,13 +1937,13 @@ msgid "%d actions processed"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:131
-#: src/Api/Contacts.php:2019
-#: src/Api/Contacts.php:2681
+#: src/Api/Contacts.php:2033
+#: src/Api/Contacts.php:2695
 msgid "Batch ID is required"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:145
-#: src/Api/Contacts.php:2101
+#: src/Api/Contacts.php:2115
 msgid "Batch not found"
 msgstr ""
 
@@ -1968,10 +1968,10 @@ msgid "Campaign ID is required"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:244
-#: src/Api/Campaigns.php:733
-#: src/Api/Campaigns.php:3008
-#: src/Api/Campaigns.php:3062
-#: src/Api/Campaigns.php:4215
+#: src/Api/Campaigns.php:736
+#: src/Api/Campaigns.php:3038
+#: src/Api/Campaigns.php:3092
+#: src/Api/Campaigns.php:4251
 #: build/dist/js/mail-editor.js:1
 msgid "Campaign not found"
 msgstr ""
@@ -2150,186 +2150,186 @@ msgid "No batch_id provided"
 msgstr ""
 
 #: src/Api/Campaigns.php:344
-#: src/Api/Campaigns.php:587
+#: src/Api/Campaigns.php:590
 msgid "No IDs provided"
 msgstr ""
 
 #: src/Api/Campaigns.php:349
-#: src/Api/Campaigns.php:592
+#: src/Api/Campaigns.php:595
 msgid "Invalid IDs provided"
 msgstr ""
 
-#: src/Api/Campaigns.php:655
-#: src/Api/Contacts.php:2084
-#: src/Api/Contacts.php:2154
-#: src/Api/Contacts.php:2220
+#: src/Api/Campaigns.php:658
+#: src/Api/Contacts.php:2098
+#: src/Api/Contacts.php:2168
+#: src/Api/Contacts.php:2234
 msgid "Invalid batch ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:722
+#: src/Api/Campaigns.php:725
 msgid "Invalid campaign ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:1479
+#: src/Api/Campaigns.php:1488
 msgid "Failed to create campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:1500
-#: src/Api/Campaigns.php:1572
-#: src/Api/Campaigns.php:1791
+#: src/Api/Campaigns.php:1511
+#: src/Api/Campaigns.php:1583
+#: src/Api/Campaigns.php:1811
 msgid "You do not have permission to delete campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1515
+#: src/Api/Campaigns.php:1526
 msgid "No campaign IDs provided."
 msgstr ""
 
-#: src/Api/Campaigns.php:1532
+#: src/Api/Campaigns.php:1543
 msgid "Failed to delete the campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1547
+#: src/Api/Campaigns.php:1558
 msgid "Failed to delete the batches."
 msgstr ""
 
-#: src/Api/Campaigns.php:1554
+#: src/Api/Campaigns.php:1565
 msgid "Campaigns successfully deleted."
 msgstr ""
 
-#: src/Api/Campaigns.php:1656
+#: src/Api/Campaigns.php:1676
 msgid "Invalid or empty campaign status."
 msgstr ""
 
-#: src/Api/Campaigns.php:1703
+#: src/Api/Campaigns.php:1723
 msgid "Failed to update campaign statuses."
 msgstr ""
 
 #. translators: %d number of campaigns
-#: src/Api/Campaigns.php:1713
-#: src/Api/Campaigns.php:1771
+#: src/Api/Campaigns.php:1733
+#: src/Api/Campaigns.php:1791
 msgid "%d campaign(s) status updated successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:1732
-#: src/Api/Campaigns.php:1871
+#: src/Api/Campaigns.php:1752
+#: src/Api/Campaigns.php:1896
 msgid "No campaign ID(s) provided."
 msgstr ""
 
-#: src/Api/Campaigns.php:1747
+#: src/Api/Campaigns.php:1767
 msgid "No matching campaign(s) found."
 msgstr ""
 
-#: src/Api/Campaigns.php:1761
+#: src/Api/Campaigns.php:1781
 msgid "Failed to update campaign status."
 msgstr ""
 
-#: src/Api/Campaigns.php:1849
+#: src/Api/Campaigns.php:1874
 msgid "Failed to delete campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1856
+#: src/Api/Campaigns.php:1881
 msgid "All (%d) campaign(s) permanently deleted."
 msgstr ""
 
-#: src/Api/Campaigns.php:1883
+#: src/Api/Campaigns.php:1908
 msgid "No campaign(s) in trash found."
 msgstr ""
 
-#: src/Api/Campaigns.php:1899
+#: src/Api/Campaigns.php:1929
 msgid "Failed to delete campaign(s)."
 msgstr ""
 
-#: src/Api/Campaigns.php:1906
+#: src/Api/Campaigns.php:1936
 msgid "Campaign(s) permanently deleted: %d"
 msgstr ""
 
-#: src/Api/Campaigns.php:1926
+#: src/Api/Campaigns.php:1956
 #: src/Api/Lists.php:343
 #: src/Api/Tags.php:287
 msgid "Title cannot be empty."
 msgstr ""
 
-#: src/Api/Campaigns.php:1951
+#: src/Api/Campaigns.php:1981
 msgid "Failed to rename campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:1957
+#: src/Api/Campaigns.php:1987
 msgid "Campaign renamed successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:2016
-#: src/Api/Campaigns.php:2131
+#: src/Api/Campaigns.php:2046
+#: src/Api/Campaigns.php:2161
 msgid "Failed to update campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:2023
-#: src/Api/Campaigns.php:2142
+#: src/Api/Campaigns.php:2053
+#: src/Api/Campaigns.php:2172
 msgid "Campaign updated successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:2077
+#: src/Api/Campaigns.php:2107
 msgid "Failed to update campaign settings."
 msgstr ""
 
-#: src/Api/Campaigns.php:2117
+#: src/Api/Campaigns.php:2147
 msgid "This campaign is currently locked by another user."
 msgstr ""
 
-#: src/Api/Campaigns.php:2416
+#: src/Api/Campaigns.php:2446
 msgid "You do not have permission to create a campaign batch."
 msgstr ""
 
-#: src/Api/Campaigns.php:2512
+#: src/Api/Campaigns.php:2542
 msgid "Failed to create batch"
 msgstr ""
 
-#: src/Api/Campaigns.php:2550
+#: src/Api/Campaigns.php:2580
 msgid "The scheduled date is in the past. Please select a future date and time."
 msgstr ""
 
-#: src/Api/Campaigns.php:2562
+#: src/Api/Campaigns.php:2592
 msgid "Invalid scheduled date format."
 msgstr ""
 
 #. translators: %s is the subject of the email
-#: src/Api/Campaigns.php:2825
+#: src/Api/Campaigns.php:2855
 msgid "[MailerPress TEST] - %s"
 msgstr ""
 
-#: src/Api/Campaigns.php:2868
+#: src/Api/Campaigns.php:2898
 msgid "Missing batchId"
 msgstr ""
 
-#: src/Api/Campaigns.php:2994
-#: src/Api/Campaigns.php:3048
+#: src/Api/Campaigns.php:3024
+#: src/Api/Campaigns.php:3078
 msgid "Missing campaign ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:3012
+#: src/Api/Campaigns.php:3042
 msgid "Only automated campaigns can be deactivated"
 msgstr ""
 
-#: src/Api/Campaigns.php:3066
+#: src/Api/Campaigns.php:3096
 msgid "Only automated campaigns can be activated"
 msgstr ""
 
-#: src/Api/Campaigns.php:3761
+#: src/Api/Campaigns.php:3797
 msgid "Missing video url"
 msgstr ""
 
-#: src/Api/Campaigns.php:3766
+#: src/Api/Campaigns.php:3802
 msgid "Unsupported video url"
 msgstr ""
 
-#: src/Api/Campaigns.php:3819
+#: src/Api/Campaigns.php:3855
 msgid "Failed to fetch thumbnail"
 msgstr ""
 
-#: src/Api/Campaigns.php:3938
+#: src/Api/Campaigns.php:3974
 msgid "Failed to process thumbnail. Neither Imagick nor GD extension is available."
 msgstr ""
 
-#: src/Api/Campaigns.php:4160
+#: src/Api/Campaigns.php:4196
 #: src/Api/Workflows.php:3838
 #: src/Api/Workflows.php:4347
 #: build/dist/js/mail-editor.js:1
@@ -2418,188 +2418,168 @@ msgstr ""
 msgid "Too many submission attempts. Please try again later."
 msgstr ""
 
-#: src/Api/Contacts.php:915
-#: src/Api/Contacts.php:999
+#: src/Api/Contacts.php:929
+#: src/Api/Contacts.php:1013
 msgid "Contact added successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:924
+#: src/Api/Contacts.php:938
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/Api/Contacts.php:958
-#: src/Api/Contacts.php:1636
+#: src/Api/Contacts.php:972
+#: src/Api/Contacts.php:1650
 #: src/functions.php:354
 msgid "Contact updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1291
+#: src/Api/Contacts.php:1305
 msgid "This email address is already in use by another contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1411
+#: src/Api/Contacts.php:1425
 #: build/dist/js/mail-editor.js:1
 msgid "Contacts updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1444
+#: src/Api/Contacts.php:1458
 #: src/functions.php:246
 msgid "Missing contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:1656
+#: src/Api/Contacts.php:1670
 msgid "Contact IDs must be an array and cannot be empty"
 msgstr ""
 
-#: src/Api/Contacts.php:1673
+#: src/Api/Contacts.php:1687
 msgid "One or more contacts were not found."
 msgstr ""
 
-#: src/Api/Contacts.php:1689
+#: src/Api/Contacts.php:1703
 msgid "Contacts deleted successfully"
 msgstr ""
 
-#: src/Api/Contacts.php:1696
+#: src/Api/Contacts.php:1710
 msgid "Failed to delete the contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1719
+#: src/Api/Contacts.php:1733
 msgid "Missing contact_id or list_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1740
-#: src/Api/Contacts.php:1810
+#: src/Api/Contacts.php:1754
+#: src/Api/Contacts.php:1824
 msgid "Database error occurred."
 msgstr ""
 
-#: src/Api/Contacts.php:1747
-#: src/Api/Contacts.php:1817
+#: src/Api/Contacts.php:1761
+#: src/Api/Contacts.php:1831
 msgid "No matching record found."
 msgstr ""
 
-#: src/Api/Contacts.php:1758
+#: src/Api/Contacts.php:1772
 msgid "List removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1789
+#: src/Api/Contacts.php:1803
 msgid "Missing contact_id or tag_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1828
+#: src/Api/Contacts.php:1842
 msgid "Tag removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1860
+#: src/Api/Contacts.php:1874
 msgid "Failed to delete contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1865
+#: src/Api/Contacts.php:1879
 msgid "All contacts have been deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1887
+#: src/Api/Contacts.php:1901
 msgid "Failed to create delete batch."
 msgstr ""
 
-#: src/Api/Contacts.php:1940
+#: src/Api/Contacts.php:1954
 msgid "Delete batch created successfully. Deletion in progress..."
 msgstr ""
 
-#: src/Api/Contacts.php:2033
+#: src/Api/Contacts.php:2047
 msgid "Delete batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2067
+#: src/Api/Contacts.php:2081
 msgid "Delete batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:2171
+#: src/Api/Contacts.php:2185
 msgid "No failed chunks to retry"
 msgstr ""
 
-#: src/Api/Contacts.php:2202
+#: src/Api/Contacts.php:2216
 msgid "Retrying %d failed chunks"
 msgstr ""
 
-#: src/Api/Contacts.php:2271
+#: src/Api/Contacts.php:2285
 msgid "Reset %d stuck chunks and scheduled %d chunks for processing"
 msgstr ""
 
-#: src/Api/Contacts.php:2347
+#: src/Api/Contacts.php:2361
 msgid "No contacts to export."
 msgstr ""
 
-#: src/Api/Contacts.php:2397
+#: src/Api/Contacts.php:2411
 msgid "Export started"
 msgstr ""
 
-#: src/Api/Contacts.php:2507
+#: src/Api/Contacts.php:2521
 msgid "Failed to create import batch"
 msgstr ""
 
-#: src/Api/Contacts.php:2542
+#: src/Api/Contacts.php:2556
 msgid "Batch ID and chunk data are required"
 msgstr ""
 
-#: src/Api/Contacts.php:2556
-#: src/Api/Contacts.php:2695
+#: src/Api/Contacts.php:2570
+#: src/Api/Contacts.php:2709
 msgid "Import batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2763
+#: src/Api/Contacts.php:2777
 msgid "Import batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:3027
+#: src/Api/Contacts.php:3041
 #: src/Api/MyLists.php:135
 msgid "Invalid email address."
 msgstr ""
 
-#: src/Api/Contacts.php:3104
-#: src/Api/Contacts.php:3240
+#: src/Api/Contacts.php:3118
+#: src/Api/Contacts.php:3254
 msgid "This contact is not in pending status."
 msgstr ""
 
-#: src/Api/Contacts.php:3196
-#: src/Api/Contacts.php:3204
+#: src/Api/Contacts.php:3210
+#: src/Api/Contacts.php:3218
 msgid "Failed to send confirmation reminder email."
 msgstr ""
 
-#: src/Api/Contacts.php:3211
+#: src/Api/Contacts.php:3225
 msgid "Confirmation reminder email sent successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:3251
+#: src/Api/Contacts.php:3265
 #: build/dist/js/mail-editor.js:1
 msgid "Failed to confirm contact."
 msgstr ""
 
-#: src/Api/Contacts.php:3258
+#: src/Api/Contacts.php:3272
 #: build/dist/js/mail-editor.js:1
 msgid "Contact confirmed successfully."
 msgstr ""
 
-#: src/Api/CountDown.php:201
-#: build/dist/js/mail-editor.js:1
-#: build/dist/js/mailerpress-pro-workflow.js:1
-msgid "Days"
-msgstr ""
-
-#: src/Api/CountDown.php:202
-#: build/dist/js/mailerpress-pro-workflow.js:1
-msgid "Hours"
-msgstr ""
-
-#: src/Api/CountDown.php:203
-#: build/dist/js/mailerpress-pro-workflow.js:1
-msgid "Minutes"
-msgstr ""
-
-#: src/Api/CountDown.php:204
-msgid "Seconds"
-msgstr ""
-
-#: src/Api/CountDown.php:216
+#: src/Api/CountDown.php:247
 msgid "This offer has expired"
 msgstr ""
 
@@ -2885,7 +2865,7 @@ msgstr ""
 msgid "An error occurred while removing the pattern."
 msgstr ""
 
-#: src/Api/Permissions.php:59
+#: src/Api/Permissions.php:60
 msgid "API key missing required scope: %s"
 msgstr ""
 
@@ -3357,7 +3337,7 @@ msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1868
 #: src/Core/Workflows/Services/EmailContentRenderer.php:480
-#: src/Core/Workflows/Services/MergeTagBuilder.php:303
+#: src/Core/Workflows/Services/MergeTagBuilder.php:291
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mailerpress-pro-workflow.js:1
 msgid "Product"
@@ -3365,21 +3345,21 @@ msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1874
 #: src/Core/Workflows/Services/EmailContentRenderer.php:481
-#: src/Core/Workflows/Services/MergeTagBuilder.php:304
+#: src/Core/Workflows/Services/MergeTagBuilder.php:292
 #: build/dist/js/mail-editor.js:1
 msgid "Quantity"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1880
 #: src/Core/Workflows/Services/EmailContentRenderer.php:482
-#: src/Core/Workflows/Services/MergeTagBuilder.php:305
+#: src/Core/Workflows/Services/MergeTagBuilder.php:293
 #: build/dist/js/mail-editor.js:1
 msgid "Price"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1886
 #: src/Core/Workflows/Services/EmailContentRenderer.php:483
-#: src/Core/Workflows/Services/MergeTagBuilder.php:306
+#: src/Core/Workflows/Services/MergeTagBuilder.php:294
 #: build/dist/js/mail-editor.js:1
 msgid "Total"
 msgstr ""
@@ -3629,6 +3609,10 @@ msgstr ""
 
 #: src/Core/Notifications/Messages/ThirdPartySMTPDetectedNotification.php:72
 msgid "Configure ESP"
+msgstr ""
+
+#: src/Core/Notifications/Messages/WafRestApiNotification.php:19
+msgid "If MailerPress admin tools return JSON or API errors, a server firewall such as 7G Nginx Firewall may be blocking MailerPress REST requests. Whitelist trusted MailerPress endpoints under /wp-json/mailerpress/v1/ in your WAF configuration."
 msgstr ""
 
 #: src/Core/Notifications/Messages/WelcomeNotification.php:20
@@ -4926,6 +4910,10 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Link"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Number color"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -8272,11 +8260,58 @@ msgid "Create structured content in rows and columns to display information - (B
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Language"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Visible units"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Show labels"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Display text labels below the numbers"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+#: build/dist/js/mailerpress-pro-workflow.js:1
+msgid "Days"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+#: build/dist/js/mailerpress-pro-workflow.js:1
+msgid "Hours"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+#: build/dist/js/mailerpress-pro-workflow.js:1
+msgid "Minutes"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Seconds"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "Number font size"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Label font size"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Animation"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Animation duration (seconds)"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Loop count (0 = infinite)"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1

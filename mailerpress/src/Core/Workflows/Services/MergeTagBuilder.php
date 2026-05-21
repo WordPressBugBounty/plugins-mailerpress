@@ -99,25 +99,13 @@ class MergeTagBuilder
 
         $batchIdInt = !empty($batchId) ? (int) $batchId : null;
 
-        $token = \MailerPress\Core\HtmlParser::generateTrackOpenToken(
+        return \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
             $contactId,
             $templateId,
             $batchIdInt,
             (int) $job->getId(),
             (string) $step->getStepId()
         );
-
-        if (empty($batchId)) {
-            return \get_rest_url(null, \sprintf(
-                'mailerpress/v1/campaign/track-open?token=%s',
-                \urlencode($token)
-            ));
-        }
-
-        return \get_rest_url(null, \sprintf(
-            'mailerpress/v1/campaign/track-open?token=%s',
-            \urlencode($token)
-        ));
     }
 
     private function addCustomFields(array &$variables, int $contactId): void

@@ -258,6 +258,8 @@ class MailerPressEmailBatch
                     // Split contacts into smaller chunks for Laravel
                     $sendingChunks = array_chunk($contacts, 1000);
 
+                    $preprocessedHtml = HtmlParser::preprocessBody($htmlContent);
+
                     foreach ($sendingChunks as $sendingChunk) {
 
 
@@ -267,7 +269,7 @@ class MailerPressEmailBatch
                             'wp_batch_id' => $batch_id,
                             'domain_id' => $servicesData['services']['mailerpress']['conf']['domain'],
                             'name' => $subject,
-                            'emails' => array_map(function ($c) use ($htmlContent, $subject, $batch_id, $post, $parser, $openTracking, $clickTracking) {
+                            'emails' => array_map(function ($c) use ($preprocessedHtml, $subject, $batch_id, $post, $parser, $openTracking, $clickTracking) {
                                 $contact = Kernel::getContainer()->get(Contacts::class)->get($c);
 
                                 $trackContactId = ('anonymously' === $openTracking) ? 0 : (int) $contact->contact_id;
@@ -294,20 +296,14 @@ class MailerPressEmailBatch
                                 ];
 
                                 if ( 'no' !== $openTracking ) {
-                                    $contact_variables['TRACK_OPEN'] = get_rest_url(
-                                        null,
-                                        sprintf(
-                                            'mailerpress/v1/campaign/track-open?token=%s',
-                                            HtmlParser::generateTrackOpenToken(
-                                                $trackContactId,
-                                                (int) $post,
-                                                (int) $batch_id
-                                            )
-                                        )
+                                    $contact_variables['TRACK_OPEN'] = HtmlParser::generateTrackOpenUrl(
+                                        $trackContactId,
+                                        (int) $post,
+                                        (int) $batch_id
                                     );
                                 }
 
-                                $body = $parser->init( $htmlContent, $contact_variables )->replaceVariables( $clickTracking );
+                                $body = $parser->init( $preprocessedHtml, $contact_variables )->replaceVariables( $clickTracking );
 
                                 return [
                                     'to'      => $contact->email,
@@ -398,6 +394,10 @@ class MailerPressEmailBatch
                 );
 
                 // Étape 3 : Diviser en chunks et planifier
+                // Store HTML once per batch instead of duplicating in every chunk
+                $batchHtmlTransientKey = 'mailerpress_batch_' . $batch_id . '_html_processed';
+                set_transient($batchHtmlTransientKey, $htmlContent, 0);
+
                 $sendingChunks = array_chunk($allContactIds, $numberEmail);
 
                 foreach ($sendingChunks as $sendingChunk) {
@@ -405,7 +405,6 @@ class MailerPressEmailBatch
 
                     // Préparer données du chunk
                     $chunkData = [
-                        'html' => $htmlContent,
                         'campaignId' => $post,
                         'subject' => $config['subject'],
                         'sender_name' => $config['fromName'],
@@ -450,6 +449,8 @@ class MailerPressEmailBatch
 
                     $chunk_index++;
                 }
+
+                ChunkWorker::ensureWorkerRunning();
 
                 // Déclencher l'événement pour notifier que le batch est prêt
                 do_action('mailerpress_batch_event', $status, $post, $batch_id);

@@ -155,6 +155,9 @@ class Dashboard
 
             // Appliquer les données préchargées
             foreach ($results as &$result) {
+                $result->content_html = ! empty( $result->content_html ) ? json_decode( $result->content_html, true ) : null;
+                $result->config       = ! empty( $result->config ) ? json_decode( $result->config, true ) : null;
+
                 if (!empty($result->batch_id) && isset($batches_map[$result->batch_id])) {
                     $batch_data = $batches_map[$result->batch_id];
                     if (isset($statistics_map[$result->batch_id])) {
@@ -169,6 +172,8 @@ class Dashboard
             }
         } else {
             foreach ($results as &$result) {
+                $result->content_html = ! empty( $result->content_html ) ? json_decode( $result->content_html, true ) : null;
+                $result->config       = ! empty( $result->config ) ? json_decode( $result->config, true ) : null;
                 $result->batch = null;
                 $result->statistics = null;
             }

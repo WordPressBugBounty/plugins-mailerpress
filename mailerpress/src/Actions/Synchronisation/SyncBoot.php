@@ -19,11 +19,7 @@ class SyncBoot
         $this->manager = $manager;
     }
 
-    /**
-     * Register all available connectors and boot hooks for active ones.
-     * Priority 20 ensures this runs after general plugin setup (priority 10).
-     */
-    #[Action('plugins_loaded', priority: 20)]
+    #[Action('init', priority: 5)]
     public function boot(): void
     {
         // Register stub — replaced by real connector when Pro is active

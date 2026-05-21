@@ -37,6 +37,11 @@ class Init
             'index.php?mailerpress_tracking_token=$matches[1]',
             'top'
         );
+        add_rewrite_rule(
+            '^mp/o/([^/]+)/?',
+            'index.php?mailerpress_open_token=$matches[1]',
+            'top'
+        );
     }
 
     /**
@@ -156,6 +161,7 @@ class Init
         $vars[] = 'unsubscribe_user';
         $vars[] = 'unsubscribe_token';
         $vars[] = 'mailerpress_tracking_token';
+        $vars[] = 'mailerpress_open_token';
 
         return $vars;
     }

@@ -170,7 +170,7 @@ class Kernel
             if (\is_array($value)) {
                 $result = array_merge($result, self::array_flatten($value));
             } else {
-                $result[$key] = $value;
+                $result[] = $value;
             }
         }
 

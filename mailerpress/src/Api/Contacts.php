@@ -893,7 +893,7 @@ class Contacts
             ?? $request->get_param('lastName')
             ?? ''
         );
-        $subscription_status = sanitize_text_field(
+        $requested_subscription_status = sanitize_text_field(
             $request->get_param('contactStatus')
             ?? $request->get_param('subscription_status')
             ?? $request->get_param('subscriptionStatus')
@@ -901,10 +901,24 @@ class Contacts
         );
         $contactTags = $request->get_param('tags') ?? [];
         $contactLists = $request->get_param('lists') ?? [];
-        $optinSource = $request->get_param('opt_in_source') ?? 'unknown';
+        $optinSource = sanitize_text_field($request->get_param('opt_in_source') ?? 'unknown');
         $optinDetails = $request->get_param('optin_details') ?? '';
         $customFields = $request->get_param('custom_fields') ?? [];
         $lang = sanitize_text_field($request->get_param('lang') ?? '');
+
+        $isTrustedSubmission = !empty($GLOBALS['mailerpress_internal_php_call'])
+            || !empty($request->get_param('_api_key_id'))
+            || (is_user_logged_in() && current_user_can('edit_posts'));
+
+        $subscription_status = '';
+        $allowedSubscriptionStatuses = ['subscribed', 'pending', 'unsubscribed'];
+        if ($isTrustedSubmission && in_array($requested_subscription_status, $allowedSubscriptionStatuses, true)) {
+            $subscription_status = $requested_subscription_status;
+        }
+
+        if (!$isTrustedSubmission && in_array($optinSource, ['manual', 'batch_import_file'], true)) {
+            $optinSource = 'custom_form';
+        }
 
         // Honeypot protection: if honeypot is enabled and field is filled, reject silently
         if (\MailerPress\Services\RateLimitConfig::isHoneypotEnabled()) {
@@ -962,9 +976,9 @@ class Contacts
             $unsubscribe_token = wp_generate_uuid4();
             $singUpConfirmation = mailerpress_get_signup_confirmation_option();
 
-            // Déterminer le statut d'abonnement final
-            // Si un statut explicite est fourni (et n'est pas vide), l'utiliser
-            // Sinon, appliquer les paramètres globaux de double opt-in
+            // Déterminer le statut d'abonnement final.
+            // Les statuts explicites et les sources qui contournent la confirmation
+            // ne sont honorés que pour les appels internes/admin/API.
             $finalSubscriptionStatus = $subscription_status;
 
             if (empty($subscription_status)) {

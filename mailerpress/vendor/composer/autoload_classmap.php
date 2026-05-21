@@ -793,6 +793,7 @@ return array(
     'MailerPress\\Core\\Notifications\\Messages\\PrimaryProviderDisabledNotification' => $baseDir . '/src/Core/Notifications/Messages/PrimaryProviderDisabledNotification.php',
     'MailerPress\\Core\\Notifications\\Messages\\ProductUpdateNotification' => $baseDir . '/src/Core/Notifications/Messages/ProductUpdateNotification.php',
     'MailerPress\\Core\\Notifications\\Messages\\ThirdPartySMTPDetectedNotification' => $baseDir . '/src/Core/Notifications/Messages/ThirdPartySMTPDetectedNotification.php',
+    'MailerPress\\Core\\Notifications\\Messages\\WafRestApiNotification' => $baseDir . '/src/Core/Notifications/Messages/WafRestApiNotification.php',
     'MailerPress\\Core\\Notifications\\Messages\\WelcomeNotification' => $baseDir . '/src/Core/Notifications/Messages/WelcomeNotification.php',
     'MailerPress\\Core\\Notifications\\Messages\\WorkflowFailedJobsNotification' => $baseDir . '/src/Core/Notifications/Messages/WorkflowFailedJobsNotification.php',
     'MailerPress\\Core\\Notifications\\NotificationBootstrap' => $baseDir . '/src/Core/Notifications/NotificationBootstrap.php',

@@ -13,7 +13,7 @@ class Media
     #[Endpoint(
         'upload-image',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canUploadMedia'],
     )]
     public function uploadImageByUrl(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

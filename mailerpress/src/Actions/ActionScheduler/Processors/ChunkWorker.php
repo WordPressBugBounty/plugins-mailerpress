@@ -52,24 +52,10 @@ class ChunkWorker
             self::MAX_CHUNKS_PER_RUN
         ));
 
-        // Debug : afficher les prochains chunks à venir
         if (empty($pending_chunks)) {
-            $upcoming = $wpdb->get_results($wpdb->prepare(
-                "SELECT id, batch_id, scheduled_at, TIMESTAMPDIFF(SECOND, %s, scheduled_at) as seconds_until
-                FROM {$chunksTable}
-                WHERE status = 'pending'
-                ORDER BY scheduled_at ASC
-                LIMIT 3",
-                $now
-            ));
-            if (!empty($upcoming)) {
-                foreach ($upcoming as $u) {
-                    $minutes = round($u->seconds_until / 60, 1);
-                }
+            if (!self::hasPendingChunks()) {
+                self::unregisterRecurringWorker();
             }
-        }
-
-        if (empty($pending_chunks)) {
             return;
         }
 
@@ -94,6 +80,10 @@ class ChunkWorker
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        if (!self::hasPendingChunks()) {
+            self::unregisterRecurringWorker();
         }
     }
 
@@ -131,18 +121,17 @@ class ChunkWorker
     #[Action('init', priority: 10, acceptedArgs: 0)]
     public static function registerRecurringWorker(): void
     {
-        // Vérifier si le worker est déjà schedulé
-        if (!as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress')) {
-            // Scheduler le worker pour qu'il s'exécute toutes les 1 minute
-            // Il ne traite qu'1 chunk par run, donc rate limiting respecté
-            as_schedule_recurring_action(
-                time() + 60, // Démarre dans 1 minute
-                1 * MINUTE_IN_SECONDS, // Toutes les 1 minute
-                'mailerpress_process_pending_chunks',
-                [],
-                'mailerpress'
-            );
-            Logger::info('ChunkWorker: Recurring worker registered (every 1 minute, 1 chunk per run)');
+        if (!\function_exists('as_next_scheduled_action')) {
+            return;
+        }
+
+        $isScheduled = (bool) as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress');
+        $hasPending = self::hasPendingChunks();
+
+        if ($isScheduled && !$hasPending) {
+            self::unregisterRecurringWorker();
+        } elseif (!$isScheduled && $hasPending) {
+            self::ensureWorkerRunning();
         }
     }
 
@@ -153,7 +142,37 @@ class ChunkWorker
      */
     public static function unregisterRecurringWorker(): void
     {
-        as_unschedule_all_actions('mailerpress_process_pending_chunks', [], 'mailerpress');
-        Logger::info('ChunkWorker: Recurring worker unregistered');
+        if (\function_exists('as_unschedule_all_actions')) {
+            as_unschedule_all_actions('mailerpress_process_pending_chunks', [], 'mailerpress');
+            Logger::info('ChunkWorker: Worker stopped — no pending chunks');
+        }
+    }
+
+    public static function hasPendingChunks(): bool
+    {
+        global $wpdb;
+        $chunksTable = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
+
+        return (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$chunksTable} WHERE status IN ('pending', 'processing')"
+        ) > 0;
+    }
+
+    public static function ensureWorkerRunning(): void
+    {
+        if (!\function_exists('as_next_scheduled_action')) {
+            return;
+        }
+
+        if (!as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress')) {
+            as_schedule_recurring_action(
+                time() + 60,
+                1 * MINUTE_IN_SECONDS,
+                'mailerpress_process_pending_chunks',
+                [],
+                'mailerpress'
+            );
+            Logger::info('ChunkWorker: Worker activated — pending chunks detected');
+        }
     }
 }

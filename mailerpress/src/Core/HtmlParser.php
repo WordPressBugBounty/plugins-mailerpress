@@ -11,6 +11,39 @@ final class HtmlParser
     private string $htmlContent = '';
     private array $variables = [];
     private ?string $anonymousKey = null;
+    private static array $productUrlCache = [];
+
+    /**
+     * Pre-process HTML body once before the per-recipient loop.
+     *
+     * Strips editor-only markup (emoji spans, merge-tag wrapper spans,
+     * inline styles on merge-tag placeholders) that is identical for
+     * every recipient. These regexes are idempotent, so calling
+     * replaceVariables() afterwards is safe — the patterns simply
+     * won't match a second time.
+     */
+    public static function preprocessBody(string $html): string
+    {
+        $html = preg_replace(
+            '#<span[^>]*data-emoji-id=["\'][^"\']*["\'][^>]*>(.*?)</span>#i',
+            '$1',
+            $html
+        );
+
+        $html = preg_replace(
+            '#<span[^>]*(?:class=["\'][^"\']*\bmerge-tag-span\b[^"\']*["\']|data-merge-tag-id=["\'][^"\']*["\'])[^>]*>(.*?)</span>#is',
+            '$1',
+            $html
+        );
+
+        $html = preg_replace(
+            '#<span[^>]*style=["\'][^"\']*background[^"\']*["\'][^>]*>({{[^}]+}})</span>#is',
+            '$1',
+            $html
+        );
+
+        return $html;
+    }
 
     /**
      * Initialize parser with HTML and variables.
@@ -41,7 +74,7 @@ final class HtmlParser
 
             if (!$trackingAlreadyPresent) {
                 $trackingTable = sprintf(
-                    '<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="1" height="1" style="display:none;"><tr><td><img src="%s" alt="" width="1" height="1" style="display:block;"/></td></tr></table>',
+                    '<img src="%s" width="1" height="1" alt="" border="0" style="height:1px!important;width:1px!important;border:0!important;margin:0!important;padding:0!important" />',
                     $trackingUrl
                 );
 
@@ -246,8 +279,13 @@ final class HtmlParser
 
     private function mailerpress_product_url_to_id($url)
     {
+        if (isset(self::$productUrlCache[$url])) {
+            return self::$productUrlCache[$url];
+        }
+
         $parsed = \wp_parse_url($url);
         if (empty($parsed['path'])) {
+            self::$productUrlCache[$url] = 0;
             return 0;
         }
 
@@ -256,6 +294,7 @@ final class HtmlParser
         $slug = end($segments);
 
         if (!$slug) {
+            self::$productUrlCache[$url] = 0;
             return 0;
         }
 
@@ -271,7 +310,9 @@ final class HtmlParser
             )
         );
 
-        return $product_id ?: 0;
+        $result = $product_id ?: 0;
+        self::$productUrlCache[$url] = $result;
+        return $result;
     }
 
 
@@ -372,6 +413,18 @@ final class HtmlParser
         $encoded = base64_encode($payload . '::' . $signature);
 
         return rtrim(strtr($encoded, '+/', '-_'), '=');
+    }
+
+    public static function generateTrackOpenUrl(
+        int $contactId,
+        int $campaignId,
+        ?int $batchId = null,
+        ?int $jobId = null,
+        ?string $stepId = null,
+        ?string $anonymousKey = null
+    ): string {
+        $token = self::generateTrackOpenToken($contactId, $campaignId, $batchId, $jobId, $stepId, $anonymousKey);
+        return \home_url('/mp/o/' . rawurlencode($token));
     }
 
     /**

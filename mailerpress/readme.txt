@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -225,6 +225,17 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.4 =
+* IMPROVEMENT: More reliable open tracking, with faster pixel responses and improved accuracy across email clients.
+* IMPROVEMENT: Smarter sending performance that reduces server load by running workers only when emails are waiting to be sent.
+* IMPROVEMENT: Faster and smoother batch sending for larger campaigns, helping high-volume newsletters move through the queue more efficiently.
+* FIX: Automation email templates now open more reliably on sites where third-party plugins perform database activity during campaign creation.
+* FIX: Gmail connection is now smoother and more dependable during OAuth setup.
+* FIX: Gmail accounts now stay connected correctly after the first authorization instead of appearing expired right away.
+* FIX: Contact export emails are now sent correctly by ensuring the export Action Scheduler callbacks are registered.
+* FIX: The "View in Browser" link now stays in place after editing text blocks.
+* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
+
 = 2.0.3 =
 * NEW: Introduced the new Product Review block for post-purchase review request emails with dynamic product cards and “Leave a Review” buttons
 * IMPROVEMENT: Added new ESP sending configurations for improved flexibility and compatibility

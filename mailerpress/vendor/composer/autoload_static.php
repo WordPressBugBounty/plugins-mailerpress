@@ -1022,6 +1022,7 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Core\\Notifications\\Messages\\PrimaryProviderDisabledNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/PrimaryProviderDisabledNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\ProductUpdateNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/ProductUpdateNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\ThirdPartySMTPDetectedNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/ThirdPartySMTPDetectedNotification.php',
+        'MailerPress\\Core\\Notifications\\Messages\\WafRestApiNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WafRestApiNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\WelcomeNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WelcomeNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\WorkflowFailedJobsNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WorkflowFailedJobsNotification.php',
         'MailerPress\\Core\\Notifications\\NotificationBootstrap' => __DIR__ . '/../..' . '/src/Core/Notifications/NotificationBootstrap.php',

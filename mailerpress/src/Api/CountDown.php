@@ -37,11 +37,18 @@ class CountDown
         $loopSec = min(max(0, intval($request['loop'] ?? 60)), 120);
         $iterations = min(max(intval($request['iterations'] ?? 1), 0), 10);
         $delay = min(max(intval($request['delay'] ?? 100), 10), 1000);
-        $lang = sanitize_text_field($request['lang'] ?? '');
+        $lang = sanitize_text_field($request['lang'] ?? 'en');
 
         // Custom font sizes
         $fontSizeNumParam = $request['font_size_number'] ?? 0;
         $fontSizeLblParam = $request['font_size_label'] ?? 0;
+
+        // Visible units
+        $showLabels = ($request['show_labels'] ?? '1') === '1';
+        $showDays = ($request['show_days'] ?? '1') === '1';
+        $showHours = ($request['show_hours'] ?? '1') === '1';
+        $showMinutes = ($request['show_minutes'] ?? '1') === '1';
+        $showSeconds = ($request['show_seconds'] ?? '1') === '1';
 
         // Prepare hash config
         $hash = md5(json_encode([
@@ -57,7 +64,12 @@ class CountDown
             $delay,
             $lang,
             $fontSizeNumParam,
-            $fontSizeLblParam
+            $fontSizeLblParam,
+            $showLabels,
+            $showDays,
+            $showHours,
+            $showMinutes,
+            $showSeconds,
         ]));
 
         $config = [
@@ -74,6 +86,11 @@ class CountDown
             'lang' => $lang,
             'fontSizeNumParam' => $fontSizeNumParam,
             'fontSizeLblParam' => $fontSizeLblParam,
+            'showLabels' => $showLabels,
+            'showDays' => $showDays,
+            'showHours' => $showHours,
+            'showMinutes' => $showMinutes,
+            'showSeconds' => $showSeconds,
             'hash' => $hash
         ];
 
@@ -168,10 +185,9 @@ class CountDown
 
         $now = new DateTime('now', $tz);
         $secondsLeft = max(0, $target->getTimestamp() - $now->getTimestamp());
-        // Cancel scheduled action if countdown finished
-        if ($secondsLeft <= 0) {
-            // Rebuild final expired GIF
+            if ($secondsLeft <= 0) {
             $this->buildGif($campaignId, $imageName, $config, $filePath, $hashPath);
+            self::markForCleanup($campaignId, $imageName);
             return;
         }
 
@@ -197,20 +213,35 @@ class CountDown
         $bgPixel = $this->safePixel( $bgColor, 'transparent' );
 
         // Labels
-        $labels = [
-            __('Days', 'mailerpress'),
-            __('Hours', 'mailerpress'),
-            __('Minutes', 'mailerpress'),
-            __('Seconds', 'mailerpress'),
-        ];
-        $translations = [
+        $allTranslations = [
+            'en' => ['Days', 'Hours', 'Minutes', 'Seconds'],
             'fr' => ['Jours', 'Heures', 'Minutes', 'Secondes'],
             'es' => ['Días', 'Horas', 'Minutos', 'Segundos'],
             'de' => ['Tage', 'Stunden', 'Minuten', 'Sekunden'],
             'it' => ['Giorni', 'Ore', 'Minuti', 'Secondi'],
         ];
-        if ($lang && isset($translations[$lang])) {
-            $labels = $translations[$lang];
+        $allLabels = $allTranslations[$lang] ?? $allTranslations['en'];
+
+        // Visible units
+        $showLabels  = $config['showLabels'] ?? true;
+        $showDays    = $config['showDays'] ?? true;
+        $showHours   = $config['showHours'] ?? true;
+        $showMinutes = $config['showMinutes'] ?? true;
+        $showSeconds = $config['showSeconds'] ?? true;
+
+        $visibleMask = [$showDays, $showHours, $showMinutes, $showSeconds];
+        $labels = [];
+        foreach ( $allLabels as $i => $label ) {
+            if ( $visibleMask[$i] ) {
+                $labels[] = $label;
+            }
+        }
+
+        $unitCount = count($labels);
+        if ( 0 === $unitCount ) {
+            $unitCount   = 4;
+            $labels      = $allLabels;
+            $visibleMask = [true, true, true, true];
         }
 
         $passedLabel = __('This offer has expired', 'mailerpress');
@@ -228,8 +259,8 @@ class CountDown
 
         $animation = new Imagick();
 
-        // Layout
-        $blockWidth = intval($width / 4);
+        // Layout — divide width equally among visible units
+        $blockWidth  = intval($width / $unitCount);
         $blockHeight = intval($height * 0.6);
 
         // Font sizes
@@ -237,7 +268,6 @@ class CountDown
         $fontSizeLbl = $fontSizeLblParam > 0 ? intval($fontSizeLblParam) : intval($height * 0.15);
 
         if ($secondsLeft === 0) {
-            // Expired frame
             $im = new Imagick();
             $im->newImage($width, $height, $bgPixel);
             $im->setImageFormat('gif');
@@ -255,17 +285,19 @@ class CountDown
             for ($i = 0; $i < $framesCount; $i++) {
                 $remaining = $secondsLeft - $i;
 
-                $days = intdiv($remaining, 86400);
-                $hours = intdiv($remaining % 86400, 3600);
-                $minutes = intdiv($remaining % 3600, 60);
-                $seconds = $remaining % 60;
-
-                $values = [
-                    sprintf('%02d', $days),
-                    sprintf('%02d', $hours),
-                    sprintf('%02d', $minutes),
-                    sprintf('%02d', $seconds),
+                $allValues = [
+                    sprintf('%02d', intdiv($remaining, 86400)),
+                    sprintf('%02d', intdiv($remaining % 86400, 3600)),
+                    sprintf('%02d', intdiv($remaining % 3600, 60)),
+                    sprintf('%02d', $remaining % 60),
                 ];
+
+                $values = [];
+                foreach ( $allValues as $idx => $val ) {
+                    if ( $visibleMask[$idx] ) {
+                        $values[] = $val;
+                    }
+                }
 
                 $im = new Imagick();
                 $im->newImage($width, $height, $bgPixel);
@@ -280,7 +312,6 @@ class CountDown
                     $xCenter = ($blockWidth * $idx) + ($blockWidth / 2);
                     $yTop = $height * 0.15;
 
-                    // Box
                     $box = new ImagickDraw();
                     $box->setFillColor($this->safePixel( $boxColor, '#000000' ));
                     $box->roundRectangle(
@@ -292,15 +323,15 @@ class CountDown
                     );
                     $im->drawImage($box);
 
-                    // Number
                     $draw->setFontSize($fontSizeNum);
                     $draw->setFillColor($this->safePixel( $numberColor, '#ffffff' ));
                     $im->annotateImage($draw, $xCenter, $yTop + ($blockHeight / 2) + ($fontSizeNum / 3), 0, $val);
 
-                    // Label
-                    $draw->setFontSize($fontSizeLbl);
-                    $draw->setFillColor($this->safePixel( $fontColor, '#000000' ));
-                    $im->annotateImage($draw, $xCenter, $height - 10, 0, $labels[$idx]);
+                    if ( $showLabels ) {
+                        $draw->setFontSize($fontSizeLbl);
+                        $draw->setFillColor($this->safePixel( $fontColor, '#000000' ));
+                        $im->annotateImage($draw, $xCenter, $height - 10, 0, $labels[$idx]);
+                    }
                 }
 
                 $im->setImageDelay($delay);
@@ -324,6 +355,60 @@ class CountDown
             return new ImagickPixel( '#' . $hex );
         }
         return new ImagickPixel( $fallback );
+    }
+
+    public static function markForCleanup(string $campaignId, string $imageName): void
+    {
+        $pending = get_option('mailerpress_countdown_cleanup', []);
+        $key = $campaignId . '::' . $imageName;
+        $pending[$key] = ['campaignId' => $campaignId, 'imageName' => $imageName];
+        update_option('mailerpress_countdown_cleanup', $pending, false);
+    }
+
+    public static function cleanupExpired(): void
+    {
+        if (!\function_exists('as_unschedule_all_actions')) {
+            return;
+        }
+
+        $pending = get_option('mailerpress_countdown_cleanup', []);
+        if (empty($pending)) {
+            return;
+        }
+
+        foreach ($pending as $entry) {
+            as_unschedule_all_actions(
+                'mailerpress_regenerate_countdown',
+                [$entry['campaignId'], $entry['imageName']],
+                'mailerpress'
+            );
+        }
+
+        delete_option('mailerpress_countdown_cleanup');
+    }
+
+    public static function unscheduleForCampaign(string $campaignId): void
+    {
+        if (!\function_exists('as_get_scheduled_actions')) {
+            return;
+        }
+
+        $actions = as_get_scheduled_actions([
+            'hook'   => 'mailerpress_regenerate_countdown',
+            'group'  => 'mailerpress',
+            'status' => \ActionScheduler_Store::STATUS_PENDING,
+        ], 'ARRAY_A');
+
+        foreach ($actions as $action) {
+            $args = $action['args'] ?? [];
+            if (!empty($args[0]) && (string) $args[0] === $campaignId) {
+                as_unschedule_all_actions(
+                    'mailerpress_regenerate_countdown',
+                    $args,
+                    'mailerpress'
+                );
+            }
+        }
     }
 
     private function getWpTimezone(): DateTimeZone

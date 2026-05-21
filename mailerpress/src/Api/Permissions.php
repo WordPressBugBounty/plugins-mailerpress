@@ -32,6 +32,7 @@ class Permissions
             Capabilities::DELETE_TAGS             => 'tags:write',
             Capabilities::MANAGE_TEMPLATES        => "templates:{$rw}",
             Capabilities::MANAGE_AUTOMATIONS      => "automations:{$rw}",
+            'upload_files'                        => 'campaigns:write',
         ];
 
         return $map[$capability] ?? null;
@@ -101,6 +102,11 @@ class Permissions
     public static function canEdit($request): bool|\WP_Error
     {
         return self::checkAuth($request, 'edit_posts');
+    }
+
+    public static function canUploadMedia($request): bool|\WP_Error
+    {
+        return self::checkAuth($request, 'upload_files');
     }
 
     public static function canManageCampaign($request): bool|\WP_Error

@@ -88,16 +88,10 @@ class MailerPressCreateBatch
                         )
                     ),
                     'CONTACT_NAME' => esc_html($contactEntity->first_name) . ' ' . esc_html($contactEntity->last_name),
-                    'TRACK_OPEN' => get_rest_url(
-                        null,
-                        \sprintf(
-                            'mailerpress/v1/campaign/track-open?token=%s',
-                            \MailerPress\Core\HtmlParser::generateTrackOpenToken(
-                                (int) $contactEntity->contact_id,
-                                (int) $campaign_id,
-                                (int) $batch_id
-                            )
-                        )
+                    'TRACK_OPEN' => \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
+                        (int) $contactEntity->contact_id,
+                        (int) $campaign_id,
+                        (int) $batch_id
                     ),
                     'contact_name' => \sprintf(
                         '%s %s',

@@ -107,6 +107,9 @@ class SendEmailJob extends BaseJob
 
             $delayBetweenEmails = $rateLimit > 0 ? (1000000 / $rateLimit) : 0; // Convert to microseconds (1 second = 1,000,000 microseconds)
 
+            $preprocessedBody = HtmlParser::preprocessBody($data['body']);
+
+            $statsToInsert = [];
 
             $emailIndex = 0;
             foreach ($recipientBatches as $recipient) {
@@ -119,7 +122,7 @@ class SendEmailJob extends BaseJob
                     // This ensures tracking is always present even with third-party SMTP plugins
                     $clickTracking = $data['clickTracking'] ?? 'yes';
                     $body = $parser->init(
-                        $data['body'],
+                        $preprocessedBody,
                         $variables
                     )->replaceVariables($clickTracking);
 
@@ -138,35 +141,12 @@ class SendEmailJob extends BaseJob
                         'batch_id' => $data['batch_id'] ?? null,
                     ]);
 
-                    // --- Insert default stats row if not exists ---
+                    // Collect stats for batch insert after the loop
                     if (!empty($recipient['id']) && !empty($recipient['campaign_id'])) {
-                        global $wpdb;
-                        $contactStatsTable = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
-
-                        $exists = $wpdb->get_var($wpdb->prepare(
-                            "SELECT id FROM {$contactStatsTable} WHERE contact_id = %d AND campaign_id = %d",
-                            $recipient['id'],
-                            $recipient['campaign_id']
-                        ));
-
-                        if (!$exists) {
-                            $wpdb->insert(
-                                $contactStatsTable,
-                                [
-                                    'contact_id' => $recipient['id'],
-                                    'campaign_id' => $recipient['campaign_id'],
-                                    'opened' => 0,
-                                    'clicked' => 0,
-                                    'click_count' => 0,
-                                    'last_click_at' => null,
-                                    'revenue' => 0,
-                                    'status' => 'neutral',
-                                    'created_at' => current_time('mysql'),
-                                    'updated_at' => current_time('mysql'),
-                                ],
-                                ['%d', '%d', '%d', '%d', '%d', '%s', '%f', '%s', '%s', '%s']
-                            );
-                        }
+                        $statsToInsert[] = [
+                            'contact_id' => (int) $recipient['id'],
+                            'campaign_id' => (int) $recipient['campaign_id'],
+                        ];
                     }
 
                     if ($result === true) {
@@ -213,7 +193,26 @@ class SendEmailJob extends BaseJob
                     if ($delayBetweenEmails > 0 && $emailIndex < count($recipientBatches) - 1) {
                         usleep((int)$delayBetweenEmails);
                     }
-                    
+
+                    // Free cyclic references from DOM parsing every 5 emails
+                    if ($emailIndex % 5 === 4) {
+                        gc_collect_cycles();
+                    }
+
+                    // Log warning if memory usage exceeds 80% of limit
+                    if ($emailIndex % 10 === 9) {
+                        $memUsage = memory_get_usage(true);
+                        $memLimit = $this->getMemoryLimitBytes();
+                        if ($memLimit > 0 && $memUsage > $memLimit * 0.8) {
+                            $this->log('Memory warning during batch send', [
+                                'batch_id' => $data['batch_id'] ?? 'unknown',
+                                'email_index' => $emailIndex,
+                                'memory_usage_mb' => round($memUsage / 1048576, 1),
+                                'memory_limit_mb' => round($memLimit / 1048576, 1),
+                            ]);
+                        }
+                    }
+
                     $emailIndex++;
                 } catch (Throwable $e) {
                     ++$countError;
@@ -243,6 +242,31 @@ class SendEmailJob extends BaseJob
                 }
             }
 
+
+            // Batch insert contact stats (replaces per-email SELECT+INSERT with single INSERT IGNORE)
+            if (!empty($statsToInsert)) {
+                global $wpdb;
+                $contactStatsTable = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
+                $now = current_time('mysql');
+
+                $placeholders = [];
+                $values = [];
+                foreach ($statsToInsert as $stat) {
+                    $placeholders[] = '(%d, %d, 0, 0, 0, NULL, 0, %s, %s, %s)';
+                    $values[] = $stat['contact_id'];
+                    $values[] = $stat['campaign_id'];
+                    $values[] = 'neutral';
+                    $values[] = $now;
+                    $values[] = $now;
+                }
+
+                $wpdb->query($wpdb->prepare(
+                    "INSERT IGNORE INTO {$contactStatsTable}
+                    (contact_id, campaign_id, opened, clicked, click_count, last_click_at, revenue, status, created_at, updated_at)
+                    VALUES " . implode(', ', $placeholders),
+                    ...$values
+                ));
+            }
 
             // Mettre à jour sent_emails et error_emails en une seule fois à la fin (plus efficace et évite les problèmes de concurrence)
             if (!empty($data['batch_id']) && ($countSuccess > 0 || $countError > 0)) {
@@ -390,6 +414,24 @@ class SendEmailJob extends BaseJob
         $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
         $logEntry = sprintf("[%s] %s%s\n", $timestamp, $message, $contextStr);
         file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+    }
+
+    private function getMemoryLimitBytes(): int
+    {
+        $limit = ini_get('memory_limit');
+        if ( '-1' === $limit ) {
+            return 0;
+        }
+
+        $unit = strtolower(substr($limit, -1));
+        $value = (int) $limit;
+
+        return match ($unit) {
+            'g' => $value * 1073741824,
+            'm' => $value * 1048576,
+            'k' => $value * 1024,
+            default => $value,
+        };
     }
 
     /**

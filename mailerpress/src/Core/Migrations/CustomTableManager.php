@@ -7,7 +7,7 @@ namespace MailerPress\Core\Migrations;
 class CustomTableManager
 {
     protected string $tableName;
-    protected string $version = '2.0.3';
+    protected string $version = '2.0.4';
     protected string $versionOptionName;
     protected array $columns = [];
     protected array|string|null $primaryKey = null;
@@ -577,7 +577,7 @@ class CustomTableManager
             if (
                 $this->isCreateOperation ||
                 $installedVersion === false ||
-                $this->version === '2.0.3' ||
+                $this->version === '2.0.4' ||
                 version_compare($this->version, (string) $installedVersion, '>')
             ) {
                 update_option($this->versionOptionName, $this->version, false);
