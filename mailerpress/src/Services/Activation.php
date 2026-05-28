@@ -20,6 +20,7 @@ class Activation
     public function activate(): void
     {
         update_option('mailerpress_activated', 'yes');
+        add_option('mailerpress_installed_at', time(), '', false);
         $this->addDefaultPage();
         \MailerPress\Core\CapabilitiesManager::addCapabilities();
 

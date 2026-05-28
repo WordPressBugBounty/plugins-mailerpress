@@ -29,10 +29,11 @@ class TableManager
         $installedVersion = get_option('mailerpress_plugin_version');
         $versionChanged = $installedVersion !== $current_version;
 
-        // Always check migrations if version changed (production updates)
-        // In development mode (WP_DEBUG), also check even if version unchanged
-        // to allow testing migration file changes without modifying wp-config
-        $isDevelopment = defined('WP_DEBUG') && WP_DEBUG;
+        // Always check migrations if version changed. Local migration polling must be explicitly enabled.
+        $isDevelopment = (bool) apply_filters(
+            'mailerpress_dev_migrations_enabled',
+            defined('MAILERPRESS_DEV_MIGRATIONS') && MAILERPRESS_DEV_MIGRATIONS
+        );
 
         // Skip migration check ONLY if:
         // - Version hasn't changed AND

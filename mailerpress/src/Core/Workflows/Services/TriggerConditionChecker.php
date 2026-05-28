@@ -28,6 +28,7 @@ class TriggerConditionChecker
             'contact_subscribed', 'user_login', 'profile_updated' => $this->checkUserRoleFilter($settings, $context),
             'woocommerce_abandoned_cart' => $this->checkWoocommerceAbandonedCart($settings, $context),
             'tag_added' => $this->checkTagAdded($settings, $context),
+            'list_added' => $this->checkListAdded($settings, $context),
             'woocommerce_subscription_status_changed' => $this->checkWoocommerceSubscriptionStatusChanged($settings, $context),
             'contact_custom_field_updated' => $this->checkContactCustomFieldUpdated($settings, $context),
             'surecart_order_created' => $this->checkSurecartOrderCreated($settings, $context),
@@ -225,6 +226,19 @@ class TriggerConditionChecker
             $requiredTagId = (int) $requiredTagId;
             $contextTagId = (int) $context['tag_id'];
             if ($contextTagId !== $requiredTagId) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private function checkListAdded(array $settings, array $context): bool
+    {
+        $requiredListId = $settings['list_id'] ?? null;
+        if ($requiredListId && isset($context['list_id'])) {
+            $requiredListId = (int) $requiredListId;
+            $contextListId = (int) $context['list_id'];
+            if ($contextListId !== $requiredListId) {
                 return false;
             }
         }

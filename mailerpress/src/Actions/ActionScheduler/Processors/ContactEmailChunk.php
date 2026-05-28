@@ -483,6 +483,10 @@ class ContactEmailChunk
             ['%d']
         );
 
+        if (!ChunkWorker::hasPendingChunks()) {
+            ChunkWorker::markNoPendingChunks();
+            ChunkWorker::unregisterRecurringWorker();
+        }
 
         // Optionally mark batch as failed if too many chunks failed
         // (This can be implemented later in Phase 3)

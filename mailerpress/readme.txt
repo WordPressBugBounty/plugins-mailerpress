@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.4
+Stable tag: 2.0.5
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -154,6 +154,10 @@ MailerPress is fully GDPR-compliant and privacy-first. No data is collected by u
 
 MailerPress is available in English, French, Spanish, Dutch, and Arabic. <a href="https://translate.wordpress.org/projects/wp-plugins/mailerpress/">Help translate MailerPress</a> into your language.
 
+= From the same team =
+
+<a href="https://wordpress.org/plugins/wp-seopress/">Try SEOPress, the best SEO plugin for WordPress</a>
+
 == Installation ==
 
 1. Upload the plugin files to the `/wp-content/plugins/mailerpress` directory, or install the plugin through the WordPress plugins screen directly.
@@ -225,6 +229,14 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.5 =
+* IMPROVEMENT: Smoother contact management across imports, APIs, workflows, and webhooks.
+* IMPROVEMENT: Better CSV imports with cleaner field mapping and more reliable large-file processing.
+* IMPROVEMENT: Query Block filtering is now easier to extend for advanced Post Meta and ACF use cases.
+* IMPROVEMENT: Action Scheduler checks and chunk workers now run with less overhead and stop recurring workers when no chunks remain.
+* FIX: Automated campaigns now keep their schedule in sync when deactivated, restored, trashed, or deleted.
+* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
+
 = 2.0.4 =
 * IMPROVEMENT: More reliable open tracking, with faster pixel responses and improved accuracy across email clients.
 * IMPROVEMENT: Smarter sending performance that reduces server load by running workers only when emails are waiting to be sent.

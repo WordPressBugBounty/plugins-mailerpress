@@ -20,6 +20,11 @@ use MailerPress\Services\Logger;
  */
 class ChunkWorker
 {
+    private const PENDING_CHUNKS_OPTION = 'mailerpress_has_pending_chunks';
+    private const WORKER_CLEANUP_CHECK_TRANSIENT = 'mailerpress_pending_chunks_cleanup_check';
+    private const WORKER_STATE_CHECK_TRANSIENT = 'mailerpress_pending_chunks_state_check';
+    private const WORKER_STATE_CHECK_TTL = 60;
+
     /**
      * Nombre maximum de chunks à traiter par run
      * = 1 pour respecter le rate limiting
@@ -54,6 +59,7 @@ class ChunkWorker
 
         if (empty($pending_chunks)) {
             if (!self::hasPendingChunks()) {
+                self::markNoPendingChunks();
                 self::unregisterRecurringWorker();
             }
             return;
@@ -83,6 +89,7 @@ class ChunkWorker
         }
 
         if (!self::hasPendingChunks()) {
+            self::markNoPendingChunks();
             self::unregisterRecurringWorker();
         }
     }
@@ -125,12 +132,31 @@ class ChunkWorker
             return;
         }
 
-        $isScheduled = (bool) as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress');
-        $hasPending = self::hasPendingChunks();
+        $state = get_option(self::PENDING_CHUNKS_OPTION, null);
 
-        if ($isScheduled && !$hasPending) {
-            self::unregisterRecurringWorker();
-        } elseif (!$isScheduled && $hasPending) {
+        if ($state === 'no') {
+            if (self::shouldRunWorkerCheck(self::WORKER_CLEANUP_CHECK_TRANSIENT)) {
+                self::unregisterRecurringWorkerIfScheduled();
+            }
+            return;
+        }
+
+        if ($state === 'yes' && self::shouldRunWorkerCheck(self::WORKER_STATE_CHECK_TRANSIENT)) {
+            if (!self::hasPendingChunks()) {
+                self::markNoPendingChunks();
+                self::unregisterRecurringWorker();
+                return;
+            }
+        }
+
+        if ($state === null && !self::shouldHaveWorker()) {
+            self::unregisterRecurringWorkerIfScheduled();
+            return;
+        }
+
+        $isScheduled = (bool) as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress');
+
+        if (!$isScheduled) {
             self::ensureWorkerRunning();
         }
     }
@@ -148,6 +174,13 @@ class ChunkWorker
         }
     }
 
+    private static function unregisterRecurringWorkerIfScheduled(): void
+    {
+        if ((bool) as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress')) {
+            self::unregisterRecurringWorker();
+        }
+    }
+
     public static function hasPendingChunks(): bool
     {
         global $wpdb;
@@ -158,11 +191,58 @@ class ChunkWorker
         ) > 0;
     }
 
+    public static function markPendingChunks(): void
+    {
+        update_option(self::PENDING_CHUNKS_OPTION, 'yes', false);
+        delete_transient(self::WORKER_CLEANUP_CHECK_TRANSIENT);
+    }
+
+    public static function markNoPendingChunks(): void
+    {
+        update_option(self::PENDING_CHUNKS_OPTION, 'no', false);
+        delete_transient(self::WORKER_CLEANUP_CHECK_TRANSIENT);
+        delete_transient(self::WORKER_STATE_CHECK_TRANSIENT);
+    }
+
+    public static function shouldHaveWorker(): bool
+    {
+        $state = get_option(self::PENDING_CHUNKS_OPTION, null);
+
+        if ($state === 'yes') {
+            return true;
+        }
+
+        if ($state === 'no') {
+            return false;
+        }
+
+        if (self::hasPendingChunks()) {
+            self::markPendingChunks();
+            return true;
+        }
+
+        self::markNoPendingChunks();
+        return false;
+    }
+
+    private static function shouldRunWorkerCheck(string $transientKey): bool
+    {
+        if (get_transient($transientKey)) {
+            return false;
+        }
+
+        set_transient($transientKey, 1, self::WORKER_STATE_CHECK_TTL);
+
+        return true;
+    }
+
     public static function ensureWorkerRunning(): void
     {
         if (!\function_exists('as_next_scheduled_action')) {
             return;
         }
+
+        self::markPendingChunks();
 
         if (!as_next_scheduled_action('mailerpress_process_pending_chunks', [], 'mailerpress')) {
             as_schedule_recurring_action(

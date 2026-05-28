@@ -56,14 +56,14 @@ function add_mailerpress_contact($data): array
     global $wpdb;
 
     // Validate and sanitize email
-    if (empty($data['contactEmail'])) {
+    if (empty($data['contactEmail']) && empty($data['email'])) {
         return [
             'success' => false,
             'error' => __('Missing contactEmail', 'mailerpress'),
         ];
     }
 
-    $email = sanitize_email($data['contactEmail']);
+    $email = sanitize_email($data['contactEmail'] ?? $data['email']);
     if (!is_email($email)) {
         return [
             'success' => false,
@@ -134,41 +134,34 @@ function add_mailerpress_contact($data): array
     $contactModel = Kernel::getContainer()->get(\MailerPress\Models\Contacts::class);
     $existingContact = $contactModel->getContactByEmail($email);
 
-    if ($existingContact) {
-        return updateContact($existingContact, $data);
+    $hasStatus = !empty($data['subscription_status']) || !empty($data['contactStatus']) || !empty($data['subscriptionStatus']);
+    if (!$existingContact && !$hasStatus) {
+        $signupConfirmation = mailerpress_get_signup_confirmation_option();
+        $source = $data['opt_in_source'] ?? 'custom_form';
+        $data['subscription_status'] = ($source !== 'manual' && !empty($signupConfirmation) && true === $signupConfirmation['enableSignupConfirmation'])
+            ? 'pending'
+            : 'subscribed';
     }
 
-    // New contact — use rest_do_request() (in-process, no HTTP round-trip, no auth issues)
-    $GLOBALS['mailerpress_internal_php_call'] = true;
-    try {
-        $wp_request = new \WP_REST_Request('POST', '/mailerpress/v1/contact');
-        $wp_request->set_body_params($data);
-        $rest_response = rest_do_request($wp_request);
-    } finally {
-        unset($GLOBALS['mailerpress_internal_php_call']);
-    }
+    $result = (new \MailerPress\Services\ContactUpsertService())->upsert(array_merge($data, [
+        'email' => $email,
+        'update_existing' => true,
+        'assign_default_list' => true,
+        'auto_map_custom_fields' => true,
+        'opt_in_source' => $data['opt_in_source'] ?? ($existingContact ? ($existingContact->opt_in_source ?? 'custom_form') : 'custom_form'),
+    ]));
 
-    if ($rest_response->is_error()) {
+    if (empty($result['success'])) {
         return [
             'success' => false,
-            'error' => $rest_response->as_error()->get_error_message(),
-        ];
-    }
-
-    $response_data = $rest_response->get_data();
-
-    if (isset($response_data['success']) && $response_data['success']) {
-        $contact_id = $response_data['data']['contact_id'] ?? $response_data['contact_id'] ?? null;
-        return [
-            'success' => true,
-            'contact_id' => $contact_id,
-            'data' => $response_data['data'] ?? [],
+            'error' => $result['error'] ?? __('Unknown error.', 'mailerpress'),
         ];
     }
 
     return [
-        'success' => false,
-        'error' => $response_data['message'] ?? __('Unknown error.', 'mailerpress'),
+        'success' => true,
+        'contact_id' => $result['contact_id'] ?? null,
+        'data' => $result,
     ];
 }
 
@@ -440,18 +433,30 @@ function mailerpress_schedule_automated_campaign(
         return;
     }
 
-    // Avoid duplicate
-    as_unschedule_all_actions('mailerpress_run_campaign_once', [
-        $post,
-        $sendType,
-        $campaign->campaign_id,
-        $config,
-        $scheduledAt,
-        $recipientTargeting,
-        $lists,
-        $tags,
-        $segment,
-    ], 'mailerpress');
+    // Avoid duplicate pending runs for this campaign, regardless of payload changes.
+    mailerpress_cancel_scheduled_automated_campaign_actions((int) $post);
+
+    $campaignConfig = json_decode($campaign->config, true) ?: [];
+    $campaignConfig['automateSettings'] = $settings;
+    $campaignConfig['automateSettings']['next_run'] = $nextRun->format('Y-m-d H:i:s');
+    $campaignConfig['automatedCampaignSchedule'] = [
+        'sendType' => $sendType,
+        'config' => $config,
+        'scheduledAt' => $scheduledAt,
+        'recipientTargeting' => $recipientTargeting,
+        'lists' => $lists,
+        'tags' => $tags,
+        'segment' => $segment,
+    ];
+
+    global $wpdb;
+    $wpdb->update(
+        $wpdb->prefix . 'mailerpress_campaigns',
+        ['config' => wp_json_encode($campaignConfig)],
+        ['campaign_id' => $post],
+        ['%s'],
+        ['%d']
+    );
 
     as_schedule_single_action(
         $nextRun->getTimestamp(),
@@ -468,6 +473,86 @@ function mailerpress_schedule_automated_campaign(
         ],
         'mailerpress'
     );
+}
+
+function mailerpress_cancel_scheduled_automated_campaign_actions(int $campaignId): int
+{
+    if (
+        $campaignId <= 0
+        || !function_exists('as_get_scheduled_actions')
+        || !class_exists('\ActionScheduler_Store')
+    ) {
+        return 0;
+    }
+
+    $store = \ActionScheduler_Store::instance();
+    $actions = as_get_scheduled_actions([
+        'hook' => 'mailerpress_run_campaign_once',
+        'group' => 'mailerpress',
+        'status' => \ActionScheduler_Store::STATUS_PENDING,
+        'per_page' => 1000,
+    ]);
+
+    $cancelled = 0;
+
+    foreach ($actions as $actionId => $action) {
+        $args = $action->get_args();
+        if (!isset($args[0]) || (int) $args[0] !== $campaignId) {
+            continue;
+        }
+
+        try {
+            $store->cancel_action($actionId);
+        } catch (\Exception $e) {
+            // Continue so a cancel failure does not block deleting other stale actions.
+        }
+
+        try {
+            $store->delete_action($actionId);
+            $cancelled++;
+        } catch (\Exception $e) {
+            // Keep processing remaining actions even if Action Scheduler refuses deletion.
+        }
+    }
+
+    return $cancelled;
+}
+
+function mailerpress_get_scheduled_automated_campaign_action_payload(int $campaignId): ?array
+{
+    if (
+        $campaignId <= 0
+        || !function_exists('as_get_scheduled_actions')
+        || !class_exists('\ActionScheduler_Store')
+    ) {
+        return null;
+    }
+
+    $actions = as_get_scheduled_actions([
+        'hook' => 'mailerpress_run_campaign_once',
+        'group' => 'mailerpress',
+        'status' => \ActionScheduler_Store::STATUS_PENDING,
+        'per_page' => 1000,
+    ]);
+
+    foreach ($actions as $action) {
+        $args = $action->get_args();
+        if (!isset($args[0]) || (int) $args[0] !== $campaignId) {
+            continue;
+        }
+
+        return [
+            'sendType' => $args[1] ?? 'now',
+            'config' => $args[2] ?? [],
+            'scheduledAt' => $args[3] ?? current_time('mysql'),
+            'recipientTargeting' => $args[4] ?? 'classic',
+            'lists' => $args[5] ?? [],
+            'tags' => $args[6] ?? [],
+            'segment' => $args[7] ?? [],
+        ];
+    }
+
+    return null;
 }
 
 /**

@@ -82,7 +82,6 @@ class Editor
             if (!is_array($userPreferences)) {
                 $userPreferences = [];
             }
-            $pages = get_pages(['number' => 100, 'sort_column' => 'post_title']);
             $globalTypographySettings = get_option('mailerpress_global_typography');
             // Ensure it's an array if it exists
             if ($globalTypographySettings && is_string($globalTypographySettings)) {
@@ -136,11 +135,11 @@ class Editor
                     'fromName' => $globalSenderDecoded->fromName ?? '',
                     'unsubpage' => [
                         'useDefault' => true,
-                        'pageId' => $pages[0]->ID
+                        'pageId' => ''
                     ],
                     'subpage' => [
                         'useDefault' => true,
-                        'pageId' => $pages[0]->ID
+                        'pageId' => ''
                     ],
                 ]),
                 'whiteLabelData' => $whiteLabel,
@@ -164,7 +163,6 @@ class Editor
                 'emailServiceConfiguration' => Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations(),
                 'globalSender' => $globalSender,
                 'nonce' => wp_create_nonce('wp_rest'),
-                'pages' => $pages,
                 'editorFonts' => get_option('mailerpress_fonts_v2', []),
                 'pluginDirUrl' => Kernel::$config['rootUrl'],
                 'mailerPressSignupConfirmation' => mailerpress_get_signup_confirmation_option(),

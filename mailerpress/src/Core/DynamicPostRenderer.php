@@ -275,7 +275,7 @@ class DynamicPostRenderer
         // Loop through all parameters to find those that match taxonomies
         foreach ($parsed as $paramKey => $paramValue) {
             // Ignore already processed or non-taxonomy parameters
-            if (in_array($paramKey, ['postType', 'per_page', 'order', 'author', 'search'])) {
+            if (in_array($paramKey, ['postType', 'per_page', 'order', 'author', 'search', 'metaFilters', 'metaRelation'])) {
                 continue;
             }
 
@@ -304,7 +304,7 @@ class DynamicPostRenderer
             $query['author__in'] = array_map('intval', $parsed['author']);
         }
 
-        return $query;
+        return apply_filters('mailerpress_dynamic_post_query_args', $query, $parsed);
     }
 
     protected function fetchPosts(array $args): array
@@ -334,7 +334,7 @@ class DynamicPostRenderer
             }
         }
 
-        if ( ! $query->have_posts() && ! empty( $args['post_type'] ) ) {
+        if ( ! $query->have_posts() && ! empty( $args['post_type'] ) && empty($args['tax_query']) && empty($args['meta_query']) && empty($args['author__in']) && empty($args['s']) ) {
             global $wpdb;
 
             $post_type = sanitize_key( $args['post_type'] );

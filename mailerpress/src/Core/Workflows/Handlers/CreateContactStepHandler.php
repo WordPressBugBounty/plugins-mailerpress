@@ -9,6 +9,8 @@ use MailerPress\Core\Enums\Tables;
 use MailerPress\Models\Contacts as ContactsModel;
 use MailerPress\Models\Lists;
 use MailerPress\Models\Tags;
+use MailerPress\Models\CustomFields;
+use MailerPress\Services\ContactUpsertService;
 
 /**
  * Create Contact Step Handler
@@ -58,6 +60,19 @@ class CreateContactStepHandler implements StepHandlerInterface
             $tagOptions[] = [
                 'value' => (string) $tag->tag_id,
                 'label' => $tag->name ?? __('Unnamed tag', 'mailerpress'),
+            ];
+        }
+
+        $customFieldSettings = [];
+        foreach ((new CustomFields())->all() as $field) {
+            $customFieldSettings[] = [
+                'key' => 'custom_field_' . $field->field_key,
+                'label' => $field->label ?? $field->field_key,
+                'type' => 'trigger_mapping',
+                'target_type' => 'string',
+                'required' => false,
+                'placeholder' => __('Select field from trigger...', 'mailerpress'),
+                'help' => sprintf(__('Map a value to the "%s" custom field.', 'mailerpress'), $field->field_key),
             ];
         }
 
@@ -143,6 +158,13 @@ class CreateContactStepHandler implements StepHandlerInterface
                     'options' => $tagOptions,
                     'help' => __('Select one or more tags to add to the contact.', 'mailerpress'),
                 ],
+                [
+                    'key' => '_section_custom_fields',
+                    'type' => 'section',
+                    'label' => __('Custom Fields', 'mailerpress'),
+                    'description' => __('Map trigger data to contact custom fields.', 'mailerpress'),
+                ],
+                ...$customFieldSettings,
 
                 // ===== Advanced Settings Section =====
                 [
@@ -188,6 +210,17 @@ class CreateContactStepHandler implements StepHandlerInterface
         $tags = $this->normalizeArraySetting($settings['tags'] ?? []);
         $updateExisting = $settings['update_existing'] ?? true;
         $optInSource = $this->replacePlaceholders($settings['opt_in_source'] ?? 'workflow', $context);
+        $customFields = [];
+        foreach ($settings as $key => $value) {
+            if (!is_string($key) || !str_starts_with($key, 'custom_field_') || $value === '' || $value === null) {
+                continue;
+            }
+
+            $fieldKey = substr($key, strlen('custom_field_'));
+            if ($fieldKey !== '') {
+                $customFields[$fieldKey] = $this->replacePlaceholders((string) $value, $context);
+            }
+        }
 
         // Validate email
         if (empty($email)) {
@@ -204,6 +237,49 @@ class CreateContactStepHandler implements StepHandlerInterface
         if (!is_email($email)) {
             return StepResult::failed(sprintf(__('Invalid email address: %s', 'mailerpress'), $email));
         }
+
+        $upsertResult = (new ContactUpsertService())->upsert([
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'subscription_status' => $subscriptionStatus,
+            'lists' => $lists,
+            'tags' => $tags,
+            'custom_fields' => $customFields,
+            'update_existing' => $updateExisting,
+            'assign_default_list' => true,
+            'opt_in_source' => $optInSource,
+            'optin_details' => [
+                'workflow_id' => $job->getAutomationId(),
+                'context_keys' => array_keys($context),
+            ],
+        ]);
+
+        if (empty($upsertResult['success'])) {
+            return StepResult::failed($upsertResult['error'] ?? __('Failed to save contact.', 'mailerpress'));
+        }
+
+        if (($upsertResult['status'] ?? '') === 'already_exists') {
+            return StepResult::success($step->getNextStepId(), [
+                'contact_id' => (int) $upsertResult['contact_id'],
+                'email' => $email,
+                'status' => 'already_exists',
+                'message' => __('Contact already exists, skipped update.', 'mailerpress'),
+            ]);
+        }
+
+        return StepResult::success($step->getNextStepId(), [
+            'contact_id' => (int) $upsertResult['contact_id'],
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'status' => !empty($upsertResult['created']) ? 'created' : 'updated',
+            'subscription_status' => $subscriptionStatus,
+            'lists_added' => $upsertResult['lists_added'] ?? [],
+            'tags_added' => $upsertResult['tags_added'] ?? [],
+            'custom_fields_added' => $upsertResult['custom_fields_added'] ?? [],
+            'custom_fields_updated' => $upsertResult['custom_fields_updated'] ?? [],
+        ]);
 
         $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
         $contactsModel = new ContactsModel();

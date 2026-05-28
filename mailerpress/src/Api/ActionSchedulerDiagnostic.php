@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MailerPress\Api;
 
+use MailerPress\Actions\ActionScheduler\Processors\ChunkWorker;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 
@@ -269,6 +270,11 @@ class ActionSchedulerDiagnostic
                 $chunks_deleted = (int) $chunks_count;
 
                 // Note: Transients for deleted chunks will be cleaned up by Cleanup cron
+            }
+
+            if (!ChunkWorker::hasPendingChunks()) {
+                ChunkWorker::markNoPendingChunks();
+                ChunkWorker::unregisterRecurringWorker();
             }
 
             // Cancel and delete scheduled Action Scheduler actions (legacy compatibility)

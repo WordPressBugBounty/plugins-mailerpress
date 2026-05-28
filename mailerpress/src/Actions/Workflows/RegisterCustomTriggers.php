@@ -8,6 +8,7 @@ namespace MailerPress\Actions\Workflows;
 
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactOptinTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactTagAddedTrigger;
+use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactListAddedTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactCustomFieldUpdatedTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\BirthdayCheckTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\CustomTrigger;
@@ -62,6 +63,7 @@ class RegisterCustomTriggers
 
         ContactOptinTrigger::register($manager);
         ContactTagAddedTrigger::register($manager);
+        ContactListAddedTrigger::register($manager);
         ContactCustomFieldUpdatedTrigger::register($manager);
         BirthdayCheckTrigger::register($manager);
         CustomTrigger::register($manager);

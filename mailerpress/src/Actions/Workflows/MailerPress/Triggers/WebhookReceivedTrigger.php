@@ -70,6 +70,15 @@ class WebhookReceivedTrigger
                     'help' => __('Copy this URL and use it in your external service to send webhooks. The URL is automatically generated based on your Webhook ID.', 'mailerpress'),
                 ],
             ],
+            'output_fields' => [
+                ['key' => 'webhook_id', 'label' => __('Webhook ID', 'mailerpress'), 'type' => 'string', 'group' => 'webhook'],
+                ['key' => 'contact_id', 'label' => __('Contact ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
+                ['key' => 'email', 'label' => __('Email', 'mailerpress'), 'type' => 'email', 'group' => 'contact'],
+                ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'phone', 'label' => __('Phone', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
+            ],
         ];
 
         $manager->registerTrigger(

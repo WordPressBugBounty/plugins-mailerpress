@@ -434,6 +434,43 @@ class TriggerManager
         $subscriptionStatus = $triggerSettings['contact_subscription_status'] ?? 'subscribed';
         $updateExisting = $triggerSettings['contact_update_existing'] ?? true;
 
+        $customFields = [];
+        if (!empty($triggerSettings['contact_custom_fields']) && is_array($triggerSettings['contact_custom_fields'])) {
+            $customFields = $triggerSettings['contact_custom_fields'];
+        } elseif (!empty($triggerSettings['custom_fields']) && is_array($triggerSettings['custom_fields'])) {
+            $customFields = $triggerSettings['custom_fields'];
+        }
+
+        foreach ($triggerSettings as $key => $value) {
+            if (!is_string($key) || !str_starts_with($key, 'contact_custom_field_') || $value === '' || $value === null) {
+                continue;
+            }
+
+            $fieldKey = substr($key, strlen('contact_custom_field_'));
+            if ($fieldKey !== '') {
+                $customFields[$fieldKey] = $this->replacePlaceholders((string) $value, $context);
+            }
+        }
+
+        $result = (new \MailerPress\Services\ContactUpsertService())->upsert([
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'subscription_status' => $subscriptionStatus,
+            'lists' => $triggerSettings['contact_lists'] ?? [],
+            'custom_fields' => $customFields,
+            'update_existing' => $updateExisting,
+            'assign_default_list' => false,
+            'opt_in_source' => 'workflow',
+        ]);
+
+        if (empty($result['success'])) {
+            return null;
+        }
+
+        $contactId = (int) ($result['contact_id'] ?? 0);
+        return $contactId > 0 ? (new \MailerPress\Models\Contacts())->get($contactId) : null;
+
         global $wpdb;
         $contactTable = \MailerPress\Core\Enums\Tables::get(\MailerPress\Core\Enums\Tables::MAILERPRESS_CONTACT);
         $contactsModel = new \MailerPress\Models\Contacts();

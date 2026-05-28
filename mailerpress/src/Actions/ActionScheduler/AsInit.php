@@ -15,6 +15,10 @@ use MailerPress\Core\Kernel;
 
 final class AsInit
 {
+    private const SCHEDULE_CHECK_PREFIX = 'mailerpress_as_schedule_check_';
+    private const SCHEDULE_CHECK_TTL = 5 * MINUTE_IN_SECONDS;
+    private const BOUNCE_CHECK_TTL = MINUTE_IN_SECONDS;
+
     #[Action('init', priority: 20)]
     public function initCron(): void
     {
@@ -25,7 +29,12 @@ final class AsInit
 
         CountDown::cleanupExpired();
 
-        if (\function_exists('as_has_scheduled_action') && \function_exists('as_schedule_recurring_action')) {
+        if (
+            $this->shouldRunScheduleCheck('cleaner')
+            && \function_exists('as_has_scheduled_action')
+            && \function_exists('as_get_scheduled_actions')
+            && \function_exists('as_schedule_recurring_action')
+        ) {
             $existing = as_get_scheduled_actions([
                 'hook'   => 'mailerpress_as_clean',
                 'status' => \ActionScheduler_Store::STATUS_PENDING,
@@ -56,7 +65,11 @@ final class AsInit
         }
 
         // Gestion simple de l'action de check bounce (toutes les 12h)
-        if (\function_exists('as_has_scheduled_action') && \function_exists('as_schedule_recurring_action')) {
+        if (
+            $this->shouldRunScheduleCheck('bounce', self::BOUNCE_CHECK_TTL)
+            && \function_exists('as_has_scheduled_action')
+            && \function_exists('as_schedule_recurring_action')
+        ) {
             $bounceConfig = \MailerPress\Services\BounceParser::getValidatedConfig();
             $hasScheduledAction = as_has_scheduled_action('mailerpress_check_bounces');
 
@@ -79,7 +92,11 @@ final class AsInit
         }
 
         // Refresh audience counts for scheduled campaigns (every hour)
-        if (\function_exists('as_has_scheduled_action') && \function_exists('as_get_scheduled_actions')) {
+        if (
+            $this->shouldRunScheduleCheck('refresh_counts')
+            && \function_exists('as_has_scheduled_action')
+            && \function_exists('as_get_scheduled_actions')
+        ) {
             $refreshActions = as_get_scheduled_actions([
                 'hook'   => 'mailerpress_refresh_scheduled_counts',
                 'status' => \ActionScheduler_Store::STATUS_PENDING,
@@ -109,7 +126,12 @@ final class AsInit
         }
 
         // Workflow cleanup cron (daily)
-        if (\function_exists('as_has_scheduled_action') && !as_has_scheduled_action('mailerpress_workflow_cleanup')) {
+        if (
+            $this->shouldRunScheduleCheck('workflow_cleanup')
+            && \function_exists('as_has_scheduled_action')
+            && \function_exists('as_schedule_recurring_action')
+            && !as_has_scheduled_action('mailerpress_workflow_cleanup')
+        ) {
             as_schedule_recurring_action(
                 time(),
                 DAY_IN_SECONDS,
@@ -123,6 +145,19 @@ final class AsInit
             $cleanup = new \MailerPress\Core\Workflows\Services\WorkflowCleanup();
             $cleanup->cleanup();
         });
+    }
+
+    private function shouldRunScheduleCheck(string $key, int $ttl = self::SCHEDULE_CHECK_TTL): bool
+    {
+        $transientKey = self::SCHEDULE_CHECK_PREFIX . $key;
+
+        if (get_transient($transientKey)) {
+            return false;
+        }
+
+        set_transient($transientKey, 1, $ttl);
+
+        return true;
     }
 
     #[Filter('action_scheduler_queue_runner_concurrent_batches')]

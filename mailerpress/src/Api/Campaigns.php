@@ -11,6 +11,7 @@ use DateTime;
 use DI\DependencyException;
 use DI\NotFoundException;
 use MailerPress\Core\Attributes\Endpoint;
+use MailerPress\Actions\ActionScheduler\Processors\ChunkWorker;
 use MailerPress\Core\Capabilities;
 use MailerPress\Core\EmailManager\EmailLogger;
 use MailerPress\Core\EmailManager\EmailServiceManager;
@@ -1530,6 +1531,8 @@ class Campaigns
 
         $placeholders = implode(',', array_fill(0, \count($campaign_ids), '%d'));
 
+        $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($campaign_ids);
+
         $query = $wpdb->prepare(
             "DELETE FROM {$table_name} WHERE campaign_id IN ({$placeholders})",
             ...$campaign_ids
@@ -1564,6 +1567,7 @@ class Campaigns
             [
                 'message' => __('Campaigns successfully deleted.', 'mailerpress'),
                 'ids' => $campaign_ids,
+                'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
             ],
             200
         );
@@ -1618,6 +1622,7 @@ class Campaigns
         foreach ($trash_campaign_ids as $cid) {
             CountDown::unscheduleForCampaign((string) $cid);
         }
+        $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($trash_campaign_ids);
 
         // Delete batches linked to campaigns of these types AND with trash status
         $delete_batches_query = "
@@ -1650,6 +1655,7 @@ class Campaigns
                 ),
                 'deleted_campaigns' => $deleted_campaigns,
                 'deleted_batches' => $deleted_batches,
+                'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
             ],
             200
         );
@@ -1666,7 +1672,23 @@ class Campaigns
 
         $ids = $request->get_param('id');
         $status = sanitize_text_field($request->get_param('status'));
-        $campaign_type = sanitize_text_field($request->get_param('campaign_type'));
+        $campaign_types_raw = $request->get_param('campaign_type');
+        $campaign_types = [];
+        if (is_array($campaign_types_raw)) {
+            foreach ($campaign_types_raw as $campaign_type_item) {
+                if (is_array($campaign_type_item) && isset($campaign_type_item['id'])) {
+                    $campaign_types[] = sanitize_text_field($campaign_type_item['id']);
+                    continue;
+                }
+
+                if (is_string($campaign_type_item)) {
+                    $campaign_types[] = sanitize_text_field($campaign_type_item);
+                }
+            }
+        } elseif (!empty($campaign_types_raw)) {
+            $campaign_types[] = sanitize_text_field($campaign_types_raw);
+        }
+        $campaign_types = array_values(array_unique(array_filter($campaign_types)));
 
         // Validate status
         $allowed_statuses = ['draft', 'scheduled', 'sending', 'sent', 'paused', 'cancelled', 'trash'];
@@ -1686,30 +1708,48 @@ class Campaigns
         // Handle "all" case
         if ($ids === 'all') {
             $where_parts = [];
-            $params = [$status, current_time('mysql')];
+            $where_params = [];
 
             // Filter by campaign type
-            if (!empty($campaign_type)) {
-                $where_parts[] = 'type = %s';
-                $params[] = $campaign_type;
+            if (!empty($campaign_types)) {
+                $where_parts[] = 'campaign_type IN (' . implode(',', array_fill(0, count($campaign_types), '%s')) . ')';
+                $where_params = array_merge($where_params, $campaign_types);
             }
 
             // Filter by status (for trash filtering, etc.)
             $filter_status = sanitize_text_field($request->get_param('filter_status'));
             if (!empty($filter_status)) {
                 $where_parts[] = 'status = %s';
-                $params[] = $filter_status;
+                $where_params[] = $filter_status;
             }
 
             // Filter by search query
             $search = sanitize_text_field($request->get_param('search'));
             if (!empty($search)) {
                 $where_parts[] = 'post_title LIKE %s';
-                $params[] = '%' . $wpdb->esc_like($search) . '%';
+                $where_params[] = '%' . $wpdb->esc_like($search) . '%';
             }
 
             $where = !empty($where_parts) ? 'WHERE ' . implode(' AND ', $where_parts) : '';
+            $scheduled_actions_cancelled = 0;
+            $automated_restore_campaigns = [];
+            if ($status === 'draft') {
+                $restore_campaigns_query = "SELECT campaign_id, campaign_type, status, config FROM {$table_name} {$where}";
+                $restore_campaigns = !empty($where_params)
+                    ? $wpdb->get_results($wpdb->prepare($restore_campaigns_query, ...$where_params), ARRAY_A)
+                    : $wpdb->get_results($restore_campaigns_query, ARRAY_A);
+                $automated_restore_campaigns = $this->filterAutomatedTrashCampaigns($restore_campaigns);
+            }
 
+            if ($status === 'trash') {
+                $ids_to_cleanup_query = "SELECT campaign_id FROM {$table_name} {$where}";
+                $ids_to_cleanup = !empty($where_params)
+                    ? $wpdb->get_col($wpdb->prepare($ids_to_cleanup_query, ...$where_params))
+                    : $wpdb->get_col($ids_to_cleanup_query);
+                $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($ids_to_cleanup);
+            }
+
+            $params = array_merge([$status, current_time('mysql')], $where_params);
             $updated = $wpdb->query(
                 $wpdb->prepare(
                     "UPDATE {$table_name} SET status = %s, updated_at = %s{$extra_set} {$where}",
@@ -1725,6 +1765,8 @@ class Campaigns
                 );
             }
 
+            $automated_campaigns_restored = $this->restoreAutomatedCampaignSchedules($automated_restore_campaigns);
+
             return new \WP_REST_Response(
                 [
                     'success' => true,
@@ -1735,7 +1777,9 @@ class Campaigns
                     ),
                     'updated_ids' => 'all',
                     'new_status' => $status,
-                    'campaign_type' => $campaign_type,
+                    'campaign_type' => $campaign_types,
+                    'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
+                    'automated_campaigns_restored' => $automated_campaigns_restored,
                 ],
                 200
             );
@@ -1756,16 +1800,26 @@ class Campaigns
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
 
         // Check existence
-        $existing_ids = $wpdb->get_col(
+        $existing_campaigns = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT campaign_id FROM {$table_name} WHERE campaign_id IN ($placeholders)",
+                "SELECT campaign_id, campaign_type, status, config FROM {$table_name} WHERE campaign_id IN ($placeholders)",
                 $ids
-            )
+            ),
+            ARRAY_A
         );
+
+        $existing_ids = array_map(static fn($campaign) => (int) $campaign['campaign_id'], $existing_campaigns);
 
         if (empty($existing_ids)) {
             return new \WP_Error('not_found', __('No matching campaign(s) found.', 'mailerpress'), ['status' => 404]);
         }
+
+        $scheduled_actions_cancelled = $status === 'trash'
+            ? $this->cleanupScheduledCampaignActions($existing_ids)
+            : 0;
+        $automated_restore_campaigns = $status === 'draft'
+            ? $this->filterAutomatedTrashCampaigns($existing_campaigns)
+            : [];
 
         // Update all in one query
         $updated = $wpdb->query(
@@ -1783,6 +1837,8 @@ class Campaigns
             );
         }
 
+        $automated_campaigns_restored = $this->restoreAutomatedCampaignSchedules($automated_restore_campaigns);
+
         return new \WP_REST_Response(
             [
                 'success' => true,
@@ -1793,6 +1849,8 @@ class Campaigns
                 ),
                 'updated_ids' => $existing_ids,
                 'new_status' => $status,
+                'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
+                'automated_campaigns_restored' => $automated_campaigns_restored,
             ],
             200
         );
@@ -1855,6 +1913,7 @@ class Campaigns
             foreach ($campaign_ids_to_delete as $cid) {
                 CountDown::unscheduleForCampaign((string) $cid);
             }
+            $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($campaign_ids_to_delete);
 
             // Delete batches for these campaigns
             $deleted_batches = 0;
@@ -1881,6 +1940,7 @@ class Campaigns
                 'message' => sprintf(__('All (%d) campaign(s) permanently deleted.', 'mailerpress'), $deleted),
                 'deleted_ids' => 'all',
                 'deleted_batches' => $deleted_batches !== false ? $deleted_batches : 0,
+                'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
             ], 200);
         }
 
@@ -1912,6 +1972,7 @@ class Campaigns
         foreach ($existing_ids as $cid) {
             CountDown::unscheduleForCampaign((string) $cid);
         }
+        $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($existing_ids);
 
         // Delete associated batches first
         $tableBatch = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
@@ -1936,6 +1997,7 @@ class Campaigns
             'message' => sprintf(__('Campaign(s) permanently deleted: %d', 'mailerpress'), $deleted),
             'deleted_ids' => $existing_ids,
             'deleted_batches' => $deleted_batches !== false ? $deleted_batches : 0,
+            'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
         ], 200);
     }
 
@@ -2762,6 +2824,16 @@ class Campaigns
             $currentConfig['automateSettings'] = $automateSettings;
         }
 
+        $currentConfig['automatedCampaignSchedule'] = [
+            'sendType' => $sendType,
+            'config' => $config,
+            'scheduledAt' => $scheduledAt,
+            'recipientTargeting' => $recipientTargeting,
+            'lists' => $lists,
+            'tags' => $tags,
+            'segment' => $segment,
+        ];
+
         // Update the campaign
         $wpdb->update(
             $table_name,
@@ -2945,6 +3017,11 @@ class Campaigns
             $chunks_deleted = (int) $chunks_count;
         }
 
+        if (!ChunkWorker::hasPendingChunks()) {
+            ChunkWorker::markNoPendingChunks();
+            ChunkWorker::unregisterRecurringWorker();
+        }
+
         // CRITICAL: Cancel mailerpress_batch_email action for scheduled campaigns
         // This prevents the campaign from executing at its scheduled time
         $actions_cancelled = 0;
@@ -3028,7 +3105,7 @@ class Campaigns
 
         $campaign = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT campaign_id, campaign_type, status FROM $table WHERE campaign_id = %d",
+                "SELECT campaign_id, campaign_type, status, config FROM $table WHERE campaign_id = %d",
                 $campaign_id
             ),
             ARRAY_A
@@ -3042,17 +3119,39 @@ class Campaigns
             return new \WP_REST_Response(['error' => __('Only automated campaigns can be deactivated', 'mailerpress')], 400);
         }
 
+        $config = json_decode($campaign['config'] ?? '', true) ?: [];
+        $scheduled_payload = function_exists('mailerpress_get_scheduled_automated_campaign_action_payload')
+            ? mailerpress_get_scheduled_automated_campaign_action_payload($campaign_id)
+            : null;
+
+        if (is_array($scheduled_payload)) {
+            $config['automatedCampaignSchedule'] = $scheduled_payload;
+        }
+
+        if (isset($config['automateSettings']) && is_array($config['automateSettings'])) {
+            unset($config['automateSettings']['next_run']);
+        }
+
+        $cancelled_actions = function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')
+            ? mailerpress_cancel_scheduled_automated_campaign_actions($campaign_id)
+            : 0;
+
         $wpdb->update(
             $table,
-            ['status' => 'inactive'],
+            [
+                'status' => 'inactive',
+                'config' => wp_json_encode($config),
+                'updated_at' => current_time('mysql'),
+            ],
             ['campaign_id' => $campaign_id],
-            ['%s'],
+            ['%s', '%s', '%s'],
             ['%d']
         );
 
         return new \WP_REST_Response([
             'campaignId' => $campaign_id,
             'status' => 'inactive',
+            'scheduledActionsCancelled' => $cancelled_actions,
             'message' => 'Campaign deactivated successfully',
         ], 200);
     }
@@ -3082,7 +3181,7 @@ class Campaigns
 
         $campaign = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT campaign_id, campaign_type, status FROM $table WHERE campaign_id = %d",
+                "SELECT campaign_id, campaign_type, status, config FROM $table WHERE campaign_id = %d",
                 $campaign_id
             ),
             ARRAY_A
@@ -3097,16 +3196,37 @@ class Campaigns
         }
 
         // Optional: Only allow activation if not already active
-        if ($campaign['status'] === 'scheduled') {
+        if ($campaign['status'] === 'active') {
             return new \WP_REST_Response(['message' => 'Campaign is already active'], 200);
         }
 
+        $config = json_decode($campaign['config'] ?? '', true) ?: [];
+        if (empty($config['automateSettings']) || !is_array($config['automateSettings'])) {
+            return new \WP_REST_Response(['error' => __('Campaign automation settings are missing', 'mailerpress')], 400);
+        }
+
+        $schedule = $this->buildAutomatedCampaignSchedulePayload($campaign_id, $config);
+
         $wpdb->update(
             $table,
-            ['status' => 'active'],
+            [
+                'status' => 'active',
+                'updated_at' => current_time('mysql'),
+            ],
             ['campaign_id' => $campaign_id],
-            ['%s'],
+            ['%s', '%s'],
             ['%d']
+        );
+
+        mailerpress_schedule_automated_campaign(
+            $campaign_id,
+            $schedule['sendType'],
+            $schedule['config'],
+            $schedule['scheduledAt'],
+            $schedule['recipientTargeting'],
+            $schedule['lists'],
+            $schedule['tags'],
+            $schedule['segment'],
         );
 
         return new \WP_REST_Response([
@@ -3114,6 +3234,159 @@ class Campaigns
             'status' => 'active',
             'message' => 'Campaign activated successfully',
         ], 200);
+    }
+
+
+    private function cleanupScheduledCampaignActions(array $campaignIds): int
+    {
+        if (!function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')) {
+            return 0;
+        }
+
+        $cancelled = 0;
+        $campaignIds = array_unique(array_filter(array_map('intval', $campaignIds)));
+
+        foreach ($campaignIds as $campaignId) {
+            $cancelled += mailerpress_cancel_scheduled_automated_campaign_actions($campaignId);
+        }
+
+        return $cancelled;
+    }
+
+
+    private function filterAutomatedTrashCampaigns(array $campaigns): array
+    {
+        return array_values(array_filter(
+            $campaigns,
+            static fn($campaign) => (int) ($campaign['campaign_id'] ?? 0) > 0
+                && ($campaign['campaign_type'] ?? '') === 'automated'
+                && ($campaign['status'] ?? '') === 'trash'
+        ));
+    }
+
+
+    private function restoreAutomatedCampaignSchedules(array $campaigns): int
+    {
+        if (empty($campaigns) || !function_exists('mailerpress_schedule_automated_campaign')) {
+            return 0;
+        }
+
+        global $wpdb;
+
+        $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $restored = 0;
+
+        foreach ($campaigns as $campaign) {
+            $campaign_id = (int) ($campaign['campaign_id'] ?? 0);
+            if ($campaign_id <= 0) {
+                continue;
+            }
+
+            $config = json_decode($campaign['config'] ?? '', true) ?: [];
+            if (empty($config['automateSettings']) || !is_array($config['automateSettings'])) {
+                continue;
+            }
+
+            $schedule = $this->buildAutomatedCampaignSchedulePayload($campaign_id, $config);
+            $updated = $wpdb->update(
+                $table,
+                [
+                    'status' => 'active',
+                    'updated_at' => current_time('mysql'),
+                ],
+                ['campaign_id' => $campaign_id],
+                ['%s', '%s'],
+                ['%d']
+            );
+
+            if ($updated === false) {
+                continue;
+            }
+
+            mailerpress_schedule_automated_campaign(
+                $campaign_id,
+                $schedule['sendType'],
+                $schedule['config'],
+                $schedule['scheduledAt'],
+                $schedule['recipientTargeting'],
+                $schedule['lists'],
+                $schedule['tags'],
+                $schedule['segment'],
+            );
+
+            $restored++;
+        }
+
+        return $restored;
+    }
+
+
+    private function buildAutomatedCampaignSchedulePayload(int $campaign_id, array $config): array
+    {
+        $schedule = $config['automatedCampaignSchedule'] ?? [];
+        $senderConfig = is_array($schedule['config'] ?? null) ? $schedule['config'] : [];
+
+        if (empty($senderConfig)) {
+            $globalSender = get_option('mailerpress_default_settings', []);
+            if (is_string($globalSender)) {
+                $globalSender = json_decode($globalSender, true) ?: [];
+            }
+
+            $senderConfig = [
+                'fromName' => $config['fromName'] ?? $globalSender['fromName'] ?? '',
+                'fromTo' => $config['fromTo'] ?? $globalSender['fromAddress'] ?? '',
+                'subject' => $config['campaignSubject'] ?? $config['subject'] ?? get_the_title($campaign_id),
+                'previewText' => $config['previewText'] ?? '',
+            ];
+        }
+
+        return [
+            'sendType' => $schedule['sendType'] ?? $config['sendChoice'] ?? 'now',
+            'config' => $senderConfig,
+            'scheduledAt' => $schedule['scheduledAt'] ?? $config['sendAt'] ?? current_time('mysql'),
+            'recipientTargeting' => $schedule['recipientTargeting'] ?? $config['recipientTargeting'] ?? 'classic',
+            'lists' => $this->normalizeAudienceItems(
+                (array) ($schedule['lists'] ?? $config['lists'] ?? []),
+                \MailerPress\Models\Lists::getLists(),
+                'list_id'
+            ),
+            'tags' => $this->normalizeAudienceItems(
+                (array) ($schedule['tags'] ?? $config['tags'] ?? []),
+                \MailerPress\Models\Tags::getAll(),
+                'tag_id'
+            ),
+            'segment' => $schedule['segment'] ?? $config['segment'] ?? [],
+        ];
+    }
+
+
+    private function normalizeAudienceItems(array $items, array $availableItems, string $idKey): array
+    {
+        if (empty($items)) {
+            return [];
+        }
+
+        $first = reset($items);
+        if ((is_array($first) && isset($first[$idKey])) || (is_object($first) && isset($first->{$idKey}))) {
+            return array_map(static fn($item) => (array) $item, $items);
+        }
+
+        $ids = array_map(static function ($item) use ($idKey) {
+            if (is_array($item) && isset($item[$idKey])) {
+                return (int) $item[$idKey];
+            }
+
+            if (is_object($item) && isset($item->{$idKey})) {
+                return (int) $item->{$idKey};
+            }
+
+            return (int) $item;
+        }, $items);
+
+        return array_values(array_filter(
+            array_map(static fn($item) => (array) $item, $availableItems),
+            static fn($item) => isset($item[$idKey]) && in_array((int) $item[$idKey], $ids, true)
+        ));
     }
 
 
@@ -4434,30 +4707,442 @@ class Campaigns
     /**
      * Sanitize rendered email HTML to prevent stored XSS.
      *
-     * Only strips truly dangerous XSS vectors while preserving everything
-     * MJML generates: conditional comments (<!--[if mso]>), VML elements
-     * (v:rect, v:roundrect, v:textbox, o:OfficeDocumentSettings),
-     * XML namespaces (xmlns:v, xmlns:o), <!DOCTYPE>, <style>, and
-     * MailerPress dynamic block markers (<!-- START/END -->).
+     * Uses an explicit allowlist while preserving MJML/Outlook conditional
+     * comments that WordPress KSES cannot parse as regular tags.
      */
     private function sanitizeEmailHtml( string $html ): string {
         if ( empty( $html ) ) {
             return $html;
         }
 
-        $html = preg_replace( '/<script\b[^>]*>.*?<\/script>/is', '', $html );
-        $html = preg_replace( '/<script\b[^>]*\/?>/is', '', $html );
+        $protected_comments = [];
+        $html = $this->protectEmailConditionalComments( $html, $protected_comments );
 
-        $html = preg_replace(
-            '/(<[^>]*)\s+on(?:click|load|error|mouseover|mouseout|mouseenter|mouseleave|focus|blur|submit|change|input|keydown|keyup|keypress|dblclick|contextmenu|wheel|copy|cut|paste|drag|drop|abort|resize|scroll|unload|beforeunload|hashchange|popstate|message|online|offline|storage|pageshow|pagehide|animationstart|animationend|animationiteration|transitionend|toggle|pointerdown|pointerup|pointermove)\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i',
-            '$1',
+        $html = $this->sanitizeEmailHtmlFragment( $html, $this->getEmailAllowedHtml() );
+
+        return strtr( $html, $protected_comments );
+    }
+
+    /**
+     * Sanitize an HTML fragment with the email allowlist and MJML CSS support.
+     */
+    private function sanitizeEmailHtmlFragment( string $html, array $allowed_html ): string {
+        $css_filter = static function ( array $properties ): array {
+            return array_values(
+                array_unique(
+                    array_merge(
+                        $properties,
+                        [
+                            '-ms-interpolation-mode',
+                            '-ms-text-size-adjust',
+                            '-webkit-text-size-adjust',
+                            'box-sizing',
+                            'mso-line-height-alt',
+                            'mso-line-height-rule',
+                            'mso-padding-alt',
+                            'mso-table-lspace',
+                            'mso-table-rspace',
+                            'outline',
+                            'text-size-adjust',
+                            'word-break',
+                            'word-wrap',
+                        ]
+                    )
+                )
+            );
+        };
+
+        add_filter( 'safe_style_css', $css_filter );
+        try {
+            return wp_kses(
+                $html,
+                $allowed_html,
+                $this->getEmailAllowedProtocols()
+            );
+        } finally {
+            remove_filter( 'safe_style_css', $css_filter );
+        }
+    }
+
+    /**
+     * KSES parses comments recursively and strips VML tags used inside MJML
+     * Outlook conditionals. Preserve those comment blocks before sanitizing the
+     * rest of the HTML.
+     */
+    private function protectEmailConditionalComments( string $html, array &$protected_comments ): string {
+        $offset = 0;
+        $result = '';
+
+        while ( false !== ( $start = strpos( $html, '<!--', $offset ) ) ) {
+            $end = strpos( $html, '-->', $start + 4 );
+            if ( false === $end ) {
+                break;
+            }
+
+            $comment = substr( $html, $start, $end - $start + 3 );
+            $result .= substr( $html, $offset, $start - $offset );
+
+            if ( $this->isEmailConditionalComment( $comment ) ) {
+                $comment = $this->sanitizeEmailConditionalComment( $comment );
+                $token = '%%MAILERPRESS_EMAIL_CONDITIONAL_' . count( $protected_comments ) . '_' . md5( $comment ) . '%%';
+                $protected_comments[ $token ] = $comment;
+                $result .= $token;
+            } else {
+                $result .= $comment;
+            }
+
+            $offset = $end + 3;
+        }
+
+        return $result . substr( $html, $offset );
+    }
+
+    /**
+     * Detect Outlook conditional comments emitted by MJML and email templates.
+     */
+    private function isEmailConditionalComment( string $comment ): bool {
+        $inner = strtolower( trim( substr( $comment, 4, -3 ) ) );
+
+        return str_starts_with( $inner, '[if ' )
+            || str_starts_with( $inner, '[if !' )
+            || str_starts_with( $inner, '<![endif]' );
+    }
+
+    /**
+     * Sanitize the HTML inside a conditional comment while keeping its markers.
+     */
+    private function sanitizeEmailConditionalComment( string $comment ): string {
+        $inner = substr( $comment, 4, -3 );
+        $open_marker_end = strpos( $inner, ']>' );
+        $close_marker_start = stripos( $inner, '<![endif]' );
+
+        if ( false === $open_marker_end || false === $close_marker_start || $close_marker_start < $open_marker_end ) {
+            return $comment;
+        }
+
+        $content_start = $open_marker_end + 2;
+        $prefix = substr( $inner, 0, $content_start );
+        $content = substr( $inner, $content_start, $close_marker_start - $content_start );
+        $suffix = substr( $inner, $close_marker_start );
+
+        $content = $this->encodeEmailNamespacedTagsForKses( $content );
+        $content = $this->sanitizeEmailHtmlFragment( $content, $this->getEmailConditionalAllowedHtml() );
+        $content = $this->decodeEmailNamespacedTagsFromKses( $content );
+
+        return '<!--' . $prefix . $content . $suffix . '-->';
+    }
+
+    /**
+     * Map email namespaced tags to KSES-compatible names before sanitizing.
+     */
+    private function encodeEmailNamespacedTagsForKses( string $html ): string {
+        return str_ireplace(
+            array_keys( $this->getEmailNamespacedTagMap() ),
+            array_values( $this->getEmailNamespacedTagMap() ),
             $html
         );
+    }
 
-        $html = preg_replace( '/\bhref\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'href=$1#$1', $html );
-        $html = preg_replace( '/\bsrc\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'src=$1#$1', $html );
-        $html = preg_replace( '/\bformaction\s*=\s*(["\'])\s*javascript\s*:.*?\1/i', 'formaction=$1#$1', $html );
+    /**
+     * Restore namespaced tags after the KSES allowlist has processed them.
+     */
+    private function decodeEmailNamespacedTagsFromKses( string $html ): string {
+        return str_ireplace(
+            array_values( $this->getEmailNamespacedTagMap() ),
+            array_keys( $this->getEmailNamespacedTagMap() ),
+            $html
+        );
+    }
 
-        return $html;
+    /**
+     * Namespaced VML/Office tags commonly emitted by MJML for Outlook.
+     */
+    private function getEmailNamespacedTagMap(): array {
+        return [
+            'o:AllowPNG'                => 'mp-o-allowpng',
+            'o:OfficeDocumentSettings'  => 'mp-o-officedocumentsettings',
+            'o:PixelsPerInch'           => 'mp-o-pixelsperinch',
+            'v:fill'                    => 'mp-v-fill',
+            'v:imagedata'               => 'mp-v-imagedata',
+            'v:rect'                    => 'mp-v-rect',
+            'v:roundrect'               => 'mp-v-roundrect',
+            'v:stroke'                  => 'mp-v-stroke',
+            'v:textbox'                 => 'mp-v-textbox',
+            'w:DoNotOptimizeForBrowser' => 'mp-w-donotoptimizeforbrowser',
+            'w:View'                    => 'mp-w-view',
+            'w:WordDocument'            => 'mp-w-worddocument',
+            'w:Zoom'                    => 'mp-w-zoom',
+        ];
+    }
+
+    /**
+     * Build the email HTML allowlist used for rendered campaign content.
+     */
+    private function getEmailAllowedHtml(): array {
+        $global_attrs = [
+            'align'            => true,
+            'aria-describedby' => true,
+            'aria-hidden'      => true,
+            'aria-label'       => true,
+            'aria-labelledby'  => true,
+            'bgcolor'          => true,
+            'class'            => true,
+            'data-*'           => true,
+            'dir'              => true,
+            'height'           => true,
+            'id'               => true,
+            'lang'             => true,
+            'role'             => true,
+            'style'            => true,
+            'title'            => true,
+            'valign'           => true,
+            'width'            => true,
+            'xml:lang'         => true,
+        ];
+
+        $text_attrs = $global_attrs;
+
+        $allowed = array_fill_keys(
+            [
+                'b',
+                'big',
+                'center',
+                'code',
+                'del',
+                'em',
+                'figcaption',
+                'figure',
+                'i',
+                'ins',
+                'mark',
+                'pre',
+                's',
+                'small',
+                'span',
+                'strike',
+                'strong',
+                'sub',
+                'sup',
+                'u',
+            ],
+            $text_attrs
+        );
+
+        $allowed += [
+            'html'       => array_merge(
+                $global_attrs,
+                [
+                    'xmlns'   => true,
+                    'xmlns:o' => true,
+                    'xmlns:v' => true,
+                    'xmlns:w' => true,
+                ]
+            ),
+            'head'       => [],
+            'body'       => array_merge(
+                $global_attrs,
+                [
+                    'background'   => true,
+                    'leftmargin'   => true,
+                    'marginheight' => true,
+                    'marginwidth'  => true,
+                    'topmargin'    => true,
+                ]
+            ),
+            'title'      => [],
+            'meta'       => [
+                'charset'    => true,
+                'content'    => true,
+                'http-equiv' => [
+                    'values' => [
+                        'content-type',
+                        'x-ua-compatible',
+                    ],
+                ],
+                'name'       => true,
+                'property'   => true,
+            ],
+            'link'       => [
+                'href'  => true,
+                'media' => true,
+                'rel'   => true,
+                'type'  => true,
+            ],
+            'style'      => [
+                'media' => true,
+                'type'  => true,
+            ],
+            'div'        => $global_attrs,
+            'p'          => $global_attrs,
+            'br'         => [],
+            'hr'         => array_merge(
+                $global_attrs,
+                [
+                    'noshade' => true,
+                    'size'    => true,
+                ]
+            ),
+            'h1'         => $global_attrs,
+            'h2'         => $global_attrs,
+            'h3'         => $global_attrs,
+            'h4'         => $global_attrs,
+            'h5'         => $global_attrs,
+            'h6'         => $global_attrs,
+            'a'          => array_merge(
+                $global_attrs,
+                [
+                    'href'   => true,
+                    'name'   => true,
+                    'rel'    => true,
+                    'target' => true,
+                ]
+            ),
+            'img'        => array_merge(
+                $global_attrs,
+                [
+                    'alt'    => true,
+                    'border' => true,
+                    'hspace' => true,
+                    'src'    => true,
+                    'vspace' => true,
+                ]
+            ),
+            'table'      => array_merge(
+                $global_attrs,
+                [
+                    'border'      => true,
+                    'cellpadding' => true,
+                    'cellspacing' => true,
+                    'summary'     => true,
+                ]
+            ),
+            'thead'      => $global_attrs,
+            'tbody'      => $global_attrs,
+            'tfoot'      => $global_attrs,
+            'tr'         => $global_attrs,
+            'td'         => array_merge(
+                $global_attrs,
+                [
+                    'colspan' => true,
+                    'nowrap'  => true,
+                    'rowspan' => true,
+                ]
+            ),
+            'th'         => array_merge(
+                $global_attrs,
+                [
+                    'colspan' => true,
+                    'nowrap'  => true,
+                    'rowspan' => true,
+                    'scope'   => true,
+                ]
+            ),
+            'caption'    => $global_attrs,
+            'colgroup'   => array_merge(
+                $global_attrs,
+                [
+                    'span' => true,
+                ]
+            ),
+            'col'        => array_merge(
+                $global_attrs,
+                [
+                    'span' => true,
+                ]
+            ),
+            'ul'         => array_merge(
+                $global_attrs,
+                [
+                    'type' => true,
+                ]
+            ),
+            'ol'         => array_merge(
+                $global_attrs,
+                [
+                    'start' => true,
+                    'type'  => true,
+                ]
+            ),
+            'li'         => array_merge(
+                $global_attrs,
+                [
+                    'type'  => true,
+                    'value' => true,
+                ]
+            ),
+            'blockquote' => array_merge(
+                $global_attrs,
+                [
+                    'cite' => true,
+                ]
+            ),
+            'font'       => array_merge(
+                $global_attrs,
+                [
+                    'color' => true,
+                    'face'  => true,
+                    'size'  => true,
+                ]
+            ),
+        ];
+
+        return $allowed;
+    }
+
+    /**
+     * Build the allowlist used inside Outlook conditional comments.
+     */
+    private function getEmailConditionalAllowedHtml(): array {
+        $allowed = $this->getEmailAllowedHtml();
+        $vml_attrs = [
+            'align'         => true,
+            'alt'           => true,
+            'arcsize'       => true,
+            'class'         => true,
+            'color'         => true,
+            'coordorigin'   => true,
+            'coordsize'     => true,
+            'fill'          => true,
+            'fillcolor'     => true,
+            'href'          => true,
+            'id'            => true,
+            'inset'         => true,
+            'o:allowincell' => true,
+            'o:href'        => true,
+            'opacity'       => true,
+            'src'           => true,
+            'strokecolor'   => true,
+            'strokeweight'  => true,
+            'style'         => true,
+            'type'          => true,
+            'v:text-anchor' => true,
+            'xmlns:o'       => true,
+            'xmlns:v'       => true,
+            'xmlns:w'       => true,
+        ];
+
+        foreach ( array_values( $this->getEmailNamespacedTagMap() ) as $tag ) {
+            $allowed[ $tag ] = $vml_attrs;
+        }
+
+        $allowed['xml'] = [];
+
+        return $allowed;
+    }
+
+    /**
+     * Restrict URL-bearing attributes to protocols needed by email content.
+     */
+    private function getEmailAllowedProtocols(): array {
+        return [
+            'cid',
+            'ftp',
+            'ftps',
+            'http',
+            'https',
+            'mailto',
+            'news',
+            'tel',
+        ];
     }
 }

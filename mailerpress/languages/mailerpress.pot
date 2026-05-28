@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.0.4\n"
+"Project-Id-Version: MailerPress 2.0.5\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-21T08:55:28+00:00\n"
+"POT-Creation-Date: 2026-05-28T07:48:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: mailerpress\n"
@@ -45,8 +45,8 @@ msgid "No campaigns found."
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php:126
-#: src/Api/Contacts.php:3127
-#: src/functions.php:643
+#: src/Api/Contacts.php:3186
+#: src/functions.php:728
 #: build/dist/js/mail-editor.js:1
 msgid "Confirm your subscription to [site:title]"
 msgstr ""
@@ -235,8 +235,8 @@ msgid "Invalid contact token."
 msgstr ""
 
 #: src/Actions/Ajax/ManageSubscription.php:47
-#: src/Api/Contacts.php:3110
-#: src/Api/Contacts.php:3246
+#: src/Api/Contacts.php:3169
+#: src/Api/Contacts.php:3305
 msgid "Contact not found."
 msgstr ""
 
@@ -357,7 +357,7 @@ msgstr ""
 #: src/Actions/Pages/Pages.php:281
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:78
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:143
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:123
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:138
 #: build/dist/js/mail-editor.js:1
 msgid "Unsubscribed"
 msgstr ""
@@ -440,24 +440,24 @@ msgstr ""
 msgid "Ecommerce"
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:87
+#: src/Actions/Setup/TableManager.php:88
 msgid "Database migration failed. Please check error logs."
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:88
+#: src/Actions/Setup/TableManager.php:89
 msgid "Recover now"
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:149
+#: src/Actions/Setup/TableManager.php:150
 msgid "Default list"
 msgstr ""
 
 #: src/Actions/Shortcodes/CampaignEmail.php:56
-#: src/Api/Campaigns.php:1378
-#: src/Api/Campaigns.php:1966
-#: src/Api/Campaigns.php:2020
-#: src/Api/Campaigns.php:2085
-#: src/Api/Campaigns.php:2140
+#: src/Api/Campaigns.php:1379
+#: src/Api/Campaigns.php:2028
+#: src/Api/Campaigns.php:2082
+#: src/Api/Campaigns.php:2147
+#: src/Api/Campaigns.php:2202
 #: src/Api/Tags.php:294
 msgid "Campaign not found."
 msgstr ""
@@ -490,6 +490,7 @@ msgstr ""
 
 #: src/Actions/Shortcodes/MyLists.php:44
 #: src/Actions/Shortcodes/OptinForm.php:50
+#: build/dist/js/mail-editor.js:1
 msgid "Subscribe"
 msgstr ""
 
@@ -516,13 +517,15 @@ msgid "Oops! Something went wrong. Please try again."
 msgstr ""
 
 #: src/Actions/Shortcodes/OptinForm.php:44
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:35
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:146
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:77
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:120
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:92
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:107
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:76
-#: src/Core/Workflows/Services/TriggerManager.php:629
-#: src/Core/Workflows/Services/TriggerManager.php:671
-#: src/Core/Workflows/Services/TriggerManager.php:702
+#: src/Core/Workflows/Services/TriggerManager.php:666
+#: src/Core/Workflows/Services/TriggerManager.php:708
+#: src/Core/Workflows/Services/TriggerManager.php:739
 #: templates/manage-subscription.php:54
 #: templates/my-lists-form.php:49
 #: build/dist/js/editor-blocks.js:1
@@ -532,13 +535,15 @@ msgid "First Name"
 msgstr ""
 
 #: src/Actions/Shortcodes/OptinForm.php:45
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:36
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:147
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:78
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:129
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:101
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:116
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:84
-#: src/Core/Workflows/Services/TriggerManager.php:630
-#: src/Core/Workflows/Services/TriggerManager.php:672
-#: src/Core/Workflows/Services/TriggerManager.php:703
+#: src/Core/Workflows/Services/TriggerManager.php:667
+#: src/Core/Workflows/Services/TriggerManager.php:709
+#: src/Core/Workflows/Services/TriggerManager.php:740
 #: templates/manage-subscription.php:60
 #: templates/my-lists-form.php:62
 #: build/dist/js/editor-blocks.js:1
@@ -548,9 +553,11 @@ msgid "Last Name"
 msgstr ""
 
 #: src/Actions/Shortcodes/OptinForm.php:46
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:34
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:145
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:76
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:110
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:83
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:98
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:58
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:1
@@ -1037,7 +1044,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:94
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:109
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:62
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:117
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:132
 msgid "Subscription Status"
 msgstr ""
 
@@ -1338,6 +1345,57 @@ msgstr ""
 msgid "Only trigger when this specific custom field is updated (leave empty to trigger for any field)"
 msgstr ""
 
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:17
+msgid "List Added"
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:18
+msgid "Triggered when a contact is added to a list. Useful for automations that must run when an existing contact joins a new list."
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:24
+#: src/Api/Workflows.php:135
+#: build/dist/js/editor-blocks.js:1
+#: build/dist/js/mail-editor.js:1
+#: build/dist/js/mailerpress-pro-workflow.js:1
+#: packages/gutenberg/mailerpress-form/edit.js:122
+msgid "List"
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:28
+msgid "Select the list that will trigger this workflow"
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:32
+#: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:144
+#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:63
+#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:78
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:75
+msgid "Contact ID"
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:33
+msgid "List ID"
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/ContactListAddedTrigger.php:37
+#: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:154
+#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:62
+#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:77
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:80
+#: src/Actions/Workflows/WooCommerce/AbandonedCartTrigger.php:89
+#: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:79
+#: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:61
+#: src/Actions/Workflows/WooCommerce/ProductPurchased.php:172
+#: src/Actions/Workflows/WooCommerce/SubscriptionStarted.php:63
+#: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:106
+#: src/Core/Workflows/Services/TriggerManager.php:662
+#: src/Core/Workflows/Services/TriggerManager.php:704
+#: src/Core/Workflows/Services/TriggerManager.php:736
+#: src/Core/Workflows/Services/TriggerManager.php:963
+msgid "User ID"
+msgstr ""
+
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:66
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:36
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:83
@@ -1346,7 +1404,7 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:70
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:141
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:121
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:136
 #: build/dist/js/mail-editor.js:1
 msgid "Subscribed"
 msgstr ""
@@ -1356,7 +1414,7 @@ msgid "Any list"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:93
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:50
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:52
 msgid "Unnamed list"
 msgstr ""
 
@@ -1365,7 +1423,7 @@ msgid "Any tag"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:108
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:60
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:62
 msgid "Unnamed tag"
 msgstr ""
 
@@ -1401,14 +1459,8 @@ msgstr ""
 msgid "Only trigger when contact has one of these tags (leave empty for any tag)"
 msgstr ""
 
-#: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:144
-#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:63
-#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:78
-msgid "Contact ID"
-msgstr ""
-
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:149
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:163
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:185
 msgid "Opt-in Source"
 msgstr ""
 
@@ -1426,22 +1478,6 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:153
 msgid "Tags (IDs)"
-msgstr ""
-
-#: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:154
-#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:62
-#: src/Actions/Workflows/MailerPress/Triggers/CustomTrigger.php:77
-#: src/Actions/Workflows/WooCommerce/AbandonedCartTrigger.php:89
-#: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:79
-#: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:61
-#: src/Actions/Workflows/WooCommerce/ProductPurchased.php:172
-#: src/Actions/Workflows/WooCommerce/SubscriptionStarted.php:63
-#: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:106
-#: src/Core/Workflows/Services/TriggerManager.php:625
-#: src/Core/Workflows/Services/TriggerManager.php:667
-#: src/Core/Workflows/Services/TriggerManager.php:699
-#: src/Core/Workflows/Services/TriggerManager.php:926
-msgid "User ID"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactTagAddedTrigger.php:46
@@ -1534,6 +1570,7 @@ msgid "Triggered when an incoming webhook is received from an external service. 
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:57
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:74
 msgid "Webhook ID"
 msgstr ""
 
@@ -1551,6 +1588,10 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:70
 msgid "Copy this URL and use it in your external service to send webhooks. The URL is automatically generated based on your Webhook ID."
+msgstr ""
+
+#: src/Actions/Workflows/MailerPress/Triggers/WebhookReceivedTrigger.php:79
+msgid "Phone"
 msgstr ""
 
 #: src/Actions/Workflows/SureCart/OrderCreated.php:55
@@ -1745,6 +1786,7 @@ msgid "Triggered when a specific product is purchased in an order. Perfect for s
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:73
+#: build/dist/js/mail-editor.js:1
 msgid "Products"
 msgstr ""
 
@@ -1797,17 +1839,17 @@ msgid "Select last name field..."
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:150
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:130
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:145
 msgid "Add to Lists"
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:154
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:135
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:150
 msgid "Select one or more lists to add the contact to."
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:159
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:155
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:177
 msgid "Update if contact exists"
 msgstr ""
 
@@ -1928,59 +1970,59 @@ msgstr ""
 msgid "Triggered when a WooCommerce subscription trial period starts. Perfect for sending trial welcome emails, onboarding sequences, or trial usage tips."
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:67
+#: src/Api/ActionSchedulerDiagnostic.php:68
 msgid "Action Scheduler is not available"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:112
+#: src/Api/ActionSchedulerDiagnostic.php:113
 msgid "%d actions processed"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:131
-#: src/Api/Contacts.php:2033
-#: src/Api/Contacts.php:2695
+#: src/Api/ActionSchedulerDiagnostic.php:132
+#: src/Api/Contacts.php:2092
+#: src/Api/Contacts.php:2754
 msgid "Batch ID is required"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:145
-#: src/Api/Contacts.php:2115
+#: src/Api/ActionSchedulerDiagnostic.php:146
+#: src/Api/Contacts.php:2174
 msgid "Batch not found"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:152
+#: src/Api/ActionSchedulerDiagnostic.php:153
 msgid "This batch cannot be cancelled (status: "
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:187
+#: src/Api/ActionSchedulerDiagnostic.php:188
 msgid "Batch sending has been stopped. %d emails were sent and will remain in statistics."
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:190
+#: src/Api/ActionSchedulerDiagnostic.php:191
 msgid "Batch has been cancelled. No emails were sent."
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:203
+#: src/Api/ActionSchedulerDiagnostic.php:204
 msgid "An error occurred while canceling the batch: %s"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:224
+#: src/Api/ActionSchedulerDiagnostic.php:225
 msgid "Campaign ID is required"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:244
-#: src/Api/Campaigns.php:736
-#: src/Api/Campaigns.php:3038
-#: src/Api/Campaigns.php:3092
-#: src/Api/Campaigns.php:4251
+#: src/Api/ActionSchedulerDiagnostic.php:245
+#: src/Api/Campaigns.php:737
+#: src/Api/Campaigns.php:3115
+#: src/Api/Campaigns.php:3191
+#: src/Api/Campaigns.php:4524
 #: build/dist/js/mail-editor.js:1
 msgid "Campaign not found"
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:410
+#: src/Api/ActionSchedulerDiagnostic.php:416
 msgid "Campaign sending has been canceled."
 msgstr ""
 
-#: src/Api/ActionSchedulerDiagnostic.php:425
+#: src/Api/ActionSchedulerDiagnostic.php:431
 msgid "An error occurred while canceling the sending: %s"
 msgstr ""
 
@@ -2143,438 +2185,449 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: src/Api/Campaigns.php:43
-#: src/Api/Campaigns.php:139
-#: src/Api/Campaigns.php:267
+#: src/Api/Campaigns.php:44
+#: src/Api/Campaigns.php:140
+#: src/Api/Campaigns.php:268
 msgid "No batch_id provided"
 msgstr ""
 
-#: src/Api/Campaigns.php:344
-#: src/Api/Campaigns.php:590
+#: src/Api/Campaigns.php:345
+#: src/Api/Campaigns.php:591
 msgid "No IDs provided"
 msgstr ""
 
-#: src/Api/Campaigns.php:349
-#: src/Api/Campaigns.php:595
+#: src/Api/Campaigns.php:350
+#: src/Api/Campaigns.php:596
 msgid "Invalid IDs provided"
 msgstr ""
 
-#: src/Api/Campaigns.php:658
-#: src/Api/Contacts.php:2098
-#: src/Api/Contacts.php:2168
-#: src/Api/Contacts.php:2234
+#: src/Api/Campaigns.php:659
+#: src/Api/Contacts.php:2157
+#: src/Api/Contacts.php:2227
+#: src/Api/Contacts.php:2293
 msgid "Invalid batch ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:725
+#: src/Api/Campaigns.php:726
 msgid "Invalid campaign ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:1488
+#: src/Api/Campaigns.php:1489
 msgid "Failed to create campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:1511
-#: src/Api/Campaigns.php:1583
-#: src/Api/Campaigns.php:1811
+#: src/Api/Campaigns.php:1512
+#: src/Api/Campaigns.php:1587
+#: src/Api/Campaigns.php:1869
 msgid "You do not have permission to delete campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1526
+#: src/Api/Campaigns.php:1527
 msgid "No campaign IDs provided."
 msgstr ""
 
-#: src/Api/Campaigns.php:1543
+#: src/Api/Campaigns.php:1546
 msgid "Failed to delete the campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1558
+#: src/Api/Campaigns.php:1561
 msgid "Failed to delete the batches."
 msgstr ""
 
-#: src/Api/Campaigns.php:1565
+#: src/Api/Campaigns.php:1568
 msgid "Campaigns successfully deleted."
 msgstr ""
 
-#: src/Api/Campaigns.php:1676
+#: src/Api/Campaigns.php:1698
 msgid "Invalid or empty campaign status."
 msgstr ""
 
-#: src/Api/Campaigns.php:1723
+#: src/Api/Campaigns.php:1763
 msgid "Failed to update campaign statuses."
 msgstr ""
 
 #. translators: %d number of campaigns
-#: src/Api/Campaigns.php:1733
-#: src/Api/Campaigns.php:1791
+#: src/Api/Campaigns.php:1775
+#: src/Api/Campaigns.php:1847
 msgid "%d campaign(s) status updated successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:1752
-#: src/Api/Campaigns.php:1896
+#: src/Api/Campaigns.php:1796
+#: src/Api/Campaigns.php:1956
 msgid "No campaign ID(s) provided."
 msgstr ""
 
-#: src/Api/Campaigns.php:1767
+#: src/Api/Campaigns.php:1814
 msgid "No matching campaign(s) found."
 msgstr ""
 
-#: src/Api/Campaigns.php:1781
+#: src/Api/Campaigns.php:1835
 msgid "Failed to update campaign status."
 msgstr ""
 
-#: src/Api/Campaigns.php:1874
+#: src/Api/Campaigns.php:1933
 msgid "Failed to delete campaigns."
 msgstr ""
 
-#: src/Api/Campaigns.php:1881
+#: src/Api/Campaigns.php:1940
 msgid "All (%d) campaign(s) permanently deleted."
 msgstr ""
 
-#: src/Api/Campaigns.php:1908
+#: src/Api/Campaigns.php:1968
 msgid "No campaign(s) in trash found."
 msgstr ""
 
-#: src/Api/Campaigns.php:1929
+#: src/Api/Campaigns.php:1990
 msgid "Failed to delete campaign(s)."
 msgstr ""
 
-#: src/Api/Campaigns.php:1936
+#: src/Api/Campaigns.php:1997
 msgid "Campaign(s) permanently deleted: %d"
 msgstr ""
 
-#: src/Api/Campaigns.php:1956
+#: src/Api/Campaigns.php:2018
 #: src/Api/Lists.php:343
 #: src/Api/Tags.php:287
 msgid "Title cannot be empty."
 msgstr ""
 
-#: src/Api/Campaigns.php:1981
+#: src/Api/Campaigns.php:2043
 msgid "Failed to rename campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:1987
+#: src/Api/Campaigns.php:2049
 msgid "Campaign renamed successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:2046
-#: src/Api/Campaigns.php:2161
+#: src/Api/Campaigns.php:2108
+#: src/Api/Campaigns.php:2223
 msgid "Failed to update campaign."
 msgstr ""
 
-#: src/Api/Campaigns.php:2053
-#: src/Api/Campaigns.php:2172
+#: src/Api/Campaigns.php:2115
+#: src/Api/Campaigns.php:2234
 msgid "Campaign updated successfully."
 msgstr ""
 
-#: src/Api/Campaigns.php:2107
+#: src/Api/Campaigns.php:2169
 msgid "Failed to update campaign settings."
 msgstr ""
 
-#: src/Api/Campaigns.php:2147
+#: src/Api/Campaigns.php:2209
 msgid "This campaign is currently locked by another user."
 msgstr ""
 
-#: src/Api/Campaigns.php:2446
+#: src/Api/Campaigns.php:2508
 msgid "You do not have permission to create a campaign batch."
 msgstr ""
 
-#: src/Api/Campaigns.php:2542
+#: src/Api/Campaigns.php:2604
 msgid "Failed to create batch"
 msgstr ""
 
-#: src/Api/Campaigns.php:2580
+#: src/Api/Campaigns.php:2642
 msgid "The scheduled date is in the past. Please select a future date and time."
 msgstr ""
 
-#: src/Api/Campaigns.php:2592
+#: src/Api/Campaigns.php:2654
 msgid "Invalid scheduled date format."
 msgstr ""
 
 #. translators: %s is the subject of the email
-#: src/Api/Campaigns.php:2855
+#: src/Api/Campaigns.php:2927
 msgid "[MailerPress TEST] - %s"
 msgstr ""
 
-#: src/Api/Campaigns.php:2898
+#: src/Api/Campaigns.php:2970
 msgid "Missing batchId"
 msgstr ""
 
-#: src/Api/Campaigns.php:3024
-#: src/Api/Campaigns.php:3078
+#: src/Api/Campaigns.php:3101
+#: src/Api/Campaigns.php:3177
 msgid "Missing campaign ID"
 msgstr ""
 
-#: src/Api/Campaigns.php:3042
+#: src/Api/Campaigns.php:3119
 msgid "Only automated campaigns can be deactivated"
 msgstr ""
 
-#: src/Api/Campaigns.php:3096
+#: src/Api/Campaigns.php:3195
 msgid "Only automated campaigns can be activated"
 msgstr ""
 
-#: src/Api/Campaigns.php:3797
+#: src/Api/Campaigns.php:3205
+msgid "Campaign automation settings are missing"
+msgstr ""
+
+#: src/Api/Campaigns.php:4070
 msgid "Missing video url"
 msgstr ""
 
-#: src/Api/Campaigns.php:3802
+#: src/Api/Campaigns.php:4075
 msgid "Unsupported video url"
 msgstr ""
 
-#: src/Api/Campaigns.php:3855
+#: src/Api/Campaigns.php:4128
 msgid "Failed to fetch thumbnail"
 msgstr ""
 
-#: src/Api/Campaigns.php:3974
+#: src/Api/Campaigns.php:4247
 msgid "Failed to process thumbnail. Neither Imagick nor GD extension is available."
 msgstr ""
 
-#: src/Api/Campaigns.php:4196
+#: src/Api/Campaigns.php:4469
 #: src/Api/Workflows.php:3838
 #: src/Api/Workflows.php:4347
 #: build/dist/js/mail-editor.js:1
 msgid "Contact #%d"
 msgstr ""
 
-#: src/Api/Contacts.php:40
+#: src/Api/Contacts.php:41
 msgid "Invalid contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:109
+#: src/Api/Contacts.php:110
 msgid "Sent campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:117
+#: src/Api/Contacts.php:118
 msgid "Opened campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:127
+#: src/Api/Contacts.php:128
 msgid "Unsubscribed from campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:148
+#: src/Api/Contacts.php:149
 msgid "Generated %s %s in revenue from campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:164
+#: src/Api/Contacts.php:165
 msgid "Clicked link in campaign \"%s\": %s"
 msgstr ""
 
-#: src/Api/Contacts.php:170
+#: src/Api/Contacts.php:171
 msgid " — clicked %d times"
 msgstr ""
 
-#: src/Api/Contacts.php:322
+#: src/Api/Contacts.php:323
 msgid "Export not found."
 msgstr ""
 
-#: src/Api/Contacts.php:326
+#: src/Api/Contacts.php:327
 msgid "Invalid token."
 msgstr ""
 
-#: src/Api/Contacts.php:330
+#: src/Api/Contacts.php:331
 msgid "Link expired."
 msgstr ""
 
-#: src/Api/Contacts.php:335
+#: src/Api/Contacts.php:336
 msgid "File not found."
 msgstr ""
 
-#: src/Api/Contacts.php:405
+#: src/Api/Contacts.php:406
 msgid "Failed to insert contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:438
+#: src/Api/Contacts.php:439
 msgid "Note content cannot be empty."
 msgstr ""
 
-#: src/Api/Contacts.php:453
-#: src/Api/Contacts.php:515
+#: src/Api/Contacts.php:454
+#: src/Api/Contacts.php:516
 msgid "Note not found."
 msgstr ""
 
-#: src/Api/Contacts.php:475
+#: src/Api/Contacts.php:476
 msgid "Failed to update contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:529
+#: src/Api/Contacts.php:530
 msgid "Failed to delete contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:534
+#: src/Api/Contacts.php:535
 #: build/dist/js/mail-editor.js:1
 msgid "Note deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:822
+#: src/Api/Contacts.php:823
 msgid "API key missing required scope: contacts:write"
 msgstr ""
 
-#: src/Api/Contacts.php:840
+#: src/Api/Contacts.php:841
 msgid "Authentication required. Please refresh the page and try again."
 msgstr ""
 
-#: src/Api/Contacts.php:869
+#: src/Api/Contacts.php:870
 msgid "Too many submission attempts. Please try again later."
 msgstr ""
 
-#: src/Api/Contacts.php:929
-#: src/Api/Contacts.php:1013
+#: src/Api/Contacts.php:930
+#: src/Api/Contacts.php:996
+#: src/Api/Contacts.php:1072
 msgid "Contact added successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:938
+#: src/Api/Contacts.php:939
+#: src/Services/ContactUpsertService.php:31
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/Api/Contacts.php:972
-#: src/Api/Contacts.php:1650
-#: src/functions.php:354
+#: src/Api/Contacts.php:974
+msgid "Unable to save contact."
+msgstr ""
+
+#: src/Api/Contacts.php:997
+#: src/Api/Contacts.php:1031
+#: src/Api/Contacts.php:1709
+#: src/functions.php:347
 msgid "Contact updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1305
+#: src/Api/Contacts.php:1364
 msgid "This email address is already in use by another contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1425
+#: src/Api/Contacts.php:1484
 #: build/dist/js/mail-editor.js:1
 msgid "Contacts updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1458
-#: src/functions.php:246
+#: src/Api/Contacts.php:1517
+#: src/functions.php:239
 msgid "Missing contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:1670
+#: src/Api/Contacts.php:1729
 msgid "Contact IDs must be an array and cannot be empty"
 msgstr ""
 
-#: src/Api/Contacts.php:1687
+#: src/Api/Contacts.php:1746
 msgid "One or more contacts were not found."
 msgstr ""
 
-#: src/Api/Contacts.php:1703
+#: src/Api/Contacts.php:1762
 msgid "Contacts deleted successfully"
 msgstr ""
 
-#: src/Api/Contacts.php:1710
+#: src/Api/Contacts.php:1769
 msgid "Failed to delete the contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1733
+#: src/Api/Contacts.php:1792
 msgid "Missing contact_id or list_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1754
-#: src/Api/Contacts.php:1824
+#: src/Api/Contacts.php:1813
+#: src/Api/Contacts.php:1883
 msgid "Database error occurred."
 msgstr ""
 
-#: src/Api/Contacts.php:1761
-#: src/Api/Contacts.php:1831
+#: src/Api/Contacts.php:1820
+#: src/Api/Contacts.php:1890
 msgid "No matching record found."
 msgstr ""
 
-#: src/Api/Contacts.php:1772
+#: src/Api/Contacts.php:1831
 msgid "List removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1803
+#: src/Api/Contacts.php:1862
 msgid "Missing contact_id or tag_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1842
+#: src/Api/Contacts.php:1901
 msgid "Tag removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1874
+#: src/Api/Contacts.php:1933
 msgid "Failed to delete contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1879
+#: src/Api/Contacts.php:1938
 msgid "All contacts have been deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1901
+#: src/Api/Contacts.php:1960
 msgid "Failed to create delete batch."
 msgstr ""
 
-#: src/Api/Contacts.php:1954
+#: src/Api/Contacts.php:2013
 msgid "Delete batch created successfully. Deletion in progress..."
 msgstr ""
 
-#: src/Api/Contacts.php:2047
+#: src/Api/Contacts.php:2106
 msgid "Delete batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2081
+#: src/Api/Contacts.php:2140
 msgid "Delete batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:2185
+#: src/Api/Contacts.php:2244
 msgid "No failed chunks to retry"
 msgstr ""
 
-#: src/Api/Contacts.php:2216
+#: src/Api/Contacts.php:2275
 msgid "Retrying %d failed chunks"
 msgstr ""
 
-#: src/Api/Contacts.php:2285
+#: src/Api/Contacts.php:2344
 msgid "Reset %d stuck chunks and scheduled %d chunks for processing"
 msgstr ""
 
-#: src/Api/Contacts.php:2361
+#: src/Api/Contacts.php:2420
 msgid "No contacts to export."
 msgstr ""
 
-#: src/Api/Contacts.php:2411
+#: src/Api/Contacts.php:2470
 msgid "Export started"
 msgstr ""
 
-#: src/Api/Contacts.php:2521
+#: src/Api/Contacts.php:2580
 msgid "Failed to create import batch"
 msgstr ""
 
-#: src/Api/Contacts.php:2556
+#: src/Api/Contacts.php:2615
 msgid "Batch ID and chunk data are required"
 msgstr ""
 
-#: src/Api/Contacts.php:2570
-#: src/Api/Contacts.php:2709
+#: src/Api/Contacts.php:2629
+#: src/Api/Contacts.php:2768
 msgid "Import batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2777
+#: src/Api/Contacts.php:2836
 msgid "Import batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:3041
+#: src/Api/Contacts.php:3100
 #: src/Api/MyLists.php:135
 msgid "Invalid email address."
 msgstr ""
 
-#: src/Api/Contacts.php:3118
-#: src/Api/Contacts.php:3254
+#: src/Api/Contacts.php:3177
+#: src/Api/Contacts.php:3313
 msgid "This contact is not in pending status."
 msgstr ""
 
-#: src/Api/Contacts.php:3210
-#: src/Api/Contacts.php:3218
+#: src/Api/Contacts.php:3269
+#: src/Api/Contacts.php:3277
 msgid "Failed to send confirmation reminder email."
 msgstr ""
 
-#: src/Api/Contacts.php:3225
+#: src/Api/Contacts.php:3284
 msgid "Confirmation reminder email sent successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:3265
+#: src/Api/Contacts.php:3324
 #: build/dist/js/mail-editor.js:1
 msgid "Failed to confirm contact."
 msgstr ""
 
-#: src/Api/Contacts.php:3272
+#: src/Api/Contacts.php:3331
 #: build/dist/js/mail-editor.js:1
 msgid "Contact confirmed successfully."
 msgstr ""
@@ -2735,6 +2788,17 @@ msgstr ""
 msgid "Thank you for subscribing! You have been added to our mailing list."
 msgstr ""
 
+#: src/Api/Newsletter.php:52
+#: src/Api/Newsletter.php:150
+#: src/Api/Newsletter.php:199
+msgid "Unable to subscribe right now. Please try again later."
+msgstr ""
+
+#: src/Api/Newsletter.php:80
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:119
+msgid "Please enter a valid email address."
+msgstr ""
+
 #: src/Api/Options.php:143
 msgid "This is a Sending Method Test"
 msgstr ""
@@ -2869,6 +2933,14 @@ msgstr ""
 msgid "API key missing required scope: %s"
 msgstr ""
 
+#: src/Api/Search.php:107
+msgid "Page #%d"
+msgstr ""
+
+#: src/Api/Search.php:108
+msgid "ID %d"
+msgstr ""
+
 #: src/Api/Synchronisation.php:51
 #: src/Api/Synchronisation.php:113
 #: src/Api/Synchronisation.php:139
@@ -2988,14 +3060,6 @@ msgstr ""
 
 #: src/Api/Templates.php:598
 msgid "Category deleted successfully."
-msgstr ""
-
-#: src/Api/Workflows.php:135
-#: build/dist/js/editor-blocks.js:1
-#: build/dist/js/mail-editor.js:1
-#: build/dist/js/mailerpress-pro-workflow.js:1
-#: packages/gutenberg/mailerpress-form/edit.js:122
-msgid "List"
 msgstr ""
 
 #: src/Api/Workflows.php:136
@@ -3632,6 +3696,39 @@ msgstr ""
 msgid "View Dashboard"
 msgstr ""
 
+#: src/Core/Promotions/PromotionRegistry.php:117
+msgid "Limited time"
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:119
+msgid "Save 30% on MailerPress with coupon mailerpress_v2"
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:120
+msgid "Use coupon code mailerpress_v2 at checkout to get 30% off for a limited time."
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:133
+msgid "Claim 30% off now"
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:145
+#: build/dist/js/mail-editor.js:1
+msgid "Recommended"
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:147
+msgid "Unlock more growth tools with MailerPress Pro"
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:148
+msgid "Unlock AI email creation, premium sending providers, automations, segmentation, webhooks, and WordPress/WooCommerce email customization."
+msgstr ""
+
+#: src/Core/Promotions/PromotionRegistry.php:161
+msgid "View plans"
+msgstr ""
+
 #: src/Core/Synchronisation/Connectors/BrevoConnectorStub.php:27
 msgid "Brevo"
 msgstr ""
@@ -3795,100 +3892,123 @@ msgstr ""
 msgid "Split the workflow into different paths based on a condition. If the condition is true, the workflow continues down one path; otherwise, it takes another path. Enables you to create smart and personalized workflows."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:66
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:74
+msgid "Select field from trigger..."
+msgstr ""
+
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:75
+msgid "Map a value to the \"%s\" custom field."
+msgstr ""
+
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:81
 msgid "Create Contact"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:67
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:82
 msgid "Create a new contact in MailerPress or update an existing one. Map fields from the trigger context to contact fields."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:78
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:93
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:53
 msgid "Field Mapping"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:79
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:94
 msgid "Map trigger data to contact fields. Select fields from the trigger or enter custom values."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:87
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:102
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:62
 msgid "Select email field from trigger..."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:88
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:103
 msgid "The email address for the contact. Map from trigger data."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:96
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:111
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:80
 msgid "Select first name field from trigger..."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:97
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:112
 msgid "The first name of the contact."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:105
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:120
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:88
 msgid "Select last name field from trigger..."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:106
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:121
 msgid "The last name of the contact."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:113
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:128
 msgid "Contact Settings"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:122
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:137
 msgid "Pending (requires confirmation)"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:126
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:141
 msgid "The subscription status for the new contact."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:139
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:154
 msgid "Add Tags"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:144
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:159
 msgid "Select one or more tags to add to the contact."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:151
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:164
+#: build/dist/js/mail-editor.js:1
+msgid "Custom Fields"
+msgstr ""
+
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:165
+msgid "Map trigger data to contact custom fields."
+msgstr ""
+
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:173
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:118
 msgid "Advanced Settings"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:159
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:181
 msgid "If a contact with this email already exists, update their information. If disabled, the action will skip existing contacts."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:168
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:190
 msgid "Identifies where this contact came from (e.g., \"woocommerce\", \"form\", \"api\"). Useful for tracking and segmentation."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:196
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:229
 msgid "No email address provided. Email setting: \"%s\". Available context fields: %s"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:200
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:233
 msgid "No email address provided. Check your field mapping."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:205
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:238
 msgid "Invalid email address: %s"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:224
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:259
+msgid "Failed to save contact."
+msgstr ""
+
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:267
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:300
 msgid "Contact already exists, skipped update."
 msgstr ""
 
-#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:297
+#: src/Core/Workflows/Handlers/CreateContactStepHandler.php:373
+#: src/Services/ContactUpsertService.php:98
 msgid "Failed to create contact in database."
 msgstr ""
 
@@ -3909,8 +4029,8 @@ msgid "The email address for the WordPress user. Must be unique."
 msgstr ""
 
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:67
-#: src/Core/Workflows/Services/TriggerManager.php:627
-#: src/Core/Workflows/Services/TriggerManager.php:669
+#: src/Core/Workflows/Services/TriggerManager.php:664
+#: src/Core/Workflows/Services/TriggerManager.php:706
 #: build/dist/js/mail-editor.js:1
 msgid "Username"
 msgstr ""
@@ -3928,7 +4048,7 @@ msgid "User Settings"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:99
-#: src/Core/Workflows/Services/TriggerManager.php:737
+#: src/Core/Workflows/Services/TriggerManager.php:774
 msgid "Role"
 msgstr ""
 
@@ -4085,181 +4205,181 @@ msgstr ""
 msgid "Leave a Review"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:610
+#: src/Core/Workflows/Services/TriggerManager.php:647
 msgid "User Registered"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:611
+#: src/Core/Workflows/Services/TriggerManager.php:648
 msgid "Triggered when a new user registers on your WordPress site. Perfect for sending welcome emails or setting up onboarding workflows."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:617
-#: src/Core/Workflows/Services/TriggerManager.php:631
-#: src/Core/Workflows/Services/TriggerManager.php:659
-#: src/Core/Workflows/Services/TriggerManager.php:673
-#: src/Core/Workflows/Services/TriggerManager.php:704
-#: src/Core/Workflows/Services/TriggerManager.php:709
+#: src/Core/Workflows/Services/TriggerManager.php:654
+#: src/Core/Workflows/Services/TriggerManager.php:668
+#: src/Core/Workflows/Services/TriggerManager.php:696
+#: src/Core/Workflows/Services/TriggerManager.php:710
+#: src/Core/Workflows/Services/TriggerManager.php:741
+#: src/Core/Workflows/Services/TriggerManager.php:746
 msgid "User Role"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:621
-#: src/Core/Workflows/Services/TriggerManager.php:663
-#: src/Core/Workflows/Services/TriggerManager.php:713
+#: src/Core/Workflows/Services/TriggerManager.php:658
+#: src/Core/Workflows/Services/TriggerManager.php:700
+#: src/Core/Workflows/Services/TriggerManager.php:750
 msgid "Only trigger for users with specific role (leave empty for all roles)"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:626
-#: src/Core/Workflows/Services/TriggerManager.php:668
-#: src/Core/Workflows/Services/TriggerManager.php:700
+#: src/Core/Workflows/Services/TriggerManager.php:663
+#: src/Core/Workflows/Services/TriggerManager.php:705
+#: src/Core/Workflows/Services/TriggerManager.php:737
 msgid "User Email"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:628
-#: src/Core/Workflows/Services/TriggerManager.php:670
-#: src/Core/Workflows/Services/TriggerManager.php:701
+#: src/Core/Workflows/Services/TriggerManager.php:665
+#: src/Core/Workflows/Services/TriggerManager.php:707
+#: src/Core/Workflows/Services/TriggerManager.php:738
 msgid "Display Name"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:632
+#: src/Core/Workflows/Services/TriggerManager.php:669
 msgid "Registration Date"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:652
+#: src/Core/Workflows/Services/TriggerManager.php:689
 msgid "User Login"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:653
+#: src/Core/Workflows/Services/TriggerManager.php:690
 msgid "Triggered when a user logs into your site. Useful for sending security notifications or personalized messages after login."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:694
+#: src/Core/Workflows/Services/TriggerManager.php:731
 msgid "Profile Updated"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:695
+#: src/Core/Workflows/Services/TriggerManager.php:732
 msgid "Triggered when a user updates their WordPress profile. Allows you to react to user information changes and synchronize data."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:730
+#: src/Core/Workflows/Services/TriggerManager.php:767
 msgid "User Role Changed"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:731
+#: src/Core/Workflows/Services/TriggerManager.php:768
 msgid "Triggered when a user's role changes (e.g., from \"Subscriber\" to \"Editor\"). Ideal for automating actions based on permissions and access level changes."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:741
+#: src/Core/Workflows/Services/TriggerManager.php:778
 msgid "Only trigger when changed to specific role"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:758
+#: src/Core/Workflows/Services/TriggerManager.php:795
 msgid "User Meta Updated"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:759
+#: src/Core/Workflows/Services/TriggerManager.php:796
 msgid "Triggered when a user metadata field is updated (e.g., phone number, address, etc.). Allows you to react to changes in personal data."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:765
+#: src/Core/Workflows/Services/TriggerManager.php:802
 msgid "Meta Key"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:768
+#: src/Core/Workflows/Services/TriggerManager.php:805
 msgid "Only trigger for specific meta key (e.g., billing_phone)"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:796
+#: src/Core/Workflows/Services/TriggerManager.php:833
 msgid "Comment Posted"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:797
+#: src/Core/Workflows/Services/TriggerManager.php:834
 msgid "Triggered when a comment is posted on your site. Perfect for sending notifications to post authors or engaging with your community."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:803
+#: src/Core/Workflows/Services/TriggerManager.php:840
 msgid "Post"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:807
+#: src/Core/Workflows/Services/TriggerManager.php:844
 msgid "Only trigger for comments on specific posts (leave empty for all posts)"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:808
+#: src/Core/Workflows/Services/TriggerManager.php:845
 msgid "Search and select posts..."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:889
+#: src/Core/Workflows/Services/TriggerManager.php:926
 msgid "Post Published"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:890
+#: src/Core/Workflows/Services/TriggerManager.php:927
 msgid "Triggered when a post or content is published on your site. Ideal for sending automatic newsletters or notifying subscribers about new content."
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:896
-#: src/Core/Workflows/Services/TriggerManager.php:928
+#: src/Core/Workflows/Services/TriggerManager.php:933
+#: src/Core/Workflows/Services/TriggerManager.php:965
 #: build/dist/js/mail-editor.js:1
 msgid "Post Type"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:900
+#: src/Core/Workflows/Services/TriggerManager.php:937
 msgid "Only trigger for specific post types"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:904
+#: src/Core/Workflows/Services/TriggerManager.php:941
 msgid "Post Category"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:908
+#: src/Core/Workflows/Services/TriggerManager.php:945
 msgid "Only trigger when post is in specific category"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:912
+#: src/Core/Workflows/Services/TriggerManager.php:949
 msgid "Post Meta Key"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:915
+#: src/Core/Workflows/Services/TriggerManager.php:952
 msgid "Optional: Filter by post meta key (e.g., custom_field)"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:919
+#: src/Core/Workflows/Services/TriggerManager.php:956
 msgid "Post Meta Value"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:922
+#: src/Core/Workflows/Services/TriggerManager.php:959
 msgid "Optional: Filter by post meta value (requires meta key)"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:927
+#: src/Core/Workflows/Services/TriggerManager.php:964
 msgid "Post ID"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:929
+#: src/Core/Workflows/Services/TriggerManager.php:966
 #: build/dist/js/mail-editor.js:1
 msgid "Post Title"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:930
+#: src/Core/Workflows/Services/TriggerManager.php:967
 msgid "Post Excerpt"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:931
+#: src/Core/Workflows/Services/TriggerManager.php:968
 msgid "Post URL"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:932
+#: src/Core/Workflows/Services/TriggerManager.php:969
 msgid "Featured Image URL"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:949
+#: src/Core/Workflows/Services/TriggerManager.php:986
 msgid "All Post Types"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:969
+#: src/Core/Workflows/Services/TriggerManager.php:1006
 msgid "All Categories"
 msgstr ""
 
-#: src/Core/Workflows/Services/TriggerManager.php:993
+#: src/Core/Workflows/Services/TriggerManager.php:1030
 msgid "All Roles"
 msgstr ""
 
@@ -4276,11 +4396,11 @@ msgstr ""
 msgid "Invalid email format"
 msgstr ""
 
-#: src/functions.php:171
+#: src/functions.php:157
 msgid "Unknown error."
 msgstr ""
 
-#: src/functions.php:644
+#: src/functions.php:729
 msgid ""
 "Hello [contact:firstName] [contact:lastName],\n"
 "\n"
@@ -4295,7 +4415,7 @@ msgid ""
 "<a target=\"_blank\" href=\"[site:homeURL]\">[site:title]</a>"
 msgstr ""
 
-#: src/functions.php:902
+#: src/functions.php:987
 msgid "Confirm my subscription"
 msgstr ""
 
@@ -4592,6 +4712,23 @@ msgstr[1] ""
 msgid "No newsletter lists available at the moment."
 msgstr ""
 
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:89
+msgid "Please wait before trying again."
+msgstr ""
+
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:149
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:295
+msgid "Unable to process this subscription request."
+msgstr ""
+
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:308
+msgid "If confirmation is required, please check your inbox."
+msgstr ""
+
+#: tools/mu-plugins/mailerpress-setup-newsletter-optin.php:316
+msgid "Newsletter signup is not available right now."
+msgstr ""
+
 #: build/973.js:1
 msgid "No error found"
 msgstr ""
@@ -4785,11 +4922,13 @@ msgid "Order"
 msgstr ""
 
 #: build/dist/js/editor-blocks.js:1
+#: build/dist/js/mail-editor.js:1
 #: packages/gutenberg/mailerpress-archive/edit.js:128
 msgid "Newest first"
 msgstr ""
 
 #: build/dist/js/editor-blocks.js:1
+#: build/dist/js/mail-editor.js:1
 #: packages/gutenberg/mailerpress-archive/edit.js:129
 msgid "Oldest first"
 msgstr ""
@@ -5489,6 +5628,10 @@ msgid "Install fonts"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Dismiss promotion"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "View options"
 msgstr ""
 
@@ -6129,10 +6272,6 @@ msgid "Drag-and-drop builder with blocks, templates, and live preview."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Recommended"
-msgstr ""
-
-#: build/dist/js/mail-editor.js:1
 msgid "Raw HTML"
 msgstr ""
 
@@ -6469,7 +6608,7 @@ msgid "Failed to cancel batch"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Campaign name %s"
+msgid "Campaign name: %s"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -6493,16 +6632,12 @@ msgid "No new content matched the campaign criteria, so no emails were sent."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Sended at"
-msgstr ""
-
-#: build/dist/js/mail-editor.js:1
 #: build/dist/js/mailerpress-pro-workflow.js:1
 msgid "Statistics"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Campaign name: %s"
+msgid "No sending history is available for this automated campaign."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -6621,11 +6756,11 @@ msgid "Restore"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "All filtered Campaign(s) are restored as draft"
+msgid "All filtered Campaign(s) restored successfully"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Campaign(s) restored as draft"
+msgid "Campaign(s) restored successfully"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -6707,6 +6842,48 @@ msgstr ""
 #: build/dist/js/mail-editor.js:1
 msgid "Author"
 msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Query block"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Query %d"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Posts"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Pages"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Default"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Limit %d"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "A to Z"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Z to A"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Authors: %s"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "%d meta filter"
+msgid_plural "%d meta filters"
+msgstr[0] ""
+msgstr[1] ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Created"
@@ -7043,10 +7220,6 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Start blank"
-msgstr ""
-
-#: build/dist/js/mail-editor.js:1
-msgid "Default"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -7494,10 +7667,6 @@ msgid "Link Text"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Custom Fields"
-msgstr ""
-
-#: build/dist/js/mail-editor.js:1
 msgid "Bold"
 msgstr ""
 
@@ -7919,6 +8088,16 @@ msgid "Search %s"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Post Meta / ACF"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "%d configured post meta condition"
+msgid_plural "%d configured post meta conditions"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "Order By"
 msgstr ""
 
@@ -7951,6 +8130,15 @@ msgid "Search and select authors…"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Filtering Query blocks by Post Meta or ACF fields is available in MailerPress Pro."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+#: build/dist/js/mailerpress-pro-workflow.js:1
+msgid "Upgrade to Pro"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "Limit"
 msgstr ""
 
@@ -7976,6 +8164,10 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Manual"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Loading query results..."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -8088,11 +8280,6 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "ACF fields are only available for Pro users."
-msgstr ""
-
-#: build/dist/js/mail-editor.js:1
-#: build/dist/js/mailerpress-pro-workflow.js:1
-msgid "Upgrade to Pro"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -9858,6 +10045,10 @@ msgid "Choose your preferred email sending option."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Search for a page..."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "Send via Brevo (formerly Sendinblue) transactional API."
 msgstr ""
 
@@ -10139,6 +10330,30 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "MailerPress is ready. What would you like to do first?"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Get MailerPress updates"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Product news, setup tips, release notes, and promotions. Unsubscribe anytime."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Email address"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Enter an email address to subscribe."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Thanks, you're subscribed to MailerPress updates."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Subscription failed. Please try again later."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1

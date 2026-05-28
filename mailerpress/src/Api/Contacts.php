@@ -15,6 +15,7 @@ use MailerPress\Core\Kernel;
 use MailerPress\Models\CustomFields;
 use MailerPress\Services\RateLimiter;
 use MailerPress\Services\RateLimitConfig;
+use MailerPress\Services\ContactUpsertService;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -939,6 +940,64 @@ class Contacts
                 ['status' => 400]
             );
         }
+
+        $finalSubscriptionStatus = $subscription_status;
+        if (empty($finalSubscriptionStatus)) {
+            $signUpConfirmation = mailerpress_get_signup_confirmation_option();
+            if ($optinSource !== 'manual' && !empty($signUpConfirmation) && true === $signUpConfirmation['enableSignupConfirmation']) {
+                $finalSubscriptionStatus = 'pending';
+            } else {
+                $finalSubscriptionStatus = 'subscribed';
+            }
+        }
+
+        $result = (new ContactUpsertService())->upsert([
+            'email' => $email,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'subscription_status' => $finalSubscriptionStatus,
+            'tags' => $contactTags,
+            'lists' => $contactLists,
+            'opt_in_source' => $optinSource,
+            'optin_details' => $optinDetails,
+            'custom_fields' => $customFields,
+            'lang' => $lang,
+            'update_existing' => true,
+            'update_contact_fields' => $isTrustedSubmission,
+            'assign_default_list' => true,
+            'auto_map_custom_fields' => true,
+        ]);
+
+        if (empty($result['success'])) {
+            return new \WP_Error(
+                'contact_upsert_failed',
+                $result['error'] ?? __('Unable to save contact.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $contactId = (int) ($result['contact_id'] ?? 0);
+        if ($contactId && !empty($lang)) {
+            $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
+            $wpdb->replace(
+                $customFieldsTable,
+                [
+                    'contact_id' => $contactId,
+                    'field_key' => '_language',
+                    'field_value' => $lang,
+                ],
+                ['%d', '%s', '%s']
+            );
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'message' => !empty($result['created'])
+                ? __('Contact added successfully.', 'mailerpress')
+                : __('Contact updated successfully.', 'mailerpress'),
+            'data' => $result,
+            'contact_id' => $contactId,
+        ]);
 
         // Vérifier si le contact existe déjà
 

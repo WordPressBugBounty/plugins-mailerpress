@@ -99,6 +99,27 @@ class Permissions
         return self::checkAuth($request, 'edit_posts');
     }
 
+    public static function canViewMailerPress($request): bool|\WP_Error
+    {
+        $auth = self::checkAuth($request);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (current_user_can('edit_posts')) {
+            return true;
+        }
+
+        foreach (Capabilities::get_capabilities() as $capability) {
+            if (current_user_can($capability)) {
+                return true;
+            }
+        }
+
+        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+    }
+
     public static function canEdit($request): bool|\WP_Error
     {
         return self::checkAuth($request, 'edit_posts');

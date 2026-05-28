@@ -50,34 +50,40 @@ class AutomatedCampaign
             }
         }
 
-        if ($campaign->status === 'active') {
-            // Trigger batch for active campaigns only
-            $this->mailerpress_trigger_batch_for_automated_campaign(
-                $sendType,
-                $post,
-                $conf,
-                $scheduledAt,
-                $recipientTargeting,
-                $lists,
-                $tags,
-                $segment,
-            );
+        if ($campaign->status !== 'active') {
+            if (function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')) {
+                mailerpress_cancel_scheduled_automated_campaign_actions((int) $post);
+            }
 
-            // Update last_run immediately after triggering batch
-            $automateSettings['last_run'] = current_time('mysql');
-            $config['automateSettings'] = $automateSettings;
-
-            $wpdb->update(
-                $wpdb->prefix . 'mailerpress_campaigns',
-                ['config' => wp_json_encode($config), 'status' => 'active'],
-                ['campaign_id' => $post]
-            );
-
-            // Use the updated last_run for next run calculation
-            $lastRun = new \DateTime($automateSettings['last_run'], wp_timezone());
+            return;
         }
 
-        // Calculate next run (even if campaign is not active, to allow reactivation)
+        // Trigger batch for active campaigns only.
+        $this->mailerpress_trigger_batch_for_automated_campaign(
+            $sendType,
+            $post,
+            $conf,
+            $scheduledAt,
+            $recipientTargeting,
+            $lists,
+            $tags,
+            $segment,
+        );
+
+        // Update last_run immediately after triggering batch.
+        $automateSettings['last_run'] = current_time('mysql');
+        $config['automateSettings'] = $automateSettings;
+
+        $wpdb->update(
+            $wpdb->prefix . 'mailerpress_campaigns',
+            ['config' => wp_json_encode($config), 'status' => 'active'],
+            ['campaign_id' => $post]
+        );
+
+        // Use the updated last_run for next run calculation.
+        $lastRun = new \DateTime($automateSettings['last_run'], wp_timezone());
+
+        // Calculate next run for active campaigns only.
         $nextRun = mailerpress_calculate_next_run($automateSettings, $lastRun);
 
         // Schedule next run only if it is in the future
@@ -90,6 +96,10 @@ class AutomatedCampaign
                 ['config' => wp_json_encode($config)],
                 ['campaign_id' => $post]
             );
+
+            if (function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')) {
+                mailerpress_cancel_scheduled_automated_campaign_actions((int) $post);
+            }
 
             as_schedule_single_action(
                 $nextRun->getTimestamp(),
