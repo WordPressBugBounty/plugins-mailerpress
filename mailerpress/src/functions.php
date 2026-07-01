@@ -404,6 +404,265 @@ function mailerpress_get_provider_class()
     return Kernel::getContainer()->get(\MailerPress\Core\EmailManager\EmailServiceManager::class);
 }
 
+function mailerpress_option_array(string $optionName, array $default = []): array
+{
+    $value = get_option($optionName, $default);
+
+    if (is_string($value)) {
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : $default;
+    }
+
+    return is_array($value) ? $value : $default;
+}
+
+function mailerpress_normalize_sender_identity(array $sender): array
+{
+    $fromName = sanitize_text_field((string) (
+        $sender['fromName']
+        ?? $sender['from_name']
+        ?? $sender['default_name']
+        ?? ''
+    ));
+    $fromTo = sanitize_email((string) (
+        $sender['fromTo']
+        ?? $sender['fromAddress']
+        ?? $sender['from_to']
+        ?? $sender['default_email']
+        ?? ''
+    ));
+
+    return array_filter([
+        'fromName' => $fromName,
+        'fromTo' => $fromTo,
+        'senderId' => isset($sender['id']) ? (string) $sender['id'] : null,
+    ], static fn($value) => null !== $value && '' !== $value);
+}
+
+function mailerpress_get_stored_email_senders(): array
+{
+    $senders = mailerpress_option_array('mailerpress_email_senders');
+    return array_values(array_filter($senders, 'is_array'));
+}
+
+function mailerpress_find_email_sender_by_id(string $senderId): array
+{
+    foreach (mailerpress_get_stored_email_senders() as $sender) {
+        if (isset($sender['id']) && (string) $sender['id'] === $senderId) {
+            return mailerpress_normalize_sender_identity($sender);
+        }
+    }
+
+    return [];
+}
+
+function mailerpress_get_default_email_sender_identity(): array
+{
+    $senders = mailerpress_get_stored_email_senders();
+
+    foreach ($senders as $sender) {
+        if (!empty($sender['isDefault'])) {
+            return mailerpress_normalize_sender_identity($sender);
+        }
+    }
+
+    return isset($senders[0]) ? mailerpress_normalize_sender_identity($senders[0]) : [];
+}
+
+function mailerpress_get_active_service_sender_identity(): array
+{
+    $servicesData = mailerpress_option_array('mailerpress_email_services');
+    $defaultService = $servicesData['default_service'] ?? '';
+    $serviceConfig = is_string($defaultService) && isset($servicesData['services'][$defaultService]['conf'])
+        ? (array) $servicesData['services'][$defaultService]['conf']
+        : [];
+
+    return mailerpress_normalize_sender_identity($serviceConfig);
+}
+
+function mailerpress_get_global_sender_identity(): array
+{
+    $defaultSettings = mailerpress_option_array('mailerpress_default_settings');
+    $sender = mailerpress_normalize_sender_identity($defaultSettings);
+
+    if (!empty($sender['fromName']) && !empty($sender['fromTo'])) {
+        return $sender;
+    }
+
+    return mailerpress_normalize_sender_identity(
+        mailerpress_option_array('mailerpress_global_email_senders')
+    );
+}
+
+function mailerpress_apply_sender_identity_to_config(array $config, array $sender, bool $keepDefaultSenderId = false): array
+{
+    if (empty($sender['fromName']) || empty($sender['fromTo'])) {
+        return $config;
+    }
+
+    $config['fromName'] = $sender['fromName'];
+    $config['fromTo'] = $sender['fromTo'];
+
+    if (!$keepDefaultSenderId && !empty($sender['senderId'])) {
+        $config['senderId'] = $sender['senderId'];
+    }
+
+    return $config;
+}
+
+function mailerpress_resolve_sender_config(array $config, bool $forceCurrentDefault = false): array
+{
+    $senderId = isset($config['senderId']) ? (string) $config['senderId'] : '';
+
+    if ('' !== $senderId && 'default' !== $senderId) {
+        $sender = mailerpress_find_email_sender_by_id($senderId);
+        if (!empty($sender)) {
+            return mailerpress_apply_sender_identity_to_config($config, $sender);
+        }
+    }
+
+    if ('default' === $senderId) {
+        $sender = mailerpress_get_default_email_sender_identity();
+        if (!empty($sender)) {
+            return mailerpress_apply_sender_identity_to_config($config, $sender, true);
+        }
+    }
+
+    if (!$forceCurrentDefault && !empty($config['fromName']) && !empty($config['fromTo'])) {
+        return $config;
+    }
+
+    $sender = mailerpress_get_active_service_sender_identity();
+
+    if (empty($sender['fromName']) || empty($sender['fromTo'])) {
+        $sender = mailerpress_get_global_sender_identity();
+    }
+
+    if (empty($sender['fromName']) || empty($sender['fromTo'])) {
+        $sender = mailerpress_get_default_email_sender_identity();
+    }
+
+    return mailerpress_apply_sender_identity_to_config($config, $sender, 'default' === $senderId);
+}
+
+function mailerpress_refresh_active_automated_campaign_sender_configs(): int
+{
+    global $wpdb;
+
+    $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+    $campaigns = $wpdb->get_results(
+        "SELECT campaign_id, config FROM {$campaignsTable} WHERE campaign_type = 'automated' AND status = 'active'"
+    );
+
+    if (empty($campaigns)) {
+        return 0;
+    }
+
+    $updated = 0;
+
+    foreach ($campaigns as $campaign) {
+        $config = json_decode((string) $campaign->config, true);
+
+        if (!is_array($config)) {
+            continue;
+        }
+
+        $scheduleConfig = is_array($config['automatedCampaignSchedule']['config'] ?? null)
+            ? $config['automatedCampaignSchedule']['config']
+            : [
+                'fromName' => $config['fromName'] ?? '',
+                'fromTo' => $config['fromTo'] ?? '',
+                'subject' => $config['campaignSubject'] ?? $config['subject'] ?? get_the_title((int) $campaign->campaign_id),
+                'previewText' => $config['previewText'] ?? '',
+            ];
+
+        $resolvedConfig = mailerpress_resolve_sender_config($scheduleConfig, true);
+
+        if (($scheduleConfig['fromName'] ?? '') === ($resolvedConfig['fromName'] ?? '')
+            && ($scheduleConfig['fromTo'] ?? '') === ($resolvedConfig['fromTo'] ?? '')
+        ) {
+            continue;
+        }
+
+        if (!isset($config['automatedCampaignSchedule']) || !is_array($config['automatedCampaignSchedule'])) {
+            $config['automatedCampaignSchedule'] = [];
+        }
+
+        $config['automatedCampaignSchedule']['config'] = $resolvedConfig;
+        $config['fromName'] = $resolvedConfig['fromName'] ?? ($config['fromName'] ?? '');
+        $config['fromTo'] = $resolvedConfig['fromTo'] ?? ($config['fromTo'] ?? '');
+
+        $result = $wpdb->update(
+            $campaignsTable,
+            [
+                'config' => wp_json_encode($config),
+                'updated_at' => current_time('mysql'),
+            ],
+            ['campaign_id' => (int) $campaign->campaign_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+
+        if (false !== $result) {
+            $updated++;
+        }
+    }
+
+    return $updated;
+}
+
+function mailerpress_normalize_query_block_signature(array $value): array
+{
+    ksort($value);
+
+    foreach ($value as $key => $item) {
+        if (is_array($item)) {
+            $value[$key] = mailerpress_normalize_query_block_signature($item);
+        }
+    }
+
+    return $value;
+}
+
+function mailerpress_get_query_block_signatures(string $html): array
+{
+    preg_match_all(
+        '/<!-- START query block:\s*(\{.*?\})\s*-->/is',
+        $html,
+        $matches
+    );
+
+    $signatures = [];
+
+    foreach (($matches[1] ?? []) as $queryJson) {
+        $decoded = json_decode($queryJson, true);
+
+        if (is_array($decoded)) {
+            $signatures[] = wp_json_encode(mailerpress_normalize_query_block_signature($decoded));
+            continue;
+        }
+
+        $signatures[] = trim((string) $queryJson);
+    }
+
+    return array_values(array_filter($signatures));
+}
+
+function mailerpress_query_blocks_changed(string $previousHtml, string $nextHtml): bool
+{
+    return mailerpress_get_query_block_signatures($previousHtml) !== mailerpress_get_query_block_signatures($nextHtml);
+}
+
+function mailerpress_reset_automated_campaign_query_tracking(int $campaignId): void
+{
+    if ($campaignId <= 0) {
+        return;
+    }
+
+    delete_option("mailerpress_processed_post_ids_{$campaignId}");
+    delete_option("mailerpress_query_baseline_at_{$campaignId}");
+}
+
 /**
  * @throws Exception
  */
@@ -421,6 +680,8 @@ function mailerpress_schedule_automated_campaign(
     if (!$campaign || $campaign->campaign_type !== 'automated') {
         return;
     }
+
+    $config = mailerpress_resolve_sender_config(is_array($config) ? $config : [], true);
 
     $settings = json_decode($campaign->config, true)['automateSettings'] ?? null;
 

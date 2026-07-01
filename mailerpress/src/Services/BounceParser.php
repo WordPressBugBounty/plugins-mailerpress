@@ -8,6 +8,55 @@ use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
 
 class BounceParser
 {
+    private const LOG_OPTION = 'mailerpress_bounce_logs';
+    private const MAX_LOGS = 200;
+
+    public static function getLogs(int $limit = 100): array
+    {
+        $logs = get_option(self::LOG_OPTION, []);
+        if (!is_array($logs)) {
+            return [];
+        }
+
+        $limit = max(1, absint($limit));
+
+        return array_slice(array_reverse($logs), 0, $limit);
+    }
+
+    public static function clearLogs(): void
+    {
+        update_option(self::LOG_OPTION, [], false);
+    }
+
+    public static function forceCheck(): array
+    {
+        self::clearLogs();
+        self::addLog('Starting bounce check.');
+        self::parse();
+        self::addLog('Bounce check completed.');
+
+        return self::getLogs();
+    }
+
+    private static function addLog(string $message): void
+    {
+        $logs = get_option(self::LOG_OPTION, []);
+        if (!is_array($logs)) {
+            $logs = [];
+        }
+
+        $logs[] = [
+            'timestamp' => current_time('mysql'),
+            'message' => sanitize_text_field($message),
+        ];
+
+        if (count($logs) > self::MAX_LOGS) {
+            $logs = array_slice($logs, -self::MAX_LOGS);
+        }
+
+        update_option(self::LOG_OPTION, $logs, false);
+    }
+
     /**
      * Récupère et valide la configuration de bounce
      *
@@ -44,6 +93,7 @@ class BounceParser
         $bounceManager = self::getValidatedConfig();
 
         if ($bounceManager === null) {
+            self::addLog('Bounce configuration is missing or invalid.');
             return;
         }
 
@@ -51,6 +101,7 @@ class BounceParser
         $folderData = \MailerPress\Services\BounceFolderFinder::findFolderWithUnseenMessages($bounceManager);
 
         if (null === $folderData) {
+            self::addLog('No unseen bounce messages found.');
             return;
         }
 
@@ -64,6 +115,7 @@ class BounceParser
 
             if (!$folder) {
                 $client->disconnect();
+                self::addLog('Inbox folder not found.');
                 return;
             }
 
@@ -72,6 +124,7 @@ class BounceParser
 
             if ($messages->count() === 0) {
                 $client->disconnect();
+                self::addLog('No unseen messages found.');
                 return;
             }
 
@@ -101,13 +154,16 @@ class BounceParser
                     $message->setFlag('Seen');
                 } catch (\Exception $e) {
                     // Continuer avec le message suivant en cas d'erreur
+                    self::addLog('Skipped a bounce message due to a parsing error.');
                     continue;
                 }
             }
 
             $client->disconnect();
+            self::addLog(sprintf('Processed %d bounce messages; marked %d contacts as bounced.', $processedCount, $bouncedCount));
         } catch (\Exception $e) {
             // Gérer silencieusement l'erreur de connexion
+            self::addLog('Bounce check failed while connecting to the mailbox.');
             return;
         }
     }

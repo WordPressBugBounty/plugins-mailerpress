@@ -19,9 +19,11 @@ use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\HtmlParser;
 use MailerPress\Core\Interfaces\ContactFetcherInterface;
 use MailerPress\Core\Kernel;
+use MailerPress\Actions\Shortcodes\CampaignEmail;
 use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 use MailerPress\Models\Batch;
 use MailerPress\Models\Contacts;
+use MailerPress\Services\CampaignHtmlOptionStorage;
 use MailerPress\Services\ClassicContactFetcher;
 use MailerPress\Services\SegmentContactFetcher;
 use WP_Error;
@@ -30,10 +32,57 @@ use WP_REST_Response;
 
 class Campaigns
 {
+    private const LISTING_MUTATION_CAMPAIGN_TYPES = ['newsletter', 'automated'];
+
+    private function restrictCampaignMutationToCurrentUser(\WP_REST_Request $request): bool
+    {
+        return empty($request->get_param('_api_key_id')) && !current_user_can('edit_others_posts');
+    }
+
+    private function normalizeCampaignTypes($campaignTypesRaw): array
+    {
+        $campaignTypes = [];
+
+        if (is_array($campaignTypesRaw)) {
+            foreach ($campaignTypesRaw as $campaignTypeItem) {
+                if (is_array($campaignTypeItem) && isset($campaignTypeItem['id'])) {
+                    $campaignTypes[] = sanitize_text_field($campaignTypeItem['id']);
+                    continue;
+                }
+
+                if (is_string($campaignTypeItem)) {
+                    $campaignTypes[] = sanitize_text_field($campaignTypeItem);
+                }
+            }
+        } elseif (!empty($campaignTypesRaw)) {
+            $campaignTypes[] = sanitize_text_field((string) $campaignTypesRaw);
+        }
+
+        return array_values(array_unique(array_filter($campaignTypes)));
+    }
+
+    private function campaignListingMutationTypes(array $campaignTypes): array
+    {
+        if (empty($campaignTypes)) {
+            return self::LISTING_MUTATION_CAMPAIGN_TYPES;
+        }
+
+        return array_values(array_intersect($campaignTypes, self::LISTING_MUTATION_CAMPAIGN_TYPES));
+    }
+
+    private function campaignOwnerWhere(\WP_REST_Request $request): array
+    {
+        if (!$this->restrictCampaignMutationToCurrentUser($request)) {
+            return ['', []];
+        }
+
+        return [' AND user_id = %d', [get_current_user_id()]];
+    }
+
     #[Endpoint(
         'batch-opened-contacts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadAudience']
     )]
     public function batchOpenedContacts(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -129,7 +178,7 @@ class Campaigns
     #[Endpoint(
         'batch-clicked-contacts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadAudience']
     )]
     public function batchClickedContacts(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -257,7 +306,7 @@ class Campaigns
     #[Endpoint(
         'batch-unsubscribed-contacts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadAudience']
     )]
     public function batchUnsubscribedContacts(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -1311,6 +1360,7 @@ class Campaigns
             }
 
             $result->statistics = $statistics;
+            $result->public_url = CampaignEmail::getPublicUrl((int)$result->id, (string)$result->title);
 
             // Author (préchargé)
             if (!empty($result->user_id) && isset($users_data[$result->user_id])) {
@@ -1327,6 +1377,8 @@ class Campaigns
                 $canEdit = current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
             }
             $result->canEdit = $canEdit;
+            $result->canDelete = current_user_can('edit_others_posts')
+                || ((int)$result->user_id === get_current_user_id() && current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS));
 
             $result->locked = !empty($result->editing_user_id) && (int)$result->editing_user_id !== get_current_user_id();
             if ($result->editing_user_id && (int)$result->editing_user_id !== get_current_user_id()) {
@@ -1506,14 +1558,6 @@ class Campaigns
     {
         global $wpdb;
 
-        if (!current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to delete campaigns.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         // Récupérer les IDs de campagnes depuis la requête
         $campaign_ids = $request->get_param('ids'); // Attendez un tableau d'IDs, exemple : [1, 2, 3]
 
@@ -1529,13 +1573,43 @@ class Campaigns
             );
         }
 
-        $placeholders = implode(',', array_fill(0, \count($campaign_ids), '%d'));
+        if (is_string($campaign_ids) && str_contains($campaign_ids, ',')) {
+            $campaign_ids = explode(',', $campaign_ids);
+        }
+        if (!is_array($campaign_ids)) {
+            $campaign_ids = [$campaign_ids];
+        }
+        $campaign_ids = array_values(array_unique(array_filter(array_map('absint', $campaign_ids))));
 
-        $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($campaign_ids);
+        if (empty($campaign_ids)) {
+            return new \WP_Error(
+                'no_ids_provided',
+                __('No campaign IDs provided.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $placeholders = implode(',', array_fill(0, \count($campaign_ids), '%d'));
+        [$ownerWhere, $ownerParams] = $this->campaignOwnerWhere($request);
+
+        $campaign_ids_to_delete = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT campaign_id FROM {$table_name} WHERE campaign_id IN ({$placeholders}){$ownerWhere}",
+                ...array_merge($campaign_ids, $ownerParams)
+            )
+        );
+
+        if (empty($campaign_ids_to_delete)) {
+            return new \WP_Error('not_found', __('No matching campaign(s) found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        $placeholders = implode(',', array_fill(0, \count($campaign_ids_to_delete), '%d'));
+
+        $scheduled_actions_cancelled = $this->cleanupScheduledCampaignActions($campaign_ids_to_delete);
 
         $query = $wpdb->prepare(
             "DELETE FROM {$table_name} WHERE campaign_id IN ({$placeholders})",
-            ...$campaign_ids
+            ...$campaign_ids_to_delete
         );
 
         $deleted = $wpdb->query($query);
@@ -1551,7 +1625,7 @@ class Campaigns
         $batch_deleted = $wpdb->query(
             $wpdb->prepare(
                 "DELETE FROM {$batchTable} WHERE campaign_id IN ({$placeholders})",
-                ...$campaign_ids
+                ...$campaign_ids_to_delete
             )
         );
 
@@ -1566,7 +1640,7 @@ class Campaigns
         return new \WP_REST_Response(
             [
                 'message' => __('Campaigns successfully deleted.', 'mailerpress'),
-                'ids' => $campaign_ids,
+                'ids' => $campaign_ids_to_delete,
                 'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
             ],
             200
@@ -1580,15 +1654,6 @@ class Campaigns
     )]
     public function deleteAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
-
-        if (!current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to delete campaigns.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         global $wpdb;
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $tableBatch = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
@@ -1613,11 +1678,12 @@ class Campaigns
         }
 
         $placeholders = implode(',', array_fill(0, count($campaign_type_ids), '%s'));
+        [$ownerWhere, $ownerParams] = $this->campaignOwnerWhere($request);
 
         // Cleanup countdown AS actions for campaigns being deleted
         $trash_campaign_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT campaign_id FROM {$table_name} WHERE campaign_type IN ($placeholders) AND status = 'trash'",
-            ...$campaign_type_ids
+            "SELECT campaign_id FROM {$table_name} WHERE campaign_type IN ($placeholders) AND status = 'trash'{$ownerWhere}",
+            ...array_merge($campaign_type_ids, $ownerParams)
         ));
         foreach ($trash_campaign_ids as $cid) {
             CountDown::unscheduleForCampaign((string) $cid);
@@ -1628,19 +1694,19 @@ class Campaigns
         $delete_batches_query = "
         DELETE FROM {$tableBatch}
         WHERE campaign_id IN (
-            SELECT id FROM {$table_name}
-            WHERE campaign_type IN ($placeholders) AND status = 'trash'
+            SELECT campaign_id FROM {$table_name}
+            WHERE campaign_type IN ($placeholders) AND status = 'trash'{$ownerWhere}
         )
     ";
-        $delete_batches_query_prepared = $wpdb->prepare($delete_batches_query, ...$campaign_type_ids);
+        $delete_batches_query_prepared = $wpdb->prepare($delete_batches_query, ...array_merge($campaign_type_ids, $ownerParams));
         $deleted_batches = $wpdb->query($delete_batches_query_prepared);
 
         // Delete campaigns of these types AND with trash status
         $delete_campaigns_query = "
         DELETE FROM {$table_name}
-        WHERE campaign_type IN ($placeholders) AND status = 'trash'
+        WHERE campaign_type IN ($placeholders) AND status = 'trash'{$ownerWhere}
     ";
-        $delete_campaigns_query_prepared = $wpdb->prepare($delete_campaigns_query, ...$campaign_type_ids);
+        $delete_campaigns_query_prepared = $wpdb->prepare($delete_campaigns_query, ...array_merge($campaign_type_ids, $ownerParams));
         $deleted_campaigns = $wpdb->query($delete_campaigns_query_prepared);
 
         if ($deleted_batches === false || $deleted_campaigns === false) {
@@ -1664,7 +1730,7 @@ class Campaigns
     #[Endpoint(
         'campaign/status',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canUpdateCampaignStatus'],
     )]
     public function update_status(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -1672,23 +1738,7 @@ class Campaigns
 
         $ids = $request->get_param('id');
         $status = sanitize_text_field($request->get_param('status'));
-        $campaign_types_raw = $request->get_param('campaign_type');
-        $campaign_types = [];
-        if (is_array($campaign_types_raw)) {
-            foreach ($campaign_types_raw as $campaign_type_item) {
-                if (is_array($campaign_type_item) && isset($campaign_type_item['id'])) {
-                    $campaign_types[] = sanitize_text_field($campaign_type_item['id']);
-                    continue;
-                }
-
-                if (is_string($campaign_type_item)) {
-                    $campaign_types[] = sanitize_text_field($campaign_type_item);
-                }
-            }
-        } elseif (!empty($campaign_types_raw)) {
-            $campaign_types[] = sanitize_text_field($campaign_types_raw);
-        }
-        $campaign_types = array_values(array_unique(array_filter($campaign_types)));
+        $campaign_types = $this->normalizeCampaignTypes($request->get_param('campaign_type'));
 
         // Validate status
         $allowed_statuses = ['draft', 'scheduled', 'sending', 'sent', 'paused', 'cancelled', 'trash'];
@@ -1709,8 +1759,23 @@ class Campaigns
         if ($ids === 'all') {
             $where_parts = [];
             $where_params = [];
+            $campaign_types = $this->campaignListingMutationTypes($campaign_types);
 
-            // Filter by campaign type
+            if (empty($campaign_types)) {
+                return new \WP_REST_Response(
+                    [
+                        'success' => true,
+                        'message' => __('No campaign statuses were updated.', 'mailerpress'),
+                        'updated_ids' => 'all',
+                        'new_status' => $status,
+                        'campaign_type' => [],
+                        'scheduled_actions_cancelled' => 0,
+                        'automated_campaigns_restored' => 0,
+                    ],
+                    200
+                );
+            }
+
             if (!empty($campaign_types)) {
                 $where_parts[] = 'campaign_type IN (' . implode(',', array_fill(0, count($campaign_types), '%s')) . ')';
                 $where_params = array_merge($where_params, $campaign_types);
@@ -1728,6 +1793,11 @@ class Campaigns
             if (!empty($search)) {
                 $where_parts[] = 'post_title LIKE %s';
                 $where_params[] = '%' . $wpdb->esc_like($search) . '%';
+            }
+
+            if ($this->restrictCampaignMutationToCurrentUser($request)) {
+                $where_parts[] = 'user_id = %d';
+                $where_params[] = get_current_user_id();
             }
 
             $where = !empty($where_parts) ? 'WHERE ' . implode(' AND ', $where_parts) : '';
@@ -1798,12 +1868,13 @@ class Campaigns
 
         // Build placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        [$ownerWhere, $ownerParams] = $this->campaignOwnerWhere($request);
 
         // Check existence
         $existing_campaigns = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT campaign_id, campaign_type, status, config FROM {$table_name} WHERE campaign_id IN ($placeholders)",
-                $ids
+                "SELECT campaign_id, campaign_type, status, config FROM {$table_name} WHERE campaign_id IN ($placeholders){$ownerWhere}",
+                array_merge($ids, $ownerParams)
             ),
             ARRAY_A
         );
@@ -1824,8 +1895,8 @@ class Campaigns
         // Update all in one query
         $updated = $wpdb->query(
             $wpdb->prepare(
-                "UPDATE {$table_name} SET status = %s, updated_at = %s{$extra_set} WHERE campaign_id IN ($placeholders)",
-                array_merge([$status, current_time('mysql')], $ids)
+                "UPDATE {$table_name} SET status = %s, updated_at = %s{$extra_set} WHERE campaign_id IN ($placeholders){$ownerWhere}",
+                array_merge([$status, current_time('mysql')], $ids, $ownerParams)
             )
         );
 
@@ -1863,32 +1934,36 @@ class Campaigns
     )]
     public function delete_campaign(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
-        if (!current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to delete campaigns.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         global $wpdb;
 
         $ids = $request->get_param('id'); // "all" or array/single ID
-        $campaign_type = sanitize_text_field($request->get_param('campaign_type'));
+        $campaign_types = $this->normalizeCampaignTypes($request->get_param('campaign_type'));
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        [$ownerWhere, $ownerParams] = $this->campaignOwnerWhere($request);
 
         // --- HANDLE "ALL" ---
         // Only delete all if explicitly requested with 'all' AND no specific IDs are provided
         if ($ids === 'all') {
             $tableBatch = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+            $campaign_types = $this->campaignListingMutationTypes($campaign_types);
+
+            if (empty($campaign_types)) {
+                return new \WP_REST_Response([
+                    'success' => true,
+                    'message' => sprintf(__('All (%d) campaign(s) permanently deleted.', 'mailerpress'), 0),
+                    'deleted_ids' => 'all',
+                    'deleted_batches' => 0,
+                    'scheduled_actions_cancelled' => 0,
+                ], 200);
+            }
 
             // Build WHERE conditions with filters
             $where_parts = ['status = %s'];
             $params_select = ['trash'];
 
-            if (!empty($campaign_type)) {
-                $where_parts[] = 'campaign_type = %s';
-                $params_select[] = $campaign_type;
+            if (!empty($campaign_types)) {
+                $where_parts[] = 'campaign_type IN (' . implode(',', array_fill(0, count($campaign_types), '%s')) . ')';
+                $params_select = array_merge($params_select, $campaign_types);
             }
 
             // Add filter_status if provided
@@ -1903,6 +1978,11 @@ class Campaigns
             if (!empty($search)) {
                 $where_parts[] = 'post_title LIKE %s';
                 $params_select[] = '%' . $wpdb->esc_like($search) . '%';
+            }
+
+            if ($ownerWhere !== '') {
+                $where_parts[] = 'user_id = %d';
+                $params_select = array_merge($params_select, $ownerParams);
             }
 
             // First, get campaign IDs that will be deleted
@@ -1960,8 +2040,8 @@ class Campaigns
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
 
         // Only select campaigns that are in trash
-        $sql = "SELECT campaign_id FROM {$table_name} WHERE campaign_id IN ($placeholders) AND status = %s";
-        $prepare_params = array_merge($ids, ['trash']); // merge before unpacking
+        $sql = "SELECT campaign_id FROM {$table_name} WHERE campaign_id IN ($placeholders) AND status = %s{$ownerWhere}";
+        $prepare_params = array_merge($ids, ['trash'], $ownerParams); // merge before unpacking
         $existing_ids = $wpdb->get_col($wpdb->prepare($sql, ...$prepare_params));
 
         if (empty($existing_ids)) {
@@ -2223,10 +2303,30 @@ class Campaigns
             return new \WP_Error('db_update_error', __('Failed to update campaign.', 'mailerpress'), ['status' => 500]);
         }
 
-        // Si le HTML est fourni (notamment pour les campagnes automation en draft), le stocker
+        // Store compiled HTML when provided, especially for draft automation campaigns.
         if (!empty($html)) {
-            $optionKey = 'mailerpress_batch_' . $campaign_id . '_html';
-            update_option($optionKey, $this->sanitizeEmailHtml( $html ), false);
+            $htmlStorage = CampaignHtmlOptionStorage::store(
+                $campaign_id,
+                $html,
+                ['source' => 'saveCampaignContent']
+            );
+
+            if (empty($htmlStorage['success'])) {
+                return new \WP_Error(
+                    'mailerpress_campaign_html_storage_failed',
+                    __('Failed to save campaign HTML content.', 'mailerpress'),
+                    [
+                        'status' => $htmlStorage['status'] ?? 500,
+                        'storage_code' => $htmlStorage['code'] ?? 'unknown',
+                    ]
+                );
+            }
+
+            update_option(
+                'mailerpress_campaign_' . $campaign_id . '_has_conditional',
+                false !== strpos( $html, '%%MP_COND_START%%' ),
+                false
+            );
         }
 
         return new \WP_REST_Response([
@@ -2257,6 +2357,7 @@ class Campaigns
                 [
                     'UNSUB_LINK' => home_url('/unsubsribe'),
                     'TRACK_CLICK' => home_url('/'), // base of your redirect handler
+                    'cart_recovery_url' => $this->buildPreviewCartRecoveryUrl(),
 
                 ]
             )->replaceVariables(),
@@ -2312,6 +2413,7 @@ class Campaigns
                 'contact_email' => \sprintf('%s', esc_html($contactEntity->email)),
                 'contact_first_name' => \sprintf('%s', esc_html($contactEntity->first_name)),
                 'contact_last_name' => \sprintf('%s', esc_html($contactEntity->last_name)),
+                'cart_recovery_url' => $this->buildPreviewCartRecoveryUrl(),
             ];
 
             // Add custom fields to variables
@@ -2359,22 +2461,8 @@ class Campaigns
         $config = $request->get_param('config');
         $scheduledAt = $request->get_param('scheduledAt');
 
-        // Fallback to global sender settings if fromName/fromTo are missing in config
-        if (empty($config['fromTo']) || empty($config['fromName'])) {
-            $globalSender = get_option('mailerpress_default_settings');
-            if ($globalSender) {
-                if (is_string($globalSender)) {
-                    $globalSender = json_decode($globalSender, true);
-                }
-                if (is_array($globalSender)) {
-                    if (empty($config['fromTo'])) {
-                        $config['fromTo'] = $globalSender['fromAddress'] ?? '';
-                    }
-                    if (empty($config['fromName'])) {
-                        $config['fromName'] = $globalSender['fromName'] ?? '';
-                    }
-                }
-            }
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : []);
         }
 
         $status = ('future' === $sendType) ? 'scheduled' : 'pending';
@@ -2396,9 +2484,9 @@ class Campaigns
             [
                 'status' => $status,
                 'total_emails' => count($contacts),
-                'sender_name' => $config['fromName'],
-                'sender_to' => $config['fromTo'],
-                'subject' => $config['subject'],
+                'sender_name' => $config['fromName'] ?? '',
+                'sender_to' => $config['fromTo'] ?? '',
+                'subject' => $config['subject'] ?? '',
                 'scheduled_at' => $utcScheduledAt,
                 'campaign_id' => $post,
             ]
@@ -2516,22 +2604,8 @@ class Campaigns
         $config = $request->get_param('config');
         $scheduledAt = $request->get_param('scheduledAt');
 
-        // Fallback to global sender settings if fromName/fromTo are missing in config
-        if (empty($config['fromTo']) || empty($config['fromName'])) {
-            $globalSender = get_option('mailerpress_default_settings');
-            if ($globalSender) {
-                if (is_string($globalSender)) {
-                    $globalSender = json_decode($globalSender, true);
-                }
-                if (is_array($globalSender)) {
-                    if (empty($config['fromTo'])) {
-                        $config['fromTo'] = $globalSender['fromAddress'] ?? '';
-                    }
-                    if (empty($config['fromName'])) {
-                        $config['fromName'] = $globalSender['fromName'] ?? '';
-                    }
-                }
-            }
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : []);
         }
         $recipientTargeting = $request->get_param('recipientTargeting') ?? null;
         $lists = $request->get_param('lists') ?? [];
@@ -2540,13 +2614,33 @@ class Campaigns
         $openTracking = $request->get_param('openTracking') ?? 'yes';
         $clickTracking = $request->get_param('clickTracking') ?? 'yes';
 
-        update_option('mailerpress_batch_' . $post . '_html', $this->sanitizeEmailHtml( $html ), false);
+        $htmlStorage = CampaignHtmlOptionStorage::store(
+            (int) $post,
+            $html,
+            ['source' => 'createBatchV2']
+        );
+
+        if (empty($htmlStorage['success'])) {
+            return new WP_Error(
+                'mailerpress_campaign_html_storage_failed',
+                __('Email HTML content could not be saved. Please check database charset/collation or unsupported characters.', 'mailerpress'),
+                [
+                    'status' => $htmlStorage['status'] ?? 500,
+                    'storage_code' => $htmlStorage['code'] ?? 'unknown',
+                ]
+            );
+        }
 
         // Get subject from config or fallback to campaign title
         $subject = $config['subject'] ?? '';
         if (empty($subject) && !empty($post)) {
-            $campaign = get_post($post);
-            $subject = $campaign ? $campaign->post_title : '';
+            $campaign = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT subject, name FROM " . Tables::get(Tables::MAILERPRESS_CAMPAIGNS) . " WHERE campaign_id = %d",
+                    (int) $post
+                )
+            );
+            $subject = $campaign ? ($campaign->subject ?: $campaign->name) : '';
         }
 
         // Calculate total number of contacts before creating the batch
@@ -2730,6 +2824,8 @@ class Campaigns
         $campaignId = (int)$request->get_param('campaignId');
         $html = $request->get_param('html');
         $data = $request->get_param('data');
+        $previousHtml = get_option(CampaignHtmlOptionStorage::getOptionKey($campaignId), '');
+        $previousHtml = is_string($previousHtml) ? $previousHtml : '';
 
         // Validate inputs
         if (!$campaignId || empty($html)) {
@@ -2743,11 +2839,12 @@ class Campaigns
         $table = $wpdb->prefix . 'mailerpress_campaigns';
 
         // Check if campaign exists
-        $exists = $wpdb->get_var(
-            $wpdb->prepare("SELECT COUNT(*) FROM $table WHERE campaign_id = %d", $campaignId)
+        $campaign = $wpdb->get_row(
+            $wpdb->prepare("SELECT campaign_id, campaign_type, status FROM $table WHERE campaign_id = %d", $campaignId),
+            ARRAY_A
         );
 
-        if (!$exists) {
+        if (!$campaign) {
             return new \WP_Error(
                 'campaign_not_found',
                 'Campaign not found',
@@ -2772,10 +2869,32 @@ class Campaigns
             );
         }
 
-        // Update the HTML version in the WordPress options
-        // Stocker le HTML même si l'option n'existe pas encore (pour les campagnes automation en draft)
-        $optionKey = 'mailerpress_batch_' . $campaignId . '_html';
-        update_option($optionKey, $this->sanitizeEmailHtml( $html ), false);
+        $htmlStorage = CampaignHtmlOptionStorage::store(
+            $campaignId,
+            $html,
+            ['source' => 'updateAutomatedCampaign']
+        );
+
+        if (empty($htmlStorage['success'])) {
+            return new \WP_Error(
+                'mailerpress_campaign_html_storage_failed',
+                __('Failed to update campaign HTML content.', 'mailerpress'),
+                [
+                    'status' => $htmlStorage['status'] ?? 500,
+                    'storage_code' => $htmlStorage['code'] ?? 'unknown',
+                ]
+            );
+        }
+
+        if (
+            'automated' === ($campaign['campaign_type'] ?? '')
+            && 'active' === ($campaign['status'] ?? '')
+            && function_exists('mailerpress_reset_automated_campaign_query_tracking')
+            && function_exists('mailerpress_query_blocks_changed')
+            && mailerpress_query_blocks_changed($previousHtml, $html)
+        ) {
+            mailerpress_reset_automated_campaign_query_tracking($campaignId);
+        }
 
         return new \WP_REST_Response([
             'success' => true,
@@ -2807,8 +2926,30 @@ class Campaigns
         $segment = $request->get_param('segment') ?? [];
         $automateSettings = $request->get_param('automateSettings') ?? null;
 
-        // Store HTML separately
-        update_option('mailerpress_batch_' . $post . '_html', $this->sanitizeEmailHtml( $html ), false);
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : [], true);
+        }
+
+        $htmlStorage = CampaignHtmlOptionStorage::store(
+            $post,
+            $html,
+            ['source' => 'createAutomatedCampaign']
+        );
+
+        if (empty($htmlStorage['success'])) {
+            return new \WP_Error(
+                'mailerpress_campaign_html_storage_failed',
+                __('Failed to save automated campaign HTML content.', 'mailerpress'),
+                [
+                    'status' => $htmlStorage['status'] ?? 500,
+                    'storage_code' => $htmlStorage['code'] ?? 'unknown',
+                ]
+            );
+        }
+
+        if (function_exists('mailerpress_reset_automated_campaign_query_tracking')) {
+            mailerpress_reset_automated_campaign_query_tracking($post);
+        }
 
         // Get existing config from DB
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
@@ -2884,6 +3025,7 @@ class Campaigns
         // Test emails don't have contact context, so merge tags are replaced with:
         // - Their default values (if specified as {{var default="value"}})
         // - Empty strings (if no default)
+        $body = $this->replaceCartRecoveryMergeTag($body, $this->buildPreviewCartRecoveryUrl());
         $body = \MailerPress\Core\HtmlParser::sanitizeTestEmail($body);
 
         $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
@@ -2946,6 +3088,31 @@ class Campaigns
             'sent' => $success,
             'errors' => $errors,
         ], empty($errors) ? 200 : 207); // 207: Multi-Status (partial success)
+    }
+
+    private function replaceCartRecoveryMergeTag(string $html, string $url): string
+    {
+        $url = esc_url($url);
+        $html = preg_replace('/{{\s*cart_recovery_url(?:\s+default=(["\']).*?\1)?\s*}}/i', $url, $html) ?? $html;
+
+        return preg_replace('/%cart_recovery_url%/i', $url, $html) ?? $html;
+    }
+
+    private function buildPreviewCartRecoveryUrl(): string
+    {
+        $baseUrl = function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : home_url('/');
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'mailerpress_track_cart';
+        $cartHash = (string) $wpdb->get_var(
+            "SELECT cart_hash FROM {$table} WHERE status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1"
+        );
+
+        if ($cartHash === '') {
+            return $baseUrl;
+        }
+
+        return add_query_arg('recover_cart', $cartHash, $baseUrl);
     }
 
 
@@ -3338,6 +3505,10 @@ class Campaigns
                 'subject' => $config['campaignSubject'] ?? $config['subject'] ?? get_the_title($campaign_id),
                 'previewText' => $config['previewText'] ?? '',
             ];
+        }
+
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $senderConfig = mailerpress_resolve_sender_config($senderConfig, true);
         }
 
         return [
@@ -4296,7 +4467,7 @@ class Campaigns
     #[Endpoint(
         'campaigns/(?P<id>\d+)/logs',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadAudience']
     )]
     public function getCampaignLogs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4504,7 +4675,7 @@ class Campaigns
     #[Endpoint(
         'campaigns/(?P<id>\d+)/email-logs',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadAudience']
     )]
     public function getCampaignEmailLogs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4711,16 +4882,7 @@ class Campaigns
      * comments that WordPress KSES cannot parse as regular tags.
      */
     private function sanitizeEmailHtml( string $html ): string {
-        if ( empty( $html ) ) {
-            return $html;
-        }
-
-        $protected_comments = [];
-        $html = $this->protectEmailConditionalComments( $html, $protected_comments );
-
-        $html = $this->sanitizeEmailHtmlFragment( $html, $this->getEmailAllowedHtml() );
-
-        return strtr( $html, $protected_comments );
+        return CampaignHtmlOptionStorage::sanitize($html);
     }
 
     /**
@@ -4762,6 +4924,68 @@ class Campaigns
         } finally {
             remove_filter( 'safe_style_css', $css_filter );
         }
+    }
+
+    /**
+     * Preserve MJML background image declarations before KSES rewrites style URLs.
+     */
+    private function protectEmailBackgroundStyles( string $html, array &$protected_styles ): string {
+        $result = preg_replace_callback(
+            '/(^|[\s<])style\s*=\s*(["\'])(.*?)\2/is',
+            function ( array $matches ) use ( &$protected_styles ): string {
+                $style = $matches[3];
+                $updated_style = preg_replace_callback(
+                    '/(^|;)\s*(background(?:-image)?)\s*:\s*([^;]*url\([^)]+\)[^;]*)/i',
+                    function ( array $declaration_matches ) use ( &$protected_styles ): string {
+                        $prefix = $declaration_matches[1];
+                        $property = $declaration_matches[2];
+                        $value = trim( $declaration_matches[3] );
+
+                        if ( ! $this->isSafeEmailBackgroundCssValue( $value ) ) {
+                            return $declaration_matches[0];
+                        }
+
+                        $safe_declaration = safecss_filter_attr( $property . ':' . $value );
+                        if ( '' === $safe_declaration || ! preg_match( '/^\s*' . preg_quote( $property, '/' ) . '\s*:\s*(.+)$/i', $safe_declaration, $safe_matches ) ) {
+                            return $declaration_matches[0];
+                        }
+
+                        $token = 'var(--mailerpress-email-background-' . count( $protected_styles ) . ')';
+                        $protected_styles[ $token ] = trim( $safe_matches[1] );
+
+                        return $prefix . $property . ':' . $token;
+                    },
+                    $style
+                );
+
+                if ( null === $updated_style ) {
+                    return $matches[0];
+                }
+
+                return $matches[1] . 'style=' . $matches[2] . $updated_style . $matches[2];
+            },
+            $html
+        );
+
+        return $result ?? $html;
+    }
+
+    /**
+     * Validate every URL inside an email background CSS value.
+     */
+    private function isSafeEmailBackgroundCssValue( string $value ): bool {
+        if ( ! preg_match_all( '/url\(\s*([\'"]?)(.*?)\1\s*\)/i', $value, $matches ) ) {
+            return false;
+        }
+
+        foreach ( $matches[2] as $url ) {
+            $decoded_url = html_entity_decode( trim( $url ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+            if ( '' === $decoded_url || wp_kses_bad_protocol( $decoded_url, $this->getEmailAllowedProtocols() ) !== $decoded_url ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -5010,6 +5234,7 @@ class Campaigns
             'table'      => array_merge(
                 $global_attrs,
                 [
+                    'background'  => true,
                     'border'      => true,
                     'cellpadding' => true,
                     'cellspacing' => true,
@@ -5019,22 +5244,29 @@ class Campaigns
             'thead'      => $global_attrs,
             'tbody'      => $global_attrs,
             'tfoot'      => $global_attrs,
-            'tr'         => $global_attrs,
+            'tr'         => array_merge(
+                $global_attrs,
+                [
+                    'background' => true,
+                ]
+            ),
             'td'         => array_merge(
                 $global_attrs,
                 [
-                    'colspan' => true,
-                    'nowrap'  => true,
-                    'rowspan' => true,
+                    'background' => true,
+                    'colspan'    => true,
+                    'nowrap'     => true,
+                    'rowspan'    => true,
                 ]
             ),
             'th'         => array_merge(
                 $global_attrs,
                 [
-                    'colspan' => true,
-                    'nowrap'  => true,
-                    'rowspan' => true,
-                    'scope'   => true,
+                    'background' => true,
+                    'colspan'    => true,
+                    'nowrap'     => true,
+                    'rowspan'    => true,
+                    'scope'      => true,
                 ]
             ),
             'caption'    => $global_attrs,

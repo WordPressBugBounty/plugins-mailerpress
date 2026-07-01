@@ -14,6 +14,9 @@ class DynamicPostRenderer
     protected array $excludedPostIds = [];
     protected array $usedPostIds = [];
     protected ?int $campaignId = null;
+    protected ?string $queryBaselineDate = null;
+    protected ?int $queryBaselineTimestamp = null;
+    protected ?string $newQueryBaselineDate = null;
     protected bool $skipIfNoNewContent = false;
 
     protected array $postTypeMap = [
@@ -35,10 +38,26 @@ class DynamicPostRenderer
     public function setCampaignId(int $id): self
     {
         $this->campaignId = $id;
+        $processedPostIds = get_option("mailerpress_processed_post_ids_{$id}", []);
+
+        if (is_string($processedPostIds)) {
+            $decoded = json_decode($processedPostIds, true);
+            $processedPostIds = is_array($decoded) ? $decoded : [];
+        }
+
+        $processedPostIds = is_array($processedPostIds) ? array_map('intval', $processedPostIds) : [];
         $this->excludedPostIds = array_unique(array_merge(
             $this->excludedPostIds,
-            get_option("mailerpress_processed_post_ids_{$id}", [])
+            $processedPostIds
         ));
+
+        $baselineAt = get_option("mailerpress_query_baseline_at_{$id}", '');
+        if (is_string($baselineAt) && trim($baselineAt) !== '') {
+            $this->queryBaselineDate = $baselineAt;
+            $timestamp = strtotime($baselineAt);
+            $this->queryBaselineTimestamp = false !== $timestamp ? $timestamp : null;
+        }
+
         return $this;
     }
 
@@ -50,6 +69,10 @@ class DynamicPostRenderer
 
     public function render(): string
     {
+        if ($this->skipIfNoNewContent && null === $this->queryBaselineDate && null === $this->newQueryBaselineDate) {
+            $this->newQueryBaselineDate = current_time('mysql');
+        }
+
         preg_match_all(
             '/(<!-- START query block:\s*(\{.*?\})\s*-->)(.*?)(<!-- END query block -->)/is',
             $this->html,
@@ -66,25 +89,26 @@ class DynamicPostRenderer
             $queryInnerHtml = $block[3];
             $queryEndComment = $block[4];
 
-            $queryArgs = $this->parseQueryArgs($queryJson, array_merge($this->excludedPostIds, $this->usedPostIds));
+            $excludedIds = array_values(array_unique(array_map('intval', array_merge($this->excludedPostIds, $this->usedPostIds))));
+            $queryArgs = $this->parseQueryArgs($queryJson, $excludedIds);
             if (!$queryArgs) {
                 $this->html = str_replace($fullMatch, '', $this->html);
                 continue;
             }
 
-            if ($this->skipIfNoNewContent && !empty($this->excludedPostIds)) {
-                $checkArgs = $this->parseQueryArgs($queryJson, []);
-                if ($checkArgs) {
-                    $checkArgs['posts_per_page'] = 1;
-                    $newestPosts = $this->fetchPosts($checkArgs);
-                    if (!empty($newestPosts) && in_array($newestPosts[0]->ID, array_merge($this->excludedPostIds, $this->usedPostIds), true)) {
-                        $this->html = str_replace($fullMatch, '', $this->html);
-                        continue;
-                    }
-                }
+            if ($this->skipIfNoNewContent) {
+                $queryArgs = $this->applyAutomatedQueryConstraints($queryArgs);
             }
 
             $posts = $this->fetchPosts($queryArgs);
+            if ($this->skipIfNoNewContent) {
+                $posts = array_values(array_filter(
+                    $posts,
+                    fn($post) => !in_array((int) $post->ID, $excludedIds, true)
+                        && $this->isPostAfterQueryBaseline($post)
+                ));
+            }
+
             if (empty($posts)) {
                 $this->html = str_replace($fullMatch, '', $this->html);
                 continue;
@@ -201,6 +225,35 @@ class DynamicPostRenderer
         return $this->html;
     }
 
+    protected function applyAutomatedQueryConstraints(array $queryArgs): array
+    {
+        if (null === $this->queryBaselineDate) {
+            return $queryArgs;
+        }
+
+        $dateQuery = is_array($queryArgs['date_query'] ?? null) ? $queryArgs['date_query'] : [];
+        $dateQuery[] = [
+            'column' => 'post_date',
+            'after' => $this->queryBaselineDate,
+            'inclusive' => false,
+        ];
+
+        $queryArgs['date_query'] = $dateQuery;
+
+        return $queryArgs;
+    }
+
+    protected function isPostAfterQueryBaseline(WP_Post $post): bool
+    {
+        if (null === $this->queryBaselineTimestamp) {
+            return true;
+        }
+
+        $postTimestamp = strtotime((string) $post->post_date);
+
+        return false !== $postTimestamp && $postTimestamp > $this->queryBaselineTimestamp;
+    }
+
     protected function storeUsedPostIds(): void
     {
         if ($this->campaignId === null || empty($this->usedPostIds)) {
@@ -209,8 +262,27 @@ class DynamicPostRenderer
 
         $optionKey = "mailerpress_processed_post_ids_{$this->campaignId}";
         $existing = get_option($optionKey, []);
-        $merged = array_unique(array_merge($existing, $this->usedPostIds));
-        update_option($optionKey, $merged);
+
+        if (is_string($existing)) {
+            $decoded = json_decode($existing, true);
+            $existing = is_array($decoded) ? $decoded : [];
+        }
+
+        $existingIds = array_values(array_unique(array_filter(array_map('intval', is_array($existing) ? $existing : []))));
+        $usedIds = array_values(array_unique(array_filter(array_map('intval', $this->usedPostIds))));
+        $merged = array_values(array_unique(array_merge($existingIds, $usedIds)));
+        update_option($optionKey, $merged, false);
+
+        if (null === $this->newQueryBaselineDate) {
+            return;
+        }
+
+        $baselineKey = "mailerpress_query_baseline_at_{$this->campaignId}";
+        $baselineAt = get_option($baselineKey, '');
+
+        if (!is_string($baselineAt) || trim($baselineAt) === '') {
+            update_option($baselineKey, $this->newQueryBaselineDate, false);
+        }
     }
 
     protected function parseQueryArgs(string $json, array $excludeIds = []): ?array
@@ -334,7 +406,7 @@ class DynamicPostRenderer
             }
         }
 
-        if ( ! $query->have_posts() && ! empty( $args['post_type'] ) && empty($args['tax_query']) && empty($args['meta_query']) && empty($args['author__in']) && empty($args['s']) ) {
+        if ( ! $query->have_posts() && ! empty( $args['post_type'] ) && empty($args['tax_query']) && empty($args['date_query']) && empty($args['meta_query']) && empty($args['author__in']) && empty($args['s']) ) {
             global $wpdb;
 
             $post_type = sanitize_key( $args['post_type'] );
@@ -454,16 +526,32 @@ class DynamicPostRenderer
 
                     case 'post media':
                         $img = $xpath->query('.//img', $wrapper)->item(0);
-                        if ( $img && has_post_thumbnail( $post ) ) {
-                            $resolution = ! empty( $blockParams ) ? $blockParams : 'full';
-                            $allowedSizes = [ 'thumbnail', 'medium', 'medium_large', 'large', 'full' ];
-                            if ( ! in_array( $resolution, $allowedSizes, true ) ) {
-                                $resolution = 'full';
-                            }
-                            $img->setAttribute( 'src', get_the_post_thumbnail_url( $post, $resolution ) );
-                            $img->setAttribute( 'alt', get_the_title( $post ) );
-                            $img->setAttribute( 'width', '100%' );
-                            $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
+                        if ( ! $img ) {
+                            return '';
+                        }
+
+                        $resolution = ! empty( $blockParams ) ? $blockParams : 'full';
+                        $allowedSizes = [ 'thumbnail', 'medium', 'medium_large', 'large', 'full' ];
+                        if ( ! in_array( $resolution, $allowedSizes, true ) ) {
+                            $resolution = 'full';
+                        }
+
+                        $thumbnailUrl = has_post_thumbnail( $post )
+                            ? get_the_post_thumbnail_url( $post, $resolution )
+                            : '';
+
+                        if ( empty( $thumbnailUrl ) ) {
+                            return '';
+                        }
+
+                        $img->setAttribute( 'src', $thumbnailUrl );
+                        $img->setAttribute( 'alt', get_the_title( $post ) );
+                        $img->setAttribute( 'width', '100%' );
+                        $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
+
+                        $a = $xpath->query('.//a', $wrapper)->item(0);
+                        if ( $a ) {
+                            $a->setAttribute( 'href', get_permalink( $post ) );
                         }
                         break;
 

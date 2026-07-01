@@ -56,21 +56,29 @@ class ManageSubscription
         }
 
         $contactIdInt = (int) $contactEntity->contact_id;
+        $previousStatus = $contactEntity->subscription_status ?? '';
 
         $allowed_statuses = [ 'subscribed', 'unsubscribed' ];
-        $raw_status       = sanitize_key( wp_unslash( $_POST['status'] ?? '' ) );
-        $newStatus        = in_array( $raw_status, $allowed_statuses, true ) ? $raw_status : 'subscribed';
+        $raw_status       = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : '';
+        if ( '' === $raw_status ) {
+            $newStatus = in_array( $previousStatus, $allowed_statuses, true ) ? $previousStatus : 'subscribed';
+        } elseif ( in_array( $raw_status, $allowed_statuses, true ) ) {
+            $newStatus = $raw_status;
+        } else {
+            wp_send_json_error([
+                'message' => __('Invalid subscription status.', 'mailerpress'),
+            ], 400);
+        }
 
-        $previousStatus = $contactEntity->subscription_status ?? '';
         $skipLists      = ! empty( $_POST['skip_lists'] );
 
         if ($skipLists) {
-            // Only update name fields, keep lists and subscription status untouched
             $update = $wpdb->query(
                 $wpdb->prepare(
                     "UPDATE {$contactTable}
-                 SET first_name = %s, last_name = %s
+                 SET subscription_status = %s, first_name = %s, last_name = %s
                  WHERE access_token = %s",
+                    $newStatus,
                     $firstName,
                     $lastName,
                     $accessToken
@@ -105,13 +113,13 @@ class ManageSubscription
                     ]);
                 }
             }
-
-            if ($newStatus === 'unsubscribed') {
-                do_action('mailerpress_contact_unsubscribed', $contactIdInt);
-            }
         }
 
         if ($update !== false) {
+            if ($newStatus === 'unsubscribed') {
+                do_action('mailerpress_contact_unsubscribed', $contactIdInt);
+            }
+
             // Trigger workflow when contact becomes subscribed (re-subscription)
             if ($newStatus === 'subscribed' && $previousStatus !== 'subscribed') {
                 \do_action('mailerpress_contact_created', $contactIdInt);

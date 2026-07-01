@@ -35,6 +35,10 @@ if ($contactId) {
 $isPreview = isset($_GET['mp_preview']) && wp_validate_boolean(sanitize_text_field(wp_unslash($_GET['mp_preview'])));
 $disableListManagement = !empty($disableListManagement)
     || (isset($_GET['disable_list_management']) && wp_validate_boolean(sanitize_text_field(wp_unslash($_GET['disable_list_management']))));
+$currentStatus = sanitize_key($contact->subscription_status ?? 'subscribed');
+if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
+    $currentStatus = 'subscribed';
+}
 ?>
 
 <form novalidate action="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" method="post"
@@ -48,6 +52,18 @@ $disableListManagement = !empty($disableListManagement)
     <div class="mailerpress-form-line">
         <label><?php esc_html_e('Email*', 'mailerpress'); ?></label>
         <strong><?php echo esc_html($contact->email ?? ''); ?></strong>
+    </div>
+
+    <div class="mailerpress-form-line">
+        <label for="subscription_status"><?php esc_html_e('Subscription status', 'mailerpress'); ?></label>
+        <select id="subscription_status" name="status">
+            <option value="subscribed" <?php selected($currentStatus, 'subscribed'); ?>>
+                <?php esc_html_e('Subscribed', 'mailerpress'); ?>
+            </option>
+            <option value="unsubscribed" <?php selected($currentStatus, 'unsubscribed'); ?>>
+                <?php esc_html_e('Unsubscribed', 'mailerpress'); ?>
+            </option>
+        </select>
     </div>
 
     <div class="mailerpress-form-line">

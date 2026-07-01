@@ -8,6 +8,7 @@ namespace MailerPress\Actions\Admin;
 
 use MailerPress\Blocks\PatternsCategories;
 use MailerPress\Blocks\TemplatesCategories;
+use MailerPress\Api\Options;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\CapabilitiesManager;
 use MailerPress\Core\Attributes\Filter;
@@ -121,15 +122,7 @@ class Editor
                     'hide_empty' => true,
                     'orderby' => 'name',
                 ]),
-                'esp' => array_reduce(
-                    Kernel::getContainer()->get(EmailServiceManager::class)->getServices(),
-                    static function ($acc, EmailServiceInterface $service) {
-                        $acc[] = $service->config();
-
-                        return $acc;
-                    },
-                    []
-                ),
+                'esp' => $this->getPublicEmailServices(),
                 'defaultSettings' => get_option('mailerpress_default_settings', [
                     'fromAddress' => $globalSenderDecoded->fromAddress ?? '',
                     'fromName' => $globalSenderDecoded->fromName ?? '',
@@ -160,7 +153,9 @@ class Editor
                 'globalSettings' => wp_get_global_settings(),
                 'defaultBlocksSettings' => Kernel::getContainer()->get(ThemeStyles::class)->loadJsonSettings(),
                 'isBlockTheme' => function_exists('wp_is_block_theme') ? wp_is_block_theme() : false,
-                'emailServiceConfiguration' => Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations(),
+                'emailServiceConfiguration' => Options::redactEmailServicesForResponse(
+                    Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations()
+                ),
                 'globalSender' => $globalSender,
                 'nonce' => wp_create_nonce('wp_rest'),
                 'editorFonts' => get_option('mailerpress_fonts_v2', []),
@@ -349,6 +344,34 @@ class Editor
         return str_contains($screen->id, 'mailerpress');
     }
 
+    private function getPublicEmailServices(): array
+    {
+        $services = array_reduce(
+            Kernel::getContainer()->get(EmailServiceManager::class)->getServices(),
+            static function ($acc, EmailServiceInterface $service) {
+                $acc[] = $service->config();
+
+                return $acc;
+            },
+            []
+        );
+
+        return array_values(array_filter(
+            $services,
+            static function (array $service): bool {
+                $key = strtolower((string) ($service['key'] ?? ''));
+                $name = strtolower((string) ($service['name'] ?? ''));
+                $description = strtolower((string) ($service['description'] ?? ''));
+
+                $isE2eCaptureProvider = str_contains($key, 'e2e')
+                    || $name === 'e2e capture'
+                    || str_contains($description, 'local functional tests')
+                    || (str_contains($key, 'capture') && str_contains($description, 'email payload'));
+
+                return !$isE2eCaptureProvider;
+            }
+        ));
+    }
 
     public function checkPluginInit(): bool
     {

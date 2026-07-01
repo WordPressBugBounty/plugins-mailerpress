@@ -8,6 +8,8 @@ use MailerPress\Core\Workflows\Repositories\AutomationJobRepository;
 
 class TriggerManager
 {
+    private const GUEST_USER_ID_OFFSET = 2147483648;
+
     private AutomationRepository $automationRepo;
     private StepRepository $stepRepo;
     private AutomationJobRepository $jobRepo;
@@ -133,25 +135,7 @@ class TriggerManager
                 }
             }
 
-            $userId = $context['user_id'] ?? null;
-            if (!$userId) {
-                $userId = get_current_user_id();
-            }
-
-            // For guest checkouts (e.g., SureCart, WooCommerce guest orders),
-            // we may not have a user_id but we have a customer email.
-            // Look up or skip if no MailerPress contact exists for this email.
-            if (!$userId) {
-                $guestEmail = $context['customer_email'] ?? $context['email'] ?? $context['user_email'] ?? null;
-                if (!empty($guestEmail)) {
-                    $contactsModel = new \MailerPress\Models\Contacts();
-                    $guestContact = $contactsModel->getContactByEmail($guestEmail);
-                    if ($guestContact) {
-                        $userId = (int) $guestContact->contact_id;
-                        $context['contact_id'] = $userId;
-                    }
-                }
-            }
+            $userId = $this->resolveWorkflowUserId($context);
 
             // If create_contact is enabled in trigger settings, create/update the contact
             $triggerSettings = $trigger->getSettings() ?? [];
@@ -160,6 +144,7 @@ class TriggerManager
                 if ($createdContact) {
                     $userId = (int) $createdContact->contact_id;
                     $context['contact_id'] = $userId;
+                    $context['user_id'] = $userId;
                 }
             }
 
@@ -310,29 +295,7 @@ class TriggerManager
             return;
         }
 
-        $userId = $context['user_id'] ?? null;
-        $email = $context['email'] ?? null;
-        $contactId = $context['contact_id'] ?? null;
-
-        if (!$userId) {
-            // Try to get user_id from contact_id
-            if ($contactId) {
-                $userId = $contactId;
-            } else {
-                // Try to find contact by email
-                if ($email) {
-                    $contactsModel = new \MailerPress\Models\Contacts();
-                    $contact = $contactsModel->getContactByEmail($email);
-                    if ($contact) {
-                        $userId = (int) $contact->contact_id;
-                    }
-                }
-            }
-        }
-
-        if (!$userId) {
-            $userId = get_current_user_id();
-        }
+        $userId = $this->resolveWorkflowUserId($context);
 
         if (!$userId) {
             return;
@@ -406,6 +369,60 @@ class TriggerManager
             do_action('mailerpress_workflow_trigger_fired', $triggerKey, $job, $context);
             $this->executor->executeJob($job->getId(), $context);
         }
+    }
+
+    private function resolveWorkflowUserId(array &$context): int
+    {
+        $userId = (int) ($context['user_id'] ?? 0);
+        if ($userId > 0) {
+            $context['user_id'] = $userId;
+            return $userId;
+        }
+
+        $contactId = (int) ($context['contact_id'] ?? 0);
+        if ($contactId > 0) {
+            $context['user_id'] = $contactId;
+            return $contactId;
+        }
+
+        $email = $this->getContextEmail($context);
+        if ($email !== '') {
+            $contactsModel = new \MailerPress\Models\Contacts();
+            $contact = $contactsModel->getContactByEmail($email);
+
+            if ($contact) {
+                $contactId = (int) $contact->contact_id;
+                $context['contact_id'] = $contactId;
+                $context['user_id'] = $contactId;
+                return $contactId;
+            }
+
+            $guestUserId = self::GUEST_USER_ID_OFFSET + abs(crc32(strtolower($email)));
+
+            $context['user_id'] = $guestUserId;
+            return $guestUserId;
+        }
+
+        $currentUserId = (int) get_current_user_id();
+        if ($currentUserId > 0) {
+            $context['user_id'] = $currentUserId;
+            return $currentUserId;
+        }
+
+        return 0;
+    }
+
+    private function getContextEmail(array $context): string
+    {
+        $email = $context['customer_email']
+            ?? $context['email']
+            ?? $context['user_email']
+            ?? $context['billing_email']
+            ?? ($context['billing_address']['email'] ?? '');
+
+        $email = sanitize_email((string) $email);
+
+        return is_email($email) ? $email : '';
     }
 
     /**

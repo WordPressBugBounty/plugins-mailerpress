@@ -5,15 +5,12 @@ namespace MailerPress\Core\Notifications;
 defined('ABSPATH') || exit;
 
 use MailerPress\Core\Notifications\Messages\PrimaryProviderDisabledNotification;
-use MailerPress\Core\Notifications\Messages\WelcomeNotification;
 use MailerPress\Core\Notifications\Messages\LiteSpeedActivatedNotification;
 use MailerPress\Core\Notifications\Messages\ProductUpdateNotification;
-use MailerPress\Core\Notifications\Messages\ThirdPartySMTPDetectedNotification;
 use MailerPress\Core\Notifications\Messages\DisableWpCronNotification;
 use MailerPress\Core\Notifications\Messages\WorkflowFailedJobsNotification;
 use MailerPress\Core\Notifications\Messages\DatabaseUpdateRequiredNotification;
 use MailerPress\Core\Notifications\Messages\PasswordProtectedActivatedNotification;
-use MailerPress\Core\Notifications\Messages\WafRestApiNotification;
 
 class NotificationBootstrap
 {
@@ -58,11 +55,6 @@ class NotificationBootstrap
         NotificationMessageFactory::register(
             'database_update_required',
             DatabaseUpdateRequiredNotification::class
-        );
-
-        NotificationMessageFactory::register(
-            'waf_rest_api',
-            WafRestApiNotification::class
         );
 
         // Allow plugins and extensions to register their own messages

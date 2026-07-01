@@ -13,6 +13,37 @@ class PluginRow
         return file_exists(WP_PLUGIN_DIR . '/mailerpress-pro/mailerpress-pro.php');
     }
 
+    private function is_mailerpress_access_denied_screen(): bool
+    {
+        $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
+
+        if ($page === 'mailerpress/workflow') {
+            return !current_user_can(Capabilities::MANAGE_AUTOMATIONS);
+        }
+
+        if ($page !== 'mailerpress/campaigns.php') {
+            return false;
+        }
+
+        $path = isset($_GET['path']) ? sanitize_text_field(wp_unslash($_GET['path'])) : '';
+        $activeView = isset($_GET['activeView']) ? sanitize_text_field(wp_unslash($_GET['activeView'])) : '';
+
+        $capability = match ($path) {
+            '/home/settings', '/home/integrations' => Capabilities::MANAGE_SETTINGS,
+            '/home/contacts' => match ($activeView) {
+                'Segmentation' => Capabilities::MANAGE_CONTACT_SEGMENTATION,
+                'Contact Lists' => Capabilities::MANAGE_LISTS,
+                'Contact Tags' => Capabilities::MANAGE_TAGS,
+                default => Capabilities::MANAGE_CONTACTS,
+            },
+            '/home/templates' => Capabilities::MANAGE_TEMPLATES,
+            '/home/workflow' => Capabilities::MANAGE_AUTOMATIONS,
+            default => Capabilities::MANAGE_CAMPAIGNS,
+        };
+
+        return !current_user_can($capability);
+    }
+
     #[Action('admin_enqueue_scripts')]
     function enqueue_plugin_row_styles()
     {
@@ -86,7 +117,7 @@ class PluginRow
         $user_id = get_current_user_id();
         $dismissed = get_user_meta($user_id, 'mailerpress_go_pro_notice', true);
 
-        if ($dismissed || $this->is_user_pro()) {
+        if ($dismissed || $this->is_user_pro() || $this->is_mailerpress_access_denied_screen()) {
             return;
         }
 ?>

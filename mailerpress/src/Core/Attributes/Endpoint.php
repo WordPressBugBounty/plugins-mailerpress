@@ -54,6 +54,10 @@ class Endpoint
             $methodName = $this->permissionCallback[1];
 
             return function (...$args) use ($className, $methodName) {
+                if ($this->isPreflightRequest($args[0] ?? null)) {
+                    return true;
+                }
+
                 if (is_callable([$className, $methodName])) {
                     return \call_user_func([$className, $methodName], ...$args);
                 }
@@ -62,23 +66,48 @@ class Endpoint
         } elseif (\is_string($this->permissionCallback)) {
             // Check if it's a global function first (like __return_true)
             if (\function_exists($this->permissionCallback)) {
-                return $this->permissionCallback;
+                return function (...$args) {
+                    if ($this->isPreflightRequest($args[0] ?? null)) {
+                        return true;
+                    }
+
+                    return \call_user_func($this->permissionCallback, ...$args);
+                };
             }
             // Otherwise, treat it as a method on the same class
             return function (...$args) use ($callable) {
+                if ($this->isPreflightRequest($args[0] ?? null)) {
+                    return true;
+                }
+
                 return \call_user_func([$callable[0], $this->permissionCallback], ...$args);
             };
         } elseif (\is_callable($this->permissionCallback)) {
             // If permissionCallback is already callable, use it directly
-            return $this->permissionCallback;
+            return function (...$args) {
+                if ($this->isPreflightRequest($args[0] ?? null)) {
+                    return true;
+                }
+
+                return \call_user_func($this->permissionCallback, ...$args);
+            };
         }
 
         // Default to requiring authentication (deny by default)
         return function (\WP_REST_Request $request): bool|\WP_Error {
+            if ($this->isPreflightRequest($request)) {
+                return true;
+            }
+
             if (!is_user_logged_in()) {
                 return new \WP_Error('rest_forbidden', 'Authentication required.', ['status' => 401]);
             }
             return true;
         };
+    }
+
+    private function isPreflightRequest(mixed $request): bool
+    {
+        return $request instanceof \WP_REST_Request && $request->get_method() === 'OPTIONS';
     }
 }

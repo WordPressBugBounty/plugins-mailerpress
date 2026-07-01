@@ -48,10 +48,22 @@ class AbandonedCart
             'cart_subtotal' => $cartData['cart_subtotal'] ?? '0',
             'cart_currency' => $cartData['cart_currency'] ?? get_woocommerce_currency(),
             'cart_item_count' => $cartData['cart_item_count'] ?? 0,
+            'cart_recovery_url' => $this->buildCartRecoveryUrl((string) ($cart['cart_hash'] ?? '')),
         ];
 
         return new \WP_REST_Response([
             'cart' => $formattedCart,
         ], 200);
+    }
+
+    private function buildCartRecoveryUrl(string $cartHash): string
+    {
+        $baseUrl = function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : home_url('/');
+
+        if ($cartHash === '') {
+            return $baseUrl;
+        }
+
+        return add_query_arg('recover_cart', $cartHash, $baseUrl);
     }
 }

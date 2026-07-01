@@ -25,11 +25,13 @@ class SendEmailJob extends BaseJob
      *   body: string,
      *   webhook_url?: string,
      *   batch_id?: int|string,
+     *   campaign_id?: int|string,
      *   transient_key?: string
      * } $data
      */
     public function handle(array $data): void
     {
+        $data = $this->refreshAutomatedCampaignSender($data);
 
         $countSuccess = 0;
         $countError = 0;
@@ -397,6 +399,89 @@ class SendEmailJob extends BaseJob
         if ($jobException) {
             throw $jobException; // Action Scheduler will log failure & retry per its rules
         }
+    }
+
+    private function refreshAutomatedCampaignSender(array $data): array
+    {
+        if (!function_exists('mailerpress_resolve_sender_config')) {
+            return $data;
+        }
+
+        $campaignId = $this->resolveCampaignId($data);
+
+        if ($campaignId <= 0 || !$this->isAutomatedCampaign($campaignId)) {
+            return $data;
+        }
+
+        $senderConfig = [
+            'fromName' => $data['sender_name'] ?? '',
+            'fromTo' => $data['sender_to'] ?? '',
+        ];
+
+        if (!empty($data['senderId'])) {
+            $senderConfig['senderId'] = $data['senderId'];
+        }
+
+        $senderConfig = mailerpress_resolve_sender_config($senderConfig, true);
+
+        $data['sender_name'] = $senderConfig['fromName'] ?? ($data['sender_name'] ?? '');
+        $data['sender_to'] = $senderConfig['fromTo'] ?? ($data['sender_to'] ?? '');
+
+        if (!empty($senderConfig['senderId'])) {
+            $data['senderId'] = $senderConfig['senderId'];
+        }
+
+        return $data;
+    }
+
+    private function resolveCampaignId(array $data): int
+    {
+        $campaignId = (int) ($data['campaign_id'] ?? $data['campaignId'] ?? 0);
+
+        if ($campaignId > 0) {
+            return $campaignId;
+        }
+
+        foreach (($data['to'] ?? []) as $recipient) {
+            $campaignId = (int) ($recipient['campaign_id'] ?? 0);
+
+            if ($campaignId > 0) {
+                return $campaignId;
+            }
+        }
+
+        if (empty($data['batch_id'])) {
+            return 0;
+        }
+
+        global $wpdb;
+
+        $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+
+        if (!Tables::exists($batchTable)) {
+            return 0;
+        }
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT campaign_id FROM {$batchTable} WHERE id = %d",
+            (int) $data['batch_id']
+        ));
+    }
+
+    private function isAutomatedCampaign(int $campaignId): bool
+    {
+        global $wpdb;
+
+        $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        if (!Tables::exists($campaignsTable)) {
+            return false;
+        }
+
+        return 'automated' === $wpdb->get_var($wpdb->prepare(
+            "SELECT campaign_type FROM {$campaignsTable} WHERE campaign_id = %d",
+            $campaignId
+        ));
     }
 
     /**

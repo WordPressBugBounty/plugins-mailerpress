@@ -39,6 +39,11 @@ class AutomatedCampaign
         }
 
         $automateSettings = $config['automateSettings'];
+        $sendConfig = is_array($conf) ? $conf : [];
+
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $sendConfig = mailerpress_resolve_sender_config($sendConfig, true);
+        }
 
         // Get last_run as DateTime or null
         $lastRun = null;
@@ -62,7 +67,7 @@ class AutomatedCampaign
         $this->mailerpress_trigger_batch_for_automated_campaign(
             $sendType,
             $post,
-            $conf,
+            $sendConfig,
             $scheduledAt,
             $recipientTargeting,
             $lists,
@@ -73,6 +78,10 @@ class AutomatedCampaign
         // Update last_run immediately after triggering batch.
         $automateSettings['last_run'] = current_time('mysql');
         $config['automateSettings'] = $automateSettings;
+        if (!isset($config['automatedCampaignSchedule']) || !is_array($config['automatedCampaignSchedule'])) {
+            $config['automatedCampaignSchedule'] = [];
+        }
+        $config['automatedCampaignSchedule']['config'] = $sendConfig;
 
         $wpdb->update(
             $wpdb->prefix . 'mailerpress_campaigns',
@@ -90,6 +99,7 @@ class AutomatedCampaign
         if ($nextRun && $nextRun > new \DateTime('now', wp_timezone())) {
             $automateSettings['next_run'] = $nextRun->format('Y-m-d H:i:s');
             $config['automateSettings'] = $automateSettings;
+            $config['automatedCampaignSchedule']['config'] = $sendConfig;
 
             $wpdb->update(
                 $wpdb->prefix . 'mailerpress_campaigns',
@@ -107,7 +117,7 @@ class AutomatedCampaign
                 [
                     $post,
                     $sendType,
-                    $conf,
+                    $sendConfig,
                     $scheduledAt,
                     $recipientTargeting,
                     $lists,

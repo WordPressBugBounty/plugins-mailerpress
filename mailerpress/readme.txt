@@ -1,11 +1,11 @@
-=== MailerPress - Email Marketing, Newsletter, Email Automation & WooCommerce Emails ===
+=== MailerPress - Newsletter, email marketing & AI automation ===
 Authors: mailerpress
 Contributors: mailerpress, seopress, rainbowgeek, maigret
 Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -229,6 +229,23 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.6 =
+* IMPROVEMENT: Build better-looking emails faster with direct image resizing in the editor, live drag handles, instant previews, and layout-aware limits that help your design stay clean.
+* IMPROVEMENT: Turn titles and section headings into clear calls to action by adding links directly from the heading toolbar.
+* IMPROVEMENT: Fine-tune your email design with per-corner border radius controls for buttons, sections, columns, hero blocks, and images.
+* IMPROVEMENT: Writing and editing email content now feels more natural, with smoother text splitting and better cursor placement when pressing Enter.
+* FIX: Abandoned Cart automations now capture more guest checkout activity once a shopper enters an email address, helping you recover carts even before an account is created.
+* FIX: Cart recovery emails now bring shoppers back to checkout with their saved items restored, including older emails that used a standard "Complete my order" button.
+* FIX: The default Abandoned Cart Reminder template now uses the dedicated Cart Recovery Button, and the button text can be edited directly on the email canvas.
+* FIX: Creating an email from a template inside an automation now avoids the brief "no email template assigned" warning and keeps the selected template attached more reliably.
+* FIX: Background contact imports are more dependable for larger files, reducing the risk of imports stopping before every contact is processed.
+* FIX: Table blocks are easier to edit with a larger editing view, and common editor actions such as paste, undo, redo, and slash block insertion now behave more naturally while typing.
+* FIX: Automated campaigns now keep sender details up to date when default sender settings change.
+* FIX: WooCommerce automation icons now display cleanly in the workflow editor.
+* FIX: Improved editor reliability for footer patterns, pattern insertion, merge-tag links, email rendering, and text editing.
+* FIX: Font choices are now saved more consistently when email HTML contains encoded font names.
+* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
+
 = 2.0.5 =
 * IMPROVEMENT: Smoother contact management across imports, APIs, workflows, and webhooks.
 * IMPROVEMENT: Better CSV imports with cleaner field mapping and more reliable large-file processing.

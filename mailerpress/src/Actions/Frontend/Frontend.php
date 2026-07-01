@@ -7,6 +7,7 @@ namespace MailerPress\Actions\Frontend;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
+use MailerPress\Core\Workflows\Repositories\CartTrackingRepository;
 
 class Frontend
 {
@@ -303,6 +304,228 @@ class Frontend
         }
 
         return $contactStats;
+    }
+
+    #[Action('template_redirect', priority: 1)]
+    public function handleCartRecovery()
+    {
+        if (empty($_GET['recover_cart']) || !function_exists('WC')) {
+            return;
+        }
+
+        $cartHash = sanitize_text_field(wp_unslash($_GET['recover_cart']));
+        if (!preg_match('/^[a-f0-9]{32}$/i', $cartHash)) {
+            $this->redirectToCartRecoveryFallback();
+        }
+
+        try {
+            if (!WC()->cart && function_exists('wc_load_cart')) {
+                wc_load_cart();
+            }
+
+            if (!WC()->cart) {
+                $this->redirectToCartRecoveryFallback();
+            }
+
+            $trackedCart = $this->resolveRecoverableTrackedCart($cartHash);
+
+            if (!$trackedCart) {
+                $this->redirectToCartRecoveryFallback();
+            }
+
+            $cartData = json_decode((string) ($trackedCart['cart_data'] ?? ''), true);
+            $cartItems = is_array($cartData) ? ($cartData['cart_items'] ?? []) : [];
+
+            if (empty($cartItems) || !is_array($cartItems)) {
+                $this->redirectToCartRecoveryFallback();
+            }
+
+            if (WC()->session) {
+                WC()->session->set('mailerpress_restoring_cart', true);
+            }
+
+            try {
+                WC()->cart->empty_cart(false);
+                $restored = $this->restoreTrackedCartItems($cartItems);
+
+                if ($restored) {
+                    $this->hydrateRecoveredCartCustomer($trackedCart);
+                    WC()->cart->calculate_totals();
+                }
+            } finally {
+                if (WC()->session) {
+                    WC()->session->__unset('mailerpress_restoring_cart');
+                }
+            }
+
+            if (empty($restored)) {
+                $this->redirectToCartRecoveryFallback();
+            }
+
+            wp_safe_redirect($this->getCheckoutUrl());
+            exit;
+        } catch (\Throwable $e) {
+            $this->redirectToCartRecoveryFallback();
+        }
+    }
+
+    private function resolveRecoverableTrackedCart(string $cartHash): ?array
+    {
+        $cartRepo = new CartTrackingRepository();
+        $trackedCart = $cartRepo->getCartByHash($cartHash);
+
+        if ($trackedCart && ($trackedCart['status'] ?? '') === 'ACTIVE') {
+            return $trackedCart;
+        }
+
+        return $this->resolveTrackedCartSnapshotFromAutomationLog($cartHash);
+    }
+
+    private function resolveTrackedCartSnapshotFromAutomationLog(string $cartHash): ?array
+    {
+        global $wpdb;
+
+        $logTable = $wpdb->prefix . Tables::MAILERPRESS_AUTOMATIONS_LOG;
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT data FROM {$logTable} WHERE data LIKE %s ORDER BY created_at DESC LIMIT 20",
+                '%' . $wpdb->esc_like($cartHash) . '%'
+            ),
+            ARRAY_A
+        );
+
+        foreach ($rows as $row) {
+            $data = json_decode((string) ($row['data'] ?? ''), true);
+            if (!is_array($data)) {
+                continue;
+            }
+
+            $loggedCartHash = (string) ($data['cart_hash'] ?? '');
+            if ($loggedCartHash === '' || !hash_equals(strtolower($cartHash), strtolower($loggedCartHash))) {
+                continue;
+            }
+
+            $cartItems = $data['cart_items'] ?? [];
+            if (empty($cartItems) || !is_array($cartItems)) {
+                continue;
+            }
+
+            $cartData = [
+                'cart_items' => $cartItems,
+                'cart_total' => $data['cart_total'] ?? '',
+                'cart_subtotal' => $data['cart_subtotal'] ?? '',
+                'cart_currency' => $data['cart_currency'] ?? '',
+                'cart_item_count' => $data['cart_item_count'] ?? count($cartItems),
+            ];
+
+            return [
+                'cart_hash' => $cartHash,
+                'user_id' => (int) ($data['user_id'] ?? 0),
+                'customer_email' => sanitize_email((string) ($data['customer_email'] ?? $data['billing_email'] ?? '')),
+                'cart_data' => wp_json_encode($cartData),
+                'status' => 'SNAPSHOT',
+            ];
+        }
+
+        return null;
+    }
+
+    private function restoreTrackedCartItems(array $cartItems): bool
+    {
+        $restored = false;
+
+        foreach ($cartItems as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $productId = absint($item['product_id'] ?? 0);
+            $variationId = absint($item['variation_id'] ?? 0);
+            $quantity = max(1, (int) ($item['quantity'] ?? 1));
+            $variation = $this->sanitizeCartItemVariation($item['variation'] ?? []);
+
+            if ($productId <= 0 && $variationId > 0 && function_exists('wc_get_product')) {
+                $variationProduct = wc_get_product($variationId);
+                if ($variationProduct && method_exists($variationProduct, 'get_parent_id')) {
+                    $productId = (int) $variationProduct->get_parent_id();
+                }
+            }
+
+            if ($productId <= 0) {
+                continue;
+            }
+
+            $added = WC()->cart->add_to_cart($productId, $quantity, $variationId, $variation);
+            if ($added) {
+                $restored = true;
+            }
+        }
+
+        return $restored;
+    }
+
+    private function sanitizeCartItemVariation($variation): array
+    {
+        if (!is_array($variation)) {
+            return [];
+        }
+
+        $clean = [];
+        foreach ($variation as $key => $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
+
+            $clean[sanitize_key((string) $key)] = wc_clean((string) $value);
+        }
+
+        return $clean;
+    }
+
+    private function hydrateRecoveredCartCustomer(array $trackedCart): void
+    {
+        $email = sanitize_email((string) ($trackedCart['customer_email'] ?? ''));
+        if (empty($email) || !is_email($email)) {
+            return;
+        }
+
+        if (WC()->customer) {
+            WC()->customer->set_billing_email($email);
+            WC()->customer->save();
+        }
+
+        if (WC()->session) {
+            WC()->session->set('billing_email', $email);
+            WC()->session->set('guest_email', $email);
+        }
+    }
+
+    private function getCheckoutUrl(): string
+    {
+        if (function_exists('wc_get_checkout_url')) {
+            return wc_get_checkout_url();
+        }
+
+        return $this->getCartRecoveryFallbackUrl();
+    }
+
+    private function getCartRecoveryFallbackUrl(): string
+    {
+        if (function_exists('wc_get_checkout_url')) {
+            return wc_get_checkout_url();
+        }
+
+        if (function_exists('wc_get_cart_url')) {
+            return wc_get_cart_url();
+        }
+
+        return home_url('/');
+    }
+
+    private function redirectToCartRecoveryFallback(): void
+    {
+        wp_safe_redirect($this->getCartRecoveryFallbackUrl());
+        exit;
     }
 
     #[Action('template_redirect')]

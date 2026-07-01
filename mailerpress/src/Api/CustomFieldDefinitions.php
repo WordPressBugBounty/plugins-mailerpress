@@ -9,6 +9,7 @@ namespace MailerPress\Api;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Api\Permissions;
+use MailerPress\Models\CustomFields;
 
 class CustomFieldDefinitions
 {
@@ -118,6 +119,8 @@ class CustomFieldDefinitions
         if (false === $inserted) {
             return new \WP_Error('db_error', 'Failed to create the custom field.', ['status' => 500]);
         }
+
+        CustomFields::clearCache();
 
         $new_id = $wpdb->insert_id;
 

@@ -335,31 +335,6 @@ class OptinForm
                     $scriptContent
                 );
 
-                // Add redirect functionality after successful submission
-                // Insert redirect logic inside the success block, after form.reset()
-                // Note: redirectUrl is already validated and escaped via esc_attr() in the HTML
-                $redirectScript = "\n                    // Handle redirect after successful submission
-                    const redirectUrl = form.dataset.redirectUrl;
-                    if (redirectUrl) {
-                        // Validate URL before redirecting to prevent XSS
-                        try {
-                            const url = new URL(redirectUrl, window.location.origin);
-                            // Redirect after a short delay to show success message
-                            setTimeout(() => {
-                                window.location.href = url.href;
-                            }, 1500);
-                        } catch (e) {
-                            console.error('Invalid redirect URL:', redirectUrl);
-                        }
-                    }";
-
-                // Insert redirect logic after form.reset() in the success block
-                $scriptContent = str_replace(
-                    'form.reset();',
-                    'form.reset();' . $redirectScript,
-                    $scriptContent
-                );
-
                 wp_add_inline_script(
                     'mailerpress-optin-form-js',
                     $scriptContent,

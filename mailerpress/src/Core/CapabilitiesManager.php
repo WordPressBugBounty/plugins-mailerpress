@@ -10,25 +10,27 @@ use WP_Roles;
 
 class CapabilitiesManager
 {
+    public const SCHEMA_VERSION = '2026_06_10_ai_usage_capability';
 
     public static function addCapabilities(): void
     {
-        // Your mapping
+        // Map MailerPress capabilities to the minimum WordPress capability a role must already have.
         $mapping = [
             Capabilities::MANAGE_SETTINGS => 'manage_options',
             Capabilities::MANAGE_CAMPAIGNS => 'edit_posts',
             Capabilities::EDIT_OTHERS_CAMPAIGNS => 'edit_others_posts',
             Capabilities::PUBLISH_CAMPAIGNS => 'publish_posts',
-            Capabilities::DELETE_EMAIL_CAMPAIGNS => 'delete_published_posts',
-            Capabilities::DELETE_CONTACTS => 'delete_posts',
-            Capabilities::MANAGE_CONTACTS => 'edit_posts',
+            Capabilities::DELETE_EMAIL_CAMPAIGNS => 'delete_posts',
+            Capabilities::DELETE_CONTACTS => 'manage_options',
+            Capabilities::MANAGE_CONTACTS => 'edit_others_posts',
             Capabilities::MANAGE_LISTS => 'manage_categories',
             Capabilities::DELETE_LISTS => 'manage_categories',
             Capabilities::MANAGE_TAGS => 'manage_categories',
             Capabilities::DELETE_TAGS => 'manage_categories',
             Capabilities::MANAGE_TEMPLATES => 'edit_themes',
             Capabilities::MANAGE_AUTOMATIONS => 'publish_posts',
-            Capabilities::MANAGE_CONTACT_SEGMENTATION => 'edit_posts',
+            Capabilities::MANAGE_CONTACT_SEGMENTATION => 'edit_others_posts',
+            Capabilities::USE_AI => 'manage_options',
         ];
 
         // Get all roles

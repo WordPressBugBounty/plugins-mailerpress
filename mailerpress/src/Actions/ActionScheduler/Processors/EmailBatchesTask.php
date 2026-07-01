@@ -57,6 +57,7 @@ class EmailBatchesTask
             foreach ($batches as $batch) {
                 $batch_id = $batch->id;
                 $campaign_id = $batch->campaign_id;
+                $isAutomatedCampaign = $this->isAutomatedCampaign((int) $campaign_id);
 
                 // Étape 2 : Récupérer la date de traitement du dernier email
                 $last_processed_email = $wpdb->get_var(
@@ -89,6 +90,18 @@ class EmailBatchesTask
                         $contact = $this->contactModel->get((int) $email->contact_id);
                         $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
                         $config = $mailer->getConfig();
+                        $senderName = $config['conf']['default_name'] ?? (string) ($batch->sender_name ?? '');
+                        $senderEmail = $config['conf']['default_email'] ?? (string) ($batch->sender_to ?? '');
+
+                        if ($isAutomatedCampaign && function_exists('mailerpress_resolve_sender_config')) {
+                            $senderConfig = mailerpress_resolve_sender_config([
+                                'fromName' => $senderName,
+                                'fromTo' => $senderEmail,
+                            ], true);
+
+                            $senderName = $senderConfig['fromName'] ?? $senderName;
+                            $senderEmail = $senderConfig['fromTo'] ?? $senderEmail;
+                        }
 
                         // Récupérer les paramètres Reply to depuis les paramètres par défaut
                         $defaultSettings = get_option('mailerpress_default_settings', []);
@@ -99,21 +112,24 @@ class EmailBatchesTask
                         // Déterminer les valeurs Reply to (utiliser From si Reply to est vide)
                         $replyToName = !empty($defaultSettings['replyToName']) 
                             ? $defaultSettings['replyToName'] 
-                            : ($config['conf']['default_name'] ?? '');
+                            : $senderName;
                         $replyToAddress = !empty($defaultSettings['replyToAddress']) 
                             ? $defaultSettings['replyToAddress'] 
-                            : ($config['conf']['default_email'] ?? '');
+                            : $senderEmail;
 
                         $is_sent = $mailer->sendEmail([
                             'to' => $contact->email,
                             'html' => true,
                             'body' => $email->html_content,
                             'subject' => $batch->subject,
-                            'sender_name' => $config['conf']['default_name'],
-                            'sender_to' => $config['conf']['default_email'],
+                            'sender_name' => $senderName,
+                            'sender_to' => $senderEmail,
                             'reply_to_name' => $replyToName,
                             'reply_to_address' => $replyToAddress,
                             'apiKey' => $config['conf']['api_key'] ?? '',
+                            'campaign_id' => (int) $campaign_id,
+                            'contact_id' => (int) $email->contact_id,
+                            'batch_id' => (int) $batch_id,
                         ]);
 
                         // Mise à jour du statut de l'email et du champ processed_at
@@ -214,5 +230,25 @@ class EmailBatchesTask
                 }
             }
         }
+    }
+
+    private function isAutomatedCampaign(int $campaignId): bool
+    {
+        if ($campaignId <= 0) {
+            return false;
+        }
+
+        global $wpdb;
+
+        $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        if (!Tables::exists($campaignsTable)) {
+            return false;
+        }
+
+        return 'automated' === $wpdb->get_var($wpdb->prepare(
+            "SELECT campaign_type FROM {$campaignsTable} WHERE campaign_id = %d",
+            $campaignId
+        ));
     }
 }

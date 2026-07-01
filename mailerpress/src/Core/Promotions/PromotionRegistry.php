@@ -280,6 +280,8 @@ class PromotionRegistry
             return '';
         }
 
+        $svg = preg_replace('/\s(?:width|height)\s*=\s*([\'"])\s*\1/i', '', $svg) ?? $svg;
+
         return wp_kses($svg, [
             'svg' => [
                 'xmlns' => true,

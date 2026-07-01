@@ -51,17 +51,23 @@ class MyLists
         $all_lists = $wpdb->get_results("SELECT * FROM {$lists_table} ORDER BY name ASC", ARRAY_A);
 
         $user_lists = [];
+        $subscription_status = 'subscribed';
 
         if ($contact) {
+            $subscription_status = sanitize_key($contact->subscription_status ?? 'subscribed');
+            $subscription_status = $subscription_status === 'subscribed' ? 'subscribed' : 'unsubscribed';
+
             // Get contact's current lists
             $contact_lists_table = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
-            $user_lists = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT list_id FROM {$contact_lists_table} WHERE contact_id = %d",
-                    $contact->contact_id
-                )
-            );
-            $user_lists = array_map('intval', $user_lists);
+            if ($subscription_status === 'subscribed') {
+                $user_lists = $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT list_id FROM {$contact_lists_table} WHERE contact_id = %d",
+                        $contact->contact_id
+                    )
+                );
+                $user_lists = array_map('intval', $user_lists);
+            }
         }
 
         return new WP_REST_Response([
@@ -72,6 +78,7 @@ class MyLists
                     'email' => $contact->email,
                     'first_name' => $contact->first_name,
                     'last_name' => $contact->last_name,
+                    'subscription_status' => $subscription_status,
                 ] : null,
                 'all_lists' => $all_lists,
                 'user_lists' => $user_lists,
@@ -141,6 +148,16 @@ class MyLists
         $first_name = sanitize_text_field($request->get_param('first_name') ?? '');
         $last_name = sanitize_text_field($request->get_param('last_name') ?? '');
         $lists = $request->get_param('lists') ?? [];
+        $raw_status = sanitize_key($request->get_param('status') ?? '');
+        $allowed_statuses = ['subscribed', 'unsubscribed'];
+
+        if ($raw_status !== '' && ! in_array($raw_status, $allowed_statuses, true)) {
+            return new WP_Error(
+                'invalid_subscription_status',
+                __('Invalid subscription status.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
 
         // Validate lists is an array
         if (!is_array($lists)) {
@@ -171,14 +188,26 @@ class MyLists
         $contact = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM {$contact_table} WHERE email = %s", $email)
         );
+        $previous_status = $contact ? sanitize_key($contact->subscription_status ?? '') : '';
+        $subscription_status = $raw_status !== ''
+            ? $raw_status
+            : ($contact && $previous_status !== 'subscribed' ? 'unsubscribed' : 'subscribed');
+        $contact_was_created = false;
+
+        if ($subscription_status === 'unsubscribed') {
+            $valid_lists = [];
+        }
 
         if ($contact) {
             // Update existing contact
             $contact_id = $contact->contact_id;
 
             // Update name fields if provided
-            $update_data = ['updated_at' => current_time('mysql')];
-            $update_format = ['%s'];
+            $update_data = [
+                'subscription_status' => $subscription_status,
+                'updated_at' => current_time('mysql'),
+            ];
+            $update_format = ['%s', '%s'];
 
             if (!empty($first_name)) {
                 $update_data['first_name'] = $first_name;
@@ -218,7 +247,7 @@ class MyLists
                     'email' => $email,
                     'first_name' => $first_name,
                     'last_name' => $last_name,
-                    'subscription_status' => 'subscribed', // Already confirmed via WordPress account
+                    'subscription_status' => $subscription_status,
                     'created_at' => current_time('mysql'),
                     'updated_at' => current_time('mysql'),
                     'unsubscribe_token' => $unsubscribe_token,
@@ -230,6 +259,7 @@ class MyLists
             );
 
             $contact_id = $wpdb->insert_id;
+            $contact_was_created = true;
 
             if (!$contact_id) {
                 return new WP_Error(
@@ -239,6 +269,16 @@ class MyLists
                 );
             }
 
+            if ($subscription_status === 'subscribed') {
+                do_action('mailerpress_contact_created', $contact_id);
+            }
+        }
+
+        if (!$contact_was_created && $subscription_status === 'unsubscribed' && $previous_status !== 'unsubscribed') {
+            do_action('mailerpress_contact_unsubscribed', $contact_id);
+        }
+
+        if (!$contact_was_created && $subscription_status === 'subscribed' && $previous_status !== 'subscribed') {
             do_action('mailerpress_contact_created', $contact_id);
         }
 
@@ -310,8 +350,11 @@ class MyLists
                     'email' => $updated_contact->email,
                     'first_name' => $updated_contact->first_name,
                     'last_name' => $updated_contact->last_name,
+                    'subscription_status' => $updated_contact->subscription_status,
                 ],
-                'lists' => array_map('intval', $updated_lists),
+                'lists' => $updated_contact->subscription_status === 'subscribed'
+                    ? array_map('intval', $updated_lists)
+                    : [],
             ],
         ]);
     }

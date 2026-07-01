@@ -448,8 +448,7 @@ class Pages
                 ! $this->isBuilderPreview() && // only validate if not a preview
                 (
                     empty($_GET['cid']) ||
-                    empty($_GET['data']) ||
-                    empty($_GET['batchId'])
+                    empty($_GET['data'])
                 )
             ) {
                 $wp_query->set_404();

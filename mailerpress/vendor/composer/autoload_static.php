@@ -25,15 +25,15 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
     );
 
     public static $prefixLengthsPsr4 = array (
-        'v' => 
+        'v' =>
         array (
             'voku\\' => 5,
         ),
-        'W' => 
+        'W' =>
         array (
             'Webklex\\PHPIMAP\\' => 16,
         ),
-        'S' => 
+        'S' =>
         array (
             'Symfony\\Polyfill\\Php85\\' => 23,
             'Symfony\\Polyfill\\Php84\\' => 23,
@@ -51,7 +51,7 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
             'Symfony\\Component\\EventDispatcher\\' => 34,
             'Symfony\\Component\\Clock\\' => 24,
         ),
-        'P' => 
+        'P' =>
         array (
             'Psr\\SimpleCache\\' => 16,
             'Psr\\Log\\' => 8,
@@ -59,32 +59,32 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
             'Psr\\Container\\' => 14,
             'Psr\\Clock\\' => 10,
         ),
-        'M' => 
+        'M' =>
         array (
             'MailerPress\\' => 12,
         ),
-        'L' => 
+        'L' =>
         array (
             'Laravel\\SerializableClosure\\' => 28,
         ),
-        'I' => 
+        'I' =>
         array (
             'Invoker\\' => 8,
             'Illuminate\\Support\\' => 19,
             'Illuminate\\Pagination\\' => 22,
             'Illuminate\\Contracts\\' => 21,
         ),
-        'E' => 
+        'E' =>
         array (
             'Egulias\\EmailValidator\\' => 23,
         ),
-        'D' => 
+        'D' =>
         array (
             'Doctrine\\Inflector\\' => 19,
             'Doctrine\\Common\\Lexer\\' => 22,
             'DI\\' => 3,
         ),
-        'C' => 
+        'C' =>
         array (
             'Carbon\\Doctrine\\' => 16,
             'Carbon\\' => 7,
@@ -92,107 +92,107 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
     );
 
     public static $prefixDirsPsr4 = array (
-        'voku\\' => 
+        'voku\\' =>
         array (
             0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
         ),
-        'Webklex\\PHPIMAP\\' => 
+        'Webklex\\PHPIMAP\\' =>
         array (
             0 => __DIR__ . '/..' . '/webklex/php-imap/src',
         ),
-        'Symfony\\Polyfill\\Php85\\' => 
+        'Symfony\\Polyfill\\Php85\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php85',
         ),
-        'Symfony\\Polyfill\\Php84\\' => 
+        'Symfony\\Polyfill\\Php84\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php84',
         ),
-        'Symfony\\Polyfill\\Php83\\' => 
+        'Symfony\\Polyfill\\Php83\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php83',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
-        'Symfony\\Polyfill\\Intl\\Normalizer\\' => 
+        'Symfony\\Polyfill\\Intl\\Normalizer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer',
         ),
-        'Symfony\\Polyfill\\Intl\\Idn\\' => 
+        'Symfony\\Polyfill\\Intl\\Idn\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-idn',
         ),
-        'Symfony\\Contracts\\Translation\\' => 
+        'Symfony\\Contracts\\Translation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/translation-contracts',
         ),
-        'Symfony\\Contracts\\Service\\' => 
+        'Symfony\\Contracts\\Service\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/service-contracts',
         ),
-        'Symfony\\Contracts\\EventDispatcher\\' => 
+        'Symfony\\Contracts\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/event-dispatcher-contracts',
         ),
-        'Symfony\\Component\\Translation\\' => 
+        'Symfony\\Component\\Translation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/translation',
         ),
-        'Symfony\\Component\\Mime\\' => 
+        'Symfony\\Component\\Mime\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/mime',
         ),
-        'Symfony\\Component\\Mailer\\' => 
+        'Symfony\\Component\\Mailer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/mailer',
         ),
-        'Symfony\\Component\\HttpFoundation\\' => 
+        'Symfony\\Component\\HttpFoundation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/http-foundation',
         ),
-        'Symfony\\Component\\EventDispatcher\\' => 
+        'Symfony\\Component\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/event-dispatcher',
         ),
-        'Symfony\\Component\\Clock\\' => 
+        'Symfony\\Component\\Clock\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/clock',
         ),
-        'Psr\\SimpleCache\\' => 
+        'Psr\\SimpleCache\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/simple-cache/src',
         ),
-        'Psr\\Log\\' => 
+        'Psr\\Log\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/log/src',
         ),
-        'Psr\\EventDispatcher\\' => 
+        'Psr\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/event-dispatcher/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
-        'Psr\\Clock\\' => 
+        'Psr\\Clock\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/clock/src',
         ),
-        'MailerPress\\' => 
+        'MailerPress\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
-        'Laravel\\SerializableClosure\\' => 
+        'Laravel\\SerializableClosure\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/serializable-closure/src',
         ),
-        'Invoker\\' => 
+        'Invoker\\' =>
         array (
             0 => __DIR__ . '/..' . '/php-di/invoker/src',
         ),
-        'Illuminate\\Support\\' => 
+        'Illuminate\\Support\\' =>
         array (
             0 => __DIR__ . '/..' . '/illuminate/support',
             1 => __DIR__ . '/..' . '/illuminate/reflection',
@@ -200,35 +200,35 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
             3 => __DIR__ . '/..' . '/illuminate/macroable',
             4 => __DIR__ . '/..' . '/illuminate/conditionable',
         ),
-        'Illuminate\\Pagination\\' => 
+        'Illuminate\\Pagination\\' =>
         array (
             0 => __DIR__ . '/..' . '/illuminate/pagination',
         ),
-        'Illuminate\\Contracts\\' => 
+        'Illuminate\\Contracts\\' =>
         array (
             0 => __DIR__ . '/..' . '/illuminate/contracts',
         ),
-        'Egulias\\EmailValidator\\' => 
+        'Egulias\\EmailValidator\\' =>
         array (
             0 => __DIR__ . '/..' . '/egulias/email-validator/src',
         ),
-        'Doctrine\\Inflector\\' => 
+        'Doctrine\\Inflector\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/inflector/src',
         ),
-        'Doctrine\\Common\\Lexer\\' => 
+        'Doctrine\\Common\\Lexer\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
         ),
-        'DI\\' => 
+        'DI\\' =>
         array (
             0 => __DIR__ . '/..' . '/php-di/php-di/src',
         ),
-        'Carbon\\Doctrine\\' => 
+        'Carbon\\Doctrine\\' =>
         array (
             0 => __DIR__ . '/..' . '/carbonphp/carbon-doctrine-types/src/Carbon/Doctrine',
         ),
-        'Carbon\\' => 
+        'Carbon\\' =>
         array (
             0 => __DIR__ . '/..' . '/nesbot/carbon/src/Carbon',
         ),
@@ -859,6 +859,7 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Actions\\Admin\\Cpt' => __DIR__ . '/../..' . '/src/Actions/Admin/Cpt.php',
         'MailerPress\\Actions\\Admin\\Editor' => __DIR__ . '/../..' . '/src/Actions/Admin/Editor.php',
         'MailerPress\\Actions\\Admin\\Init' => __DIR__ . '/../..' . '/src/Actions/Admin/Init.php',
+        'MailerPress\\Actions\\Admin\\ViewTransitions' => __DIR__ . '/../..' . '/src/Actions/Admin/ViewTransitions.php',
         'MailerPress\\Actions\\Ajax\\DismissGoProNotice' => __DIR__ . '/../..' . '/src/Actions/Ajax/DismissGoProNotice.php',
         'MailerPress\\Actions\\Ajax\\ManageSubscription' => __DIR__ . '/../..' . '/src/Actions/Ajax/ManageSubscription.php',
         'MailerPress\\Actions\\Api\\Response\\Posts' => __DIR__ . '/../..' . '/src/Actions/Api/Response/Posts.php',
@@ -1026,7 +1027,6 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Core\\Notifications\\Messages\\PrimaryProviderDisabledNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/PrimaryProviderDisabledNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\ProductUpdateNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/ProductUpdateNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\ThirdPartySMTPDetectedNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/ThirdPartySMTPDetectedNotification.php',
-        'MailerPress\\Core\\Notifications\\Messages\\WafRestApiNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WafRestApiNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\WelcomeNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WelcomeNotification.php',
         'MailerPress\\Core\\Notifications\\Messages\\WorkflowFailedJobsNotification' => __DIR__ . '/../..' . '/src/Core/Notifications/Messages/WorkflowFailedJobsNotification.php',
         'MailerPress\\Core\\Notifications\\NotificationBootstrap' => __DIR__ . '/../..' . '/src/Core/Notifications/NotificationBootstrap.php',
@@ -1107,6 +1107,7 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Services\\Activation' => __DIR__ . '/../..' . '/src/Services/Activation.php',
         'MailerPress\\Services\\BounceFolderFinder' => __DIR__ . '/../..' . '/src/Services/BounceFolderFinder.php',
         'MailerPress\\Services\\BounceParser' => __DIR__ . '/../..' . '/src/Services/BounceParser.php',
+        'MailerPress\\Services\\CampaignHtmlOptionStorage' => __DIR__ . '/../..' . '/src/Services/CampaignHtmlOptionStorage.php',
         'MailerPress\\Services\\CheckEmail' => __DIR__ . '/../..' . '/src/Services/CheckEmail.php',
         'MailerPress\\Services\\ClassicContactFetcher' => __DIR__ . '/../..' . '/src/Services/ClassicContactFetcher.php',
         'MailerPress\\Services\\ContactEngagementClassifier' => __DIR__ . '/../..' . '/src/Services/ContactEngagementClassifier.php',

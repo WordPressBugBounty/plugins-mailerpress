@@ -25,7 +25,7 @@ class Bounces
     #[Endpoint(
         'bounces/logs',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function getLogs(WP_REST_Request $request): WP_REST_Response
     {
@@ -48,7 +48,7 @@ class Bounces
     #[Endpoint(
         'bounces/logs',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function clearLogs(WP_REST_Request $request): WP_REST_Response
     {
@@ -69,7 +69,7 @@ class Bounces
     #[Endpoint(
         'bounces/check',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function forceCheck(WP_REST_Request $request): WP_REST_Response
     {
@@ -91,7 +91,7 @@ class Bounces
     #[Endpoint(
         'bounces/config',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function getConfig(WP_REST_Request $request): WP_REST_Response
     {
@@ -118,7 +118,7 @@ class Bounces
     #[Endpoint(
         'bounces/status',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function getStatus(WP_REST_Request $request): WP_REST_Response
     {
@@ -141,4 +141,3 @@ class Bounces
         ]);
     }
 }
-

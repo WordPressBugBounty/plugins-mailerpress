@@ -28,12 +28,41 @@ class ClassicContactFetcher implements ContactFetcherInterface
 
     public function fetch(int $limit, int $offset): array
     {
+        $listIds = $this->normalizeIds($this->lists, 'list_id');
+        $tagIds = $this->normalizeIds($this->tags, 'tag_id');
+
         return $this->contactsModel->getContactsWithTagsAndLists(
-            implode(',', array_column($this->lists, 'list_id')),
-            implode(',', array_column($this->tags, 'tag_id')),
+            implode(',', $listIds),
+            implode(',', $tagIds),
             true,
             $limit,
             $offset
         );
+    }
+
+    private function normalizeIds(array $items, string $primaryKey): array
+    {
+        $ids = [];
+
+        foreach ($items as $item) {
+            if (is_array($item)) {
+                $value = $item[$primaryKey] ?? $item['id'] ?? $item['value'] ?? null;
+            } elseif (is_object($item)) {
+                $value = $item->{$primaryKey} ?? $item->id ?? $item->value ?? null;
+            } else {
+                $value = $item;
+            }
+
+            if (!is_numeric($value)) {
+                continue;
+            }
+
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        return array_keys($ids);
     }
 }

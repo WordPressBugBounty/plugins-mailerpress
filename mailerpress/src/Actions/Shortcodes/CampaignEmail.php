@@ -69,6 +69,11 @@ class CampaignEmail
             );
         }
 
+        if (!empty($campaign['_canonical_public_url'])) {
+            wp_safe_redirect(esc_url_raw($campaign['_canonical_public_url']), 301);
+            exit;
+        }
+
         $campaign_id = (int) $campaign['campaign_id'];
 
         // Get HTML content
@@ -116,10 +121,10 @@ class CampaignEmail
             return null;
         }
 
-        // Verify the full slug matches (security check)
+        // Redirect stale or differently encoded slugs to the canonical public URL.
         $expected_slug = $campaign_id . '-' . sanitize_title($campaign['name'] ?? '');
         if ($expected_slug !== $slug) {
-            return null;
+            $campaign['_canonical_public_url'] = self::getPublicUrl($campaign_id, $campaign['name'] ?? null);
         }
 
         return $campaign;

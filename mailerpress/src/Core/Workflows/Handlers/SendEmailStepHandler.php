@@ -136,11 +136,28 @@ class SendEmailStepHandler implements StepHandlerInterface
         // Verify active cart for abandoned cart emails
         if (!empty($context['cart_hash']) && !empty($context['user_id'])) {
             $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
-            if (!$cartRepo->hasActiveCart($context['user_id'])) {
+            $activeCart = $cartRepo->getActiveCartByUserId((int) $context['user_id']);
+            if (!$activeCart) {
                 $job->setStatus('CANCELLED');
                 $jobRepo = new \MailerPress\Core\Workflows\Repositories\AutomationJobRepository();
                 $jobRepo->update($job);
                 return StepResult::failed('Cart is not active - abandoned cart email cancelled');
+            }
+
+            $context['cart_hash'] = $activeCart['cart_hash'];
+            $context['cart_recovery_url'] = $this->buildCartRecoveryUrl($activeCart['cart_hash']);
+
+            if (!empty($activeCart['cart_data'])) {
+                $cartData = json_decode($activeCart['cart_data'], true);
+                if (is_array($cartData)) {
+                    $context = array_merge($context, array_intersect_key($cartData, array_flip([
+                        'cart_items',
+                        'cart_total',
+                        'cart_subtotal',
+                        'cart_currency',
+                        'cart_item_count',
+                    ])));
+                }
             }
         }
 
@@ -180,6 +197,19 @@ class SendEmailStepHandler implements StepHandlerInterface
         }
 
         return $customRecipientEmail;
+    }
+
+    private function buildCartRecoveryUrl(string $cartHash): string
+    {
+        if (function_exists('wc_get_checkout_url')) {
+            $baseUrl = \wc_get_checkout_url();
+        } elseif (function_exists('wc_get_cart_url')) {
+            $baseUrl = \wc_get_cart_url();
+        } else {
+            $baseUrl = \home_url('/');
+        }
+
+        return \add_query_arg('recover_cart', $cartHash, $baseUrl);
     }
 
     /**

@@ -264,53 +264,29 @@ class ProcessChunkImportContact
                         $contactId = $wpdb->insert_id;
                         $created_contacts++;
 
-                        // Insert tags
-                        foreach ($contactTags as $tag) {
-                            if (!is_array($tag) || empty($tag['id'])) {
-                                $this->logImportEvent('warning', 'Skipping invalid tag relation during contact import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                    'contact_id' => (int) $contactId,
-                                    'tag' => $tag,
-                                ]));
-                                continue;
-                            }
+                        $this->attachContactRelations(
+                            (int) $contactId,
+                            $contactTags,
+                            Tables::get(Tables::CONTACT_TAGS),
+                            'tag_id',
+                            'tag',
+                            $chunk,
+                            $index,
+                            $contact,
+                            $chunk_contact_offset
+                        );
 
-                            $tag_result = $wpdb->insert(Tables::get(Tables::CONTACT_TAGS), [
-                                'contact_id' => $contactId,
-                                'tag_id' => $tag['id'],
-                            ]);
-
-                            if (false === $tag_result) {
-                                $this->logImportEvent('error', 'Failed to attach tag during contact import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                    'contact_id' => (int) $contactId,
-                                    'tag_id' => (int) $tag['id'],
-                                    'db_error' => $wpdb->last_error,
-                                ]));
-                            }
-                        }
-
-                        // Insert lists
-                        foreach ($contactLists as $list) {
-                            if (!is_array($list) || empty($list['id'])) {
-                                $this->logImportEvent('warning', 'Skipping invalid list relation during contact import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                    'contact_id' => (int) $contactId,
-                                    'list' => $list,
-                                ]));
-                                continue;
-                            }
-
-                            $list_result = $wpdb->insert(Tables::get(Tables::MAILERPRESS_CONTACT_LIST), [
-                                'contact_id' => $contactId,
-                                'list_id' => $list['id'],
-                            ]);
-
-                            if (false === $list_result) {
-                                $this->logImportEvent('error', 'Failed to attach list during contact import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                    'contact_id' => (int) $contactId,
-                                    'list_id' => (int) $list['id'],
-                                    'db_error' => $wpdb->last_error,
-                                ]));
-                            }
-                        }
+                        $this->attachContactRelations(
+                            (int) $contactId,
+                            $contactLists,
+                            Tables::get(Tables::MAILERPRESS_CONTACT_LIST),
+                            'list_id',
+                            'list',
+                            $chunk,
+                            $index,
+                            $contact,
+                            $chunk_contact_offset
+                        );
 
                         // Insert custom fields - skip standard fields that shouldn't be in custom_fields
                         if (!empty($contact['custom_fields']) && is_array($contact['custom_fields'])) {
@@ -395,6 +371,31 @@ class ProcessChunkImportContact
 
                         if (false !== $result) {
                             $updated_contacts++;
+
+                            $this->attachContactRelations(
+                                (int) $contact_id,
+                                $contactTags,
+                                Tables::get(Tables::CONTACT_TAGS),
+                                'tag_id',
+                                'tag',
+                                $chunk,
+                                $index,
+                                $contact,
+                                $chunk_contact_offset
+                            );
+
+                            $this->attachContactRelations(
+                                (int) $contact_id,
+                                $contactLists,
+                                Tables::get(Tables::MAILERPRESS_CONTACT_LIST),
+                                'list_id',
+                                'list',
+                                $chunk,
+                                $index,
+                                $contact,
+                                $chunk_contact_offset
+                            );
+
                             // Insert custom fields for existing contact (update if exists)
                             if (!empty($contact['custom_fields']) && is_array($contact['custom_fields'])) {
                                 $standardFields = ['email', 'first_name', 'last_name', 'created_at', 'updated_at'];
@@ -637,6 +638,78 @@ class ProcessChunkImportContact
             // Schedule next chunks anyway to prevent entire batch from stalling
             if ($chunk_info && isset($chunk_info->batch_id)) {
                 $this->scheduleNextChunk($chunk_info->batch_id);
+            }
+        }
+    }
+
+    private function attachContactRelations(
+        int $contactId,
+        array $relations,
+        string $table,
+        string $relationColumn,
+        string $relationName,
+        object $chunk,
+        int $index,
+        array $contact,
+        int $chunk_contact_offset
+    ): void {
+        global $wpdb;
+
+        foreach ($relations as $relation) {
+            if (!is_array($relation) || empty($relation['id'])) {
+                $this->logImportEvent(
+                    'warning',
+                    "Skipping invalid {$relationName} relation during contact import.",
+                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
+                        'contact_id' => $contactId,
+                        $relationName => $relation,
+                    ])
+                );
+                continue;
+            }
+
+            $relationId = (int) $relation['id'];
+            if ($relationId <= 0) {
+                $this->logImportEvent(
+                    'warning',
+                    "Skipping invalid {$relationName} relation during contact import.",
+                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
+                        'contact_id' => $contactId,
+                        $relationName => $relation,
+                    ])
+                );
+                continue;
+            }
+
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT 1 FROM {$table} WHERE contact_id = %d AND {$relationColumn} = %d LIMIT 1",
+                $contactId,
+                $relationId
+            ));
+
+            if ($exists) {
+                continue;
+            }
+
+            $result = $wpdb->insert(
+                $table,
+                [
+                    'contact_id' => $contactId,
+                    $relationColumn => $relationId,
+                ],
+                ['%d', '%d']
+            );
+
+            if (false === $result) {
+                $this->logImportEvent(
+                    'error',
+                    "Failed to attach {$relationName} during contact import.",
+                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
+                        'contact_id' => $contactId,
+                        $relationColumn => $relationId,
+                        'db_error' => $wpdb->last_error,
+                    ])
+                );
             }
         }
     }

@@ -401,7 +401,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/contacts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadAudience'],
     )]
     public function contactsByIntervalDate(\WP_REST_Request $request)
     {

@@ -23,6 +23,21 @@ enum CONNEXION_RESULT: string
 
 class Options
 {
+    private static function maybeRefreshAutomatedCampaignSenders(string $optionName): void
+    {
+        if (
+            in_array($optionName, [
+                'mailerpress_default_settings',
+                'mailerpress_global_email_senders',
+                'mailerpress_email_senders',
+                'mailerpress_email_services',
+            ], true)
+            && function_exists('mailerpress_refresh_active_automated_campaign_sender_configs')
+        ) {
+            mailerpress_refresh_active_automated_campaign_sender_configs();
+        }
+    }
+
     #[Endpoint(
         'get-active-provider',
         methods: 'POST',
@@ -31,7 +46,7 @@ class Options
     public function activeProvider(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         return new \WP_REST_Response(
-            get_option('mailerpress_email_services', [
+            self::redactEmailServicesForResponse(get_option('mailerpress_email_services', [
                 'default_service' => 'php',
                 'activated' => ['php'],
                 'services' => [
@@ -42,7 +57,7 @@ class Options
                         ],
                     ],
                 ],
-            ])
+            ]))
         );
     }
 
@@ -50,7 +65,7 @@ class Options
     #[Endpoint(
         'connect-provider',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function post(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -59,41 +74,44 @@ class Options
         $config = $request->get_param('config');
 
         Kernel::getContainer()->get(EmailServiceManager::class)->saveServiceConfiguration($key, $config, $activated);
+        self::maybeRefreshAutomatedCampaignSenders('mailerpress_email_services');
 
         return rest_ensure_response(
-            get_option('mailerpress_email_services')
+            self::redactEmailServicesForResponse(get_option('mailerpress_email_services'))
         );
     }
 
     #[Endpoint(
         'connect-provider',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function remove(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         $key = $request->get_param('key');
 
         Kernel::getContainer()->get(EmailServiceManager::class)->removeService($key);
+        self::maybeRefreshAutomatedCampaignSenders('mailerpress_email_services');
 
         return rest_ensure_response(
-            get_option('mailerpress_email_services')
+            self::redactEmailServicesForResponse(get_option('mailerpress_email_services'))
         );
     }
 
     #[Endpoint(
         'set-primary-email-service',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function setPrimaryEmailService(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         $key = $request->get_param('key');
 
         Kernel::getContainer()->get(EmailServiceManager::class)->setActiveService($key);
+        self::maybeRefreshAutomatedCampaignSenders('mailerpress_email_services');
 
         return rest_ensure_response(
-            get_option('mailerpress_email_services')
+            self::redactEmailServicesForResponse(get_option('mailerpress_email_services'))
         );
     }
 
@@ -104,7 +122,7 @@ class Options
     #[Endpoint(
         'send-email',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function sendEmail(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -206,7 +224,7 @@ class Options
     #[Endpoint(
         'disconnect-provider',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function disconnectProvider(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -285,9 +303,9 @@ class Options
                 }
             }
             // $optionValue is now a PHP array — WordPress will serialize it natively
-            return rest_ensure_response(
-                update_option($optionName, $optionValue)
-            );
+            $updated = update_option($optionName, $optionValue);
+            self::maybeRefreshAutomatedCampaignSenders($optionName);
+            return rest_ensure_response($updated);
         }
 
         // For AI model settings, merge api_keys instead of overwriting: an empty
@@ -306,7 +324,9 @@ class Options
                     }
                 }
                 $optionValue = wp_json_encode($incoming);
-                return rest_ensure_response(update_option($optionName, $optionValue));
+                $updated = update_option($optionName, $optionValue);
+                self::maybeRefreshAutomatedCampaignSenders($optionName);
+                return rest_ensure_response($updated);
             }
         }
 
@@ -338,9 +358,10 @@ class Options
             $optionValue = wp_json_encode($optionValue);
         }
 
-        return rest_ensure_response(
-            update_option($optionName, $optionValue)
-        );
+        $updated = update_option($optionName, $optionValue);
+        self::maybeRefreshAutomatedCampaignSenders($optionName);
+
+        return rest_ensure_response($updated);
     }
 
 
@@ -358,6 +379,54 @@ class Options
      * Keys inside mailerpress_ai_model_settings.api_keys that must be masked.
      */
     private const MASKED_PLACEHOLDER = '••••••••';
+
+    /**
+     * Credential keys stored inside mailerpress_email_services service configs.
+     */
+    private const EMAIL_SERVICE_SECRET_KEYS = [
+        'api_key',
+        'api_secret',
+        'password',
+        'auth_password',
+        'client_secret',
+        'secret_access_key',
+        'webhook_signing_key',
+        'webhook_verification_key',
+        'access_token',
+        'refresh_token',
+    ];
+
+    /**
+     * Strip provider credentials for non-admin response contexts.
+     */
+    public static function redactEmailServicesForResponse(mixed $services): mixed
+    {
+        if (current_user_can('manage_options')) {
+            return $services;
+        }
+
+        $wasJsonString = is_string($services);
+        $decoded = $wasJsonString ? json_decode($services, true) : $services;
+
+        if (!is_array($decoded) || empty($decoded['services']) || !is_array($decoded['services'])) {
+            return $services;
+        }
+
+        foreach ($decoded['services'] as &$service) {
+            if (empty($service['conf']) || !is_array($service['conf'])) {
+                continue;
+            }
+
+            foreach (self::EMAIL_SERVICE_SECRET_KEYS as $secretKey) {
+                if (array_key_exists($secretKey, $service['conf'])) {
+                    $service['conf'][$secretKey] = '';
+                }
+            }
+        }
+        unset($service);
+
+        return $wasJsonString ? wp_json_encode($decoded) : $decoded;
+    }
 
     /**
      * Mask API keys in the AI model settings option before returning to the frontend.
@@ -400,6 +469,10 @@ class Options
 
         if ('mailerpress_ai_model_settings' === $option_name) {
             $option_value = self::maskAiModelSettings($option_value);
+        }
+
+        if ('mailerpress_email_services' === $option_name) {
+            $option_value = self::redactEmailServicesForResponse($option_value);
         }
 
         return rest_ensure_response([
@@ -462,7 +535,7 @@ class Options
     #[Endpoint(
         'test-bounce-connection',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function testBounceConnection(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {

@@ -89,11 +89,17 @@ class Init
             : MAILERPRESS_VERSION;      // release version
 
         $stored_version = get_option('mailerpress_version');
+        $stored_capability_schema = get_option('mailerpress_capability_schema_version');
 
         // If the option doesn't exist, $stored_version will be false
-        if ($stored_version === false || $stored_version !== $current_version) {
+        if (
+            $stored_version === false
+            || $stored_version !== $current_version
+            || $stored_capability_schema !== \MailerPress\Core\CapabilitiesManager::SCHEMA_VERSION
+        ) {
             \MailerPress\Core\CapabilitiesManager::addCapabilities();
             update_option('mailerpress_version', $current_version);
+            update_option('mailerpress_capability_schema_version', \MailerPress\Core\CapabilitiesManager::SCHEMA_VERSION);
 
             // Flush rewrite rules when version changes to ensure new rewrite rules are registered
             $this->flushRewriteRules();

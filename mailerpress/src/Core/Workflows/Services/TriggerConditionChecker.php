@@ -33,8 +33,24 @@ class TriggerConditionChecker
             'contact_custom_field_updated' => $this->checkContactCustomFieldUpdated($settings, $context),
             'surecart_order_created' => $this->checkSurecartOrderCreated($settings, $context),
             'woocommerce_product_purchased' => $this->checkWoocommerceProductPurchased($settings, $context),
+            'optin_form_submitted', 'optin_lead_magnet_delivered' => $this->checkOptinFormTrigger($settings, $context),
             default => true,
         };
+    }
+
+    private function checkOptinFormTrigger(array $settings, array $context): bool
+    {
+        $formId = $settings['form_id'] ?? null;
+
+        if (is_array($formId)) {
+            $formId = reset($formId);
+        }
+
+        if ($formId !== null && $formId !== '' && isset($context['form_id'])) {
+            return (int) $context['form_id'] === (int) $formId;
+        }
+
+        return true;
     }
 
     private function checkWoocommerceOrderStatusChanged(array $settings, array $context): bool

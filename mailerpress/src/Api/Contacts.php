@@ -744,17 +744,13 @@ class Contacts
             ];
         }
 
-        // Fetch custom field definitions — cached per request
-        $cache_key = 'mailerpress_field_definitions';
-        $field_definitions = wp_cache_get($cache_key);
-        if ($field_definitions === false) {
-            $field_definitions = $wpdb->get_results("SELECT field_key, label, type, required, options FROM {$field_definitions_table}");
-            foreach ($field_definitions as $def) {
-                $def->options = is_serialized($def->options)
-                    ? unserialize($def->options, ['allowed_classes' => false])
-                    : $def->options;
-            }
-            wp_cache_set($cache_key, $field_definitions);
+        $field_definitions = $wpdb->get_results(
+            "SELECT field_key, label, type, required, options FROM {$field_definitions_table}"
+        ) ?: [];
+        foreach ($field_definitions as $def) {
+            $def->options = is_serialized($def->options)
+                ? unserialize($def->options, ['allowed_classes' => false])
+                : $def->options;
         }
 
         // Fetch contact custom field values
@@ -1713,7 +1709,7 @@ class Contacts
     #[Endpoint(
         '/contact',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canManageAudience'],
+        permissionCallback: [Permissions::class, 'canDeleteContacts'],
     )]
     public function delete(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -1906,7 +1902,7 @@ class Contacts
     #[Endpoint(
         '/contact/all',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canManageAudience'],
+        permissionCallback: [Permissions::class, 'canDeleteContacts'],
     )]
     public function deleteAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2021,7 +2017,7 @@ class Contacts
     #[Endpoint(
         'contacts/bactches/pending',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canReadContactImportStatus'],
     )]
     public function contactBatchImport(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2144,7 +2140,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/progress/(?P<batch_id>\d+)',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function getBatchProgress(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2214,7 +2210,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/retry/(?P<batch_id>\d+)',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function retryFailedChunks(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2280,7 +2276,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/kickstart/(?P<batch_id>\d+)',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function kickstartStuckImport(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2353,7 +2349,7 @@ class Contacts
     #[Endpoint(
         'contacts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadAudience'],
         args: [
             'tags' => [
                 'required' => false,
@@ -2378,7 +2374,7 @@ class Contacts
     #[Endpoint(
         'contact/export',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function export(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2484,7 +2480,7 @@ class Contacts
     #[Endpoint(
         'contacts/import',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function batchImport(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2551,7 +2547,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/init',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function initBatchImport(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2600,7 +2596,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/chunk',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function addChunkToBatch(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2741,7 +2737,7 @@ class Contacts
     #[Endpoint(
         'contacts/import/reset',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function resetBatchImport(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2845,7 +2841,7 @@ class Contacts
     #[Endpoint(
         'contact/import',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function importContact(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

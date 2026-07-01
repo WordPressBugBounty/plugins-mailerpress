@@ -138,6 +138,7 @@ class ContactEmailChunk
 
         if (empty($html)) {
             $this->markChunkAsFailed($chunk_id, $batch_id, 'HTML content not found');
+            $this->markBatchAsFailed($batch_id, 'HTML content not found');
             return;
         }
 
@@ -184,9 +185,52 @@ class ContactEmailChunk
     /**
      * Process standard email chunk (extracted from mailerpress_process_contact_chunk)
      */
+    private function refreshAutomatedSenderData(array $chunkData): array
+    {
+        global $wpdb;
+
+        $campaignId = (int) ($chunkData['campaignId'] ?? 0);
+
+        if ($campaignId <= 0 || !function_exists('mailerpress_resolve_sender_config')) {
+            return $chunkData;
+        }
+
+        $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $campaignType = $wpdb->get_var($wpdb->prepare(
+            "SELECT campaign_type FROM {$campaignsTable} WHERE campaign_id = %d",
+            $campaignId
+        ));
+
+        if ('automated' !== $campaignType) {
+            return $chunkData;
+        }
+
+        $senderConfig = [
+            'fromName' => $chunkData['sender_name'] ?? '',
+            'fromTo' => $chunkData['sender_to'] ?? '',
+        ];
+
+        if (!empty($chunkData['senderId'])) {
+            $senderConfig['senderId'] = $chunkData['senderId'];
+        }
+
+        $senderConfig = mailerpress_resolve_sender_config($senderConfig, true);
+
+        $chunkData['sender_name'] = $senderConfig['fromName'] ?? ($chunkData['sender_name'] ?? '');
+        $chunkData['sender_to'] = $senderConfig['fromTo'] ?? ($chunkData['sender_to'] ?? '');
+
+        if (!empty($senderConfig['senderId'])) {
+            $chunkData['senderId'] = $senderConfig['senderId'];
+        }
+
+        return $chunkData;
+    }
+
     private function processStandardEmailChunk(int $chunk_id, int $batch_id, array $contact_chunk, string $html, array $chunkData): void
     {
         global $wpdb;
+
+        $chunkData = $this->refreshAutomatedSenderData($chunkData);
 
         $sendingService = Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations();
 
@@ -327,16 +371,17 @@ class ContactEmailChunk
             /** @var JobInterface $process */
             $process = new SendEmailJob([
                 'chunk_id' => $chunk_id,
+                'campaign_id' => (int) ($chunkData['campaignId'] ?? 0),
                 'subject' => $chunkData['subject'] ?? '',
-                'sender_name' => $chunkData['sender_name'],
-                'sender_to' => $chunkData['sender_to'],
-                'api_key' => $chunkData['api_key'],
+                'sender_name' => $chunkData['sender_name'] ?? '',
+                'sender_to' => $chunkData['sender_to'] ?? '',
+                'api_key' => $chunkData['api_key'] ?? '',
                 'body' => $html,
                 'to' => $to_array,
-                'webhook_url' => $chunkData['webhook_url'],
-                'scheduled_at' => $chunkData['scheduled_at'],
+                'webhook_url' => $chunkData['webhook_url'] ?? '',
+                'scheduled_at' => $chunkData['scheduled_at'] ?? '',
                 'batch_id' => $batch_id,
-                'sendType' => $chunkData['sendType'],
+                'sendType' => $chunkData['sendType'] ?? '',
                 'timestamp' => time(),
                 'clickTracking' => $chunkData['clickTracking'] ?? 'yes',
                 'rate_limit' => $chunkData['rate_limit'] ?? 10, // Rate limit (emails per second)

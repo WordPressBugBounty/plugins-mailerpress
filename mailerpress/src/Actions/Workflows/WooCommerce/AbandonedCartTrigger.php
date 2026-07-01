@@ -16,7 +16,9 @@ namespace MailerPress\Actions\Workflows\WooCommerce;
  * The trigger listens to multiple WooCommerce cart hooks:
  * - woocommerce_add_to_cart: When an item is added to cart
  * - woocommerce_after_cart_item_quantity_update: When cart item quantity is updated
- * - woocommerce_cart_item_removed: When an item is removed from cart
+ * - woocommerce_checkout_update_order_review: When checkout data is updated
+ * - woocommerce_store_api_cart_update_customer_from_request: When Checkout Block customer data is updated
+ * - woocommerce_store_api_checkout_order_processed: When Checkout Block creates an order
  *
  * Usage in workflows:
  * 1. Add this trigger to detect cart updates
@@ -40,6 +42,8 @@ namespace MailerPress\Actions\Workflows\WooCommerce;
  */
 class AbandonedCartTrigger
 {
+    private const GUEST_USER_ID_OFFSET = 2147483648;
+
     /**
      * Trigger key - unique identifier for this trigger
      */
@@ -116,6 +120,9 @@ class AbandonedCartTrigger
         // even when the cart is being emptied, which would create jobs without items
         $additionalHooks = [
             'woocommerce_after_cart_item_quantity_update',
+            'woocommerce_checkout_update_order_review',
+            'woocommerce_store_api_cart_update_customer_from_request',
+            'woocommerce_store_api_checkout_update_customer_from_request',
             // 'woocommerce_cart_item_removed' - removed to prevent jobs when cart is emptied
         ];
 
@@ -136,6 +143,7 @@ class AbandonedCartTrigger
 
         // Register hook to mark cart as completed when order is created
         add_action('woocommerce_checkout_order_processed', [self::class, 'handleOrderCreated'], 10, 1);
+        add_action('woocommerce_store_api_checkout_order_processed', [self::class, 'handleOrderCreated'], 10, 1);
     }
 
     /**
@@ -150,6 +158,10 @@ class AbandonedCartTrigger
         }
 
         try {
+            if (WC()->session && WC()->session->get('mailerpress_restoring_cart')) {
+                return;
+            }
+
             // Get customer identifier
             $customerId = get_current_user_id();
             $customerEmail = '';
@@ -163,17 +175,14 @@ class AbandonedCartTrigger
                 // For guests, try to get email from session
                 $session = WC()->session;
                 if ($session) {
-                    $customerEmail = $session->get('billing_email')
-                        ?: $session->get('guest_email')
-                        ?: (isset($_COOKIE['woocommerce_email_' . COOKIEHASH]) ? $_COOKIE['woocommerce_email_' . COOKIEHASH] : '');
+                    $customerEmail = self::sanitizeEmail($session->get('billing_email'))
+                        ?: self::sanitizeEmail($session->get('guest_email'))
+                        ?: self::sanitizeEmail($_COOKIE['woocommerce_email_' . COOKIEHASH] ?? '');
                 }
             }
 
             // Determine user_id for workflow tracking
-            $workflowUserId = $customerId;
-            if (!$workflowUserId && !empty($customerEmail)) {
-                $workflowUserId = - (abs(crc32($customerEmail)));
-            }
+            $workflowUserId = self::resolveWorkflowUserId($customerId, $customerEmail);
 
             if (!$workflowUserId) {
                 return; // Cannot identify user/email
@@ -208,13 +217,13 @@ class AbandonedCartTrigger
         }
 
         try {
-            $order = wc_get_order($orderId);
+            $order = $orderId instanceof \WC_Order ? $orderId : wc_get_order($orderId);
             if (!$order) {
                 return;
             }
 
             // Get customer email
-            $customerEmail = $order->get_billing_email();
+            $customerEmail = self::sanitizeEmail($order->get_billing_email());
             if (empty($customerEmail)) {
                 return;
             }
@@ -224,7 +233,7 @@ class AbandonedCartTrigger
 
             // Get customer ID
             $customerId = $order->get_customer_id();
-            $workflowUserId = $customerId ?: - (abs(crc32($customerEmail)));
+            $workflowUserId = self::resolveWorkflowUserId($customerId, $customerEmail);
 
             // Find all active carts for this user
             global $wpdb;
@@ -286,6 +295,7 @@ class AbandonedCartTrigger
             $customerEmail = '';
             $customerFirstName = '';
             $customerLastName = '';
+            $checkoutData = self::extractCheckoutData($args);
 
             if ($customerId) {
                 $user = get_userdata($customerId);
@@ -298,18 +308,34 @@ class AbandonedCartTrigger
                 // For guests, try to get email from session or cookies
                 $session = WC()->session;
                 if ($session) {
-                    $customerEmail = $session->get('billing_email')
-                        ?: $session->get('guest_email')
-                        ?: (isset($_COOKIE['woocommerce_email_' . COOKIEHASH]) ? $_COOKIE['woocommerce_email_' . COOKIEHASH] : '');
+                    $customerEmail = self::sanitizeEmail($session->get('billing_email'))
+                        ?: self::sanitizeEmail($session->get('guest_email'))
+                        ?: self::sanitizeEmail($_COOKIE['woocommerce_email_' . COOKIEHASH] ?? '');
                     $customerFirstName = $session->get('billing_first_name') ?: '';
                     $customerLastName = $session->get('billing_last_name') ?: '';
                 }
 
+                if (empty($customerEmail) && WC()->customer) {
+                    $customerEmail = self::sanitizeEmail(WC()->customer->get_billing_email());
+                    $customerFirstName = WC()->customer->get_billing_first_name() ?: $customerFirstName;
+                    $customerLastName = WC()->customer->get_billing_last_name() ?: $customerLastName;
+                }
+
                 // Also try to get from checkout fields if available
-                if (empty($customerEmail) && isset($_POST['billing_email'])) {
-                    $customerEmail = sanitize_email($_POST['billing_email']);
-                    $customerFirstName = sanitize_text_field($_POST['billing_first_name'] ?? '');
-                    $customerLastName = sanitize_text_field($_POST['billing_last_name'] ?? '');
+                if (!empty($checkoutData['billing_email'])) {
+                    $checkoutEmail = self::sanitizeEmail($checkoutData['billing_email']);
+                    if (!empty($checkoutEmail)) {
+                        $customerEmail = $checkoutEmail;
+                        $customerFirstName = sanitize_text_field($checkoutData['billing_first_name'] ?? $customerFirstName);
+                        $customerLastName = sanitize_text_field($checkoutData['billing_last_name'] ?? $customerLastName);
+
+                        if ($session) {
+                            $session->set('billing_email', $customerEmail);
+                            $session->set('guest_email', $customerEmail);
+                            $session->set('billing_first_name', $customerFirstName);
+                            $session->set('billing_last_name', $customerLastName);
+                        }
+                    }
                 }
             }
 
@@ -358,16 +384,21 @@ class AbandonedCartTrigger
                     $thumbnailUrl = wc_placeholder_img_src('woocommerce_thumbnail');
                 }
 
+                $price = $product->get_price();
+                $lineTotal = $cartItem['line_total'] ?? ((float) $price * $quantity);
+                $lineSubtotal = $cartItem['line_subtotal'] ?? $lineTotal;
+
                 $cartItems[] = [
                     'cart_item_key' => $cartItemKey,
                     'product_id' => $cartItem['product_id'],
                     'variation_id' => $cartItem['variation_id'] ?? 0,
+                    'variation' => $cartItem['variation'] ?? [],
                     'product_name' => $product->get_name(),
                     'quantity' => $quantity,
-                    'line_total' => $cartItem['line_total'],
-                    'line_subtotal' => $cartItem['line_subtotal'],
+                    'line_total' => $lineTotal,
+                    'line_subtotal' => $lineSubtotal,
                     'sku' => $product->get_sku(),
-                    'price' => $product->get_price(),
+                    'price' => $price,
                     'thumbnail_url' => $thumbnailUrl,
                 ];
                 $totalQuantity += $quantity;
@@ -378,15 +409,9 @@ class AbandonedCartTrigger
                 return [];
             }
 
-            // For guests without user_id, we need to use a unique identifier
-            // We'll use a hash of the email as user_id for workflow tracking
-            // This allows workflows to run for guests
-            $workflowUserId = $customerId;
-            if (!$workflowUserId && !empty($customerEmail)) {
-                // Use a hash of email as user_id for guests (negative number to avoid conflicts)
-                // This allows the workflow system to track jobs per email
-                $workflowUserId = - (abs(crc32($customerEmail)));
-            } elseif (!$workflowUserId) {
+            // Guest carts use the same deterministic email-based ID as the workflow job.
+            $workflowUserId = self::resolveWorkflowUserId($customerId, $customerEmail);
+            if (!$workflowUserId) {
                 // No user_id and no email - cannot track this cart
                 // Don't create jobs for anonymous users without contact info
                 return [];
@@ -430,7 +455,7 @@ class AbandonedCartTrigger
             }
 
             // Build cart recovery URL
-            $cartRecoveryUrl = wc_get_cart_url();
+            $cartRecoveryUrl = wc_get_checkout_url();
             if (!empty($cartHash)) {
                 $cartRecoveryUrl = add_query_arg('recover_cart', $cartHash, $cartRecoveryUrl);
             }
@@ -440,6 +465,9 @@ class AbandonedCartTrigger
                 'customer_email' => $customerEmail,
                 'customer_first_name' => $customerFirstName,
                 'customer_last_name' => $customerLastName,
+                'billing_email' => $customerEmail,
+                'billing_first_name' => $customerFirstName,
+                'billing_last_name' => $customerLastName,
                 'cart_items' => $cartItems,
                 'cart_total' => $cart->get_total(''),
                 'cart_subtotal' => $cart->get_subtotal(),
@@ -457,5 +485,65 @@ class AbandonedCartTrigger
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    private static function resolveWorkflowUserId(int $customerId, string $customerEmail): int
+    {
+        if ($customerId > 0) {
+            return $customerId;
+        }
+
+        if ($customerEmail === '') {
+            return 0;
+        }
+
+        return self::GUEST_USER_ID_OFFSET + abs(crc32(strtolower($customerEmail)));
+    }
+
+    private static function sanitizeEmail($email): string
+    {
+        $email = sanitize_email((string) $email);
+
+        return is_email($email) ? $email : '';
+    }
+
+    private static function extractCheckoutData(array $args): array
+    {
+        $data = [];
+        $rawPostData = $args[0] ?? ($_POST['post_data'] ?? '');
+
+        foreach ($args as $arg) {
+            if ($arg instanceof \WP_REST_Request) {
+                $billingAddress = (array) ($arg['billing_address'] ?? []);
+
+                return [
+                    'billing_email' => $billingAddress['email'] ?? '',
+                    'billing_first_name' => $billingAddress['first_name'] ?? '',
+                    'billing_last_name' => $billingAddress['last_name'] ?? '',
+                ];
+            }
+        }
+
+        if ($rawPostData instanceof \WC_Customer) {
+            return [
+                'billing_email' => $rawPostData->get_billing_email(),
+                'billing_first_name' => $rawPostData->get_billing_first_name(),
+                'billing_last_name' => $rawPostData->get_billing_last_name(),
+            ];
+        }
+
+        if (is_array($rawPostData)) {
+            $data = $rawPostData;
+        } elseif (is_string($rawPostData) && $rawPostData !== '') {
+            parse_str(wp_unslash($rawPostData), $data);
+        }
+
+        foreach (['billing_email', 'billing_first_name', 'billing_last_name'] as $field) {
+            if (isset($_POST[$field])) {
+                $data[$field] = wp_unslash($_POST[$field]);
+            }
+        }
+
+        return is_array($data) ? $data : [];
     }
 }

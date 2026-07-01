@@ -35,6 +35,11 @@ class ContactResolver
             }
         }
 
+        $contextEmail = $this->getContextEmail($context);
+        if ($contextEmail !== '') {
+            return $this->resolveFromCustomEmail($contextEmail, $contactsModel, $context);
+        }
+
         return $this->resolveFromUserId($userId, $contactsModel, $context);
     }
 
@@ -114,9 +119,13 @@ class ContactResolver
             );
         }
 
-        // Guest user (negative user_id from abandoned cart)
-        if ($userId < 0 && !empty($context['customer_email'])) {
-            $email = $context['customer_email'];
+        // Guest user from checkout or abandoned cart.
+        if ($userId < 0) {
+            $email = $this->getContextEmail($context);
+            if ($email === '') {
+                return null;
+            }
+
             $contact = $contactsModel->getContactByEmail($email);
 
             return new ContactResult(
@@ -131,5 +140,18 @@ class ContactResolver
         }
 
         return null;
+    }
+
+    private function getContextEmail(array $context): string
+    {
+        $email = $context['customer_email']
+            ?? $context['email']
+            ?? $context['user_email']
+            ?? $context['billing_email']
+            ?? ($context['billing_address']['email'] ?? '');
+
+        $email = \sanitize_email((string) $email);
+
+        return \is_email($email) ? $email : '';
     }
 }

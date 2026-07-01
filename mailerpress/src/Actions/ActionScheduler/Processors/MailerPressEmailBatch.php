@@ -72,6 +72,16 @@ class MailerPressEmailBatch
                 return;
             }
 
+            $campaignModel = Kernel::getContainer()->get(Campaigns::class)->find($post);
+
+            if (
+                $campaignModel
+                && 'automated' === $campaignModel->campaign_type
+                && function_exists('mailerpress_resolve_sender_config')
+            ) {
+                $config = mailerpress_resolve_sender_config(is_array($config) ? $config : [], true);
+            }
+
             // Select fetcher based on targeting type
             // Default to 'classic' if recipientTargeting is null or empty
             $recipientTargeting = $recipientTargeting ?? 'classic';
@@ -122,8 +132,13 @@ class MailerPressEmailBatch
             // Get subject from config or fallback to campaign title
             $subject = $config['subject'] ?? '';
             if (empty($subject) && !empty($post)) {
-                $campaign = get_post($post);
-                $subject = $campaign ? $campaign->post_title : '';
+                $campaign = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT subject, name FROM " . Tables::get(Tables::MAILERPRESS_CAMPAIGNS) . " WHERE campaign_id = %d",
+                        (int) $post
+                    )
+                );
+                $subject = $campaign ? ($campaign->subject ?: $campaign->name) : '';
             }
 
             // Check if a batch already exists for this campaign (created in createBatchV2)
@@ -160,38 +175,30 @@ class MailerPressEmailBatch
                 }
             }
 
-            $htmlContent = get_option('mailerpress_batch_' . $post . '_html');
+            $htmlContent = get_option('mailerpress_batch_' . $post . '_html', '');
 
-            if (empty($htmlContent)) {
-                // Try to get HTML from campaign meta as fallback
-                $campaign = get_post($post);
-                if ($campaign) {
-                    $meta = get_post_meta($post, 'meta', true);
-                    if (is_string($meta)) {
-                        $meta = json_decode($meta, true);
-                    }
-                    if (is_array($meta) && !empty($meta['html'])) {
-                        $htmlContent = $meta['html'];
-                    } elseif (!empty($campaign->post_content)) {
-                        $htmlContent = $campaign->post_content;
-                    }
-                }
-
-                if (empty($htmlContent)) {
-                    $this->markBatchAsFailed(
-                        $batch_id,
-                        $post,
-                        __('Email HTML content not found. Please save the campaign before sending.', 'mailerpress')
-                    );
-                    return;
-                }
+            if (!is_string($htmlContent) || trim($htmlContent) === '') {
+                $this->markBatchAsFailed(
+                    $batch_id,
+                    $post,
+                    __('Email HTML content not found. Please save the campaign before sending.', 'mailerpress')
+                );
+                return;
             }
 
             if (!empty($htmlContent) && containsStartQueryBlock($htmlContent)) {
+                if (
+                    $campaignModel
+                    && 'automated' === $campaignModel->campaign_type
+                    && function_exists('mailerpress_reset_automated_campaign_query_tracking')
+                    && !$this->automatedCampaignHasSentEmails((int) $post)
+                ) {
+                    mailerpress_reset_automated_campaign_query_tracking((int) $post);
+                }
+
                 $renderer = new DynamicPostRenderer($htmlContent);
                 $renderer->setCampaignId($post);
 
-                $campaignModel = Kernel::getContainer()->get(Campaigns::class)->find($post);
                 if ($campaignModel && 'automated' === $campaignModel->campaign_type) {
                     $renderer->setSkipIfNoNewContent(true);
                 }
@@ -406,10 +413,11 @@ class MailerPressEmailBatch
                     // Préparer données du chunk
                     $chunkData = [
                         'campaignId' => $post,
-                        'subject' => $config['subject'],
-                        'sender_name' => $config['fromName'],
+                        'subject' => $config['subject'] ?? $subject,
+                        'sender_name' => $config['fromName'] ?? '',
+                        'senderId' => $config['senderId'] ?? '',
                         'api_key' => $apiKey,
-                        'sender_to' => $config['fromTo'],
+                        'sender_to' => $config['fromTo'] ?? '',
                         'scheduled_at' => $scheduledAt,
                         'webhook_url' => get_rest_url(null, 'mailerpress/v1/webhook/notify'),
                         'sendType' => $sendType,
@@ -480,6 +488,25 @@ class MailerPressEmailBatch
                 }
             }
         }
+    }
+
+    private function automatedCampaignHasSentEmails(int $campaignId): bool
+    {
+        if ($campaignId <= 0) {
+            return false;
+        }
+
+        global $wpdb;
+
+        $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $sentBatches = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$batchTable}
+             WHERE campaign_id = %d
+             AND (status = 'sent' OR COALESCE(sent_emails, 0) > 0)",
+            $campaignId
+        ));
+
+        return (int) $sentBatches > 0;
     }
 
     /**

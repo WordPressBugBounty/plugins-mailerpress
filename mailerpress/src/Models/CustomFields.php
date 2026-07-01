@@ -10,6 +10,8 @@ use MailerPress\Core\Enums\Tables;
 
 class CustomFields
 {
+    public const FIELD_DEFINITIONS_CACHE_KEY = 'mailerpress_field_definitions';
+
     protected $table;
 
     private static ?array $cache = null;
@@ -61,6 +63,12 @@ class CustomFields
 
         self::$cache = $results;
         return $results;
+    }
+
+    public static function clearCache(): void
+    {
+        self::$cache = null;
+        wp_cache_delete(self::FIELD_DEFINITIONS_CACHE_KEY);
     }
 
     /**

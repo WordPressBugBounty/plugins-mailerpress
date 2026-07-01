@@ -689,6 +689,7 @@ class Workflows
             'name' => $automationData['name'] ?? 'New Workflow',
             'status' => $automationData['status'] ?? 'DRAFT',
             'run_once_per_subscriber' => $automationData['run_once_per_subscriber'] ?? false,
+            'author' => get_current_user_id() ?: null,
         ]);
 
         if (!$automationId) {
@@ -2582,7 +2583,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canEditAutomation']
     )]
     public function updateWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2893,7 +2894,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canDeleteAutomation']
     )]
     public function deleteWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2938,7 +2939,7 @@ PROMPT;
     #[Endpoint(
         'workflows/all',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canDeleteAutomations']
     )]
     public function deleteAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -3012,7 +3013,7 @@ PROMPT;
     #[Endpoint(
         'workflows/status',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canUpdateAutomationStatus']
     )]
     public function updateStatus(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

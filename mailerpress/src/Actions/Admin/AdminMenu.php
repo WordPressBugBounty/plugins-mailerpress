@@ -55,7 +55,9 @@ class AdminMenu
 
         ?>
 
-        <div id="mailerpress"></div>
+        <div id="mailerpress">
+            <?php self::renderInitialLoader(); ?>
+        </div>
         <div id="toast-root"></div>
     <?php
     }
@@ -63,7 +65,9 @@ class AdminMenu
     public static function mailpressCampaigns(): void
     {
     ?>
-        <div id="mailerpress-root"></div>
+        <div id="mailerpress-root">
+            <?php self::renderInitialLoader(); ?>
+        </div>
         <div id="toast-root"></div>
         <?php
     }
@@ -95,8 +99,60 @@ class AdminMenu
         endif;
 
         ?>
-        <div id="mailerpress-workflow-root"></div>
+        <div id="mailerpress-workflow-root">
+            <?php self::renderInitialLoader(); ?>
+        </div>
     <?php
+    }
+
+    private static function renderInitialLoader(): void
+    {
+        ?>
+        <style>
+            .mailerpress-initial-loader {
+                align-items: center;
+                background: #1f1f1f;
+                color: #ffffff;
+                display: flex;
+                flex-direction: column;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                gap: 16px;
+                inset: 0;
+                justify-content: center;
+                min-height: 100vh;
+                position: absolute;
+                z-index: 1;
+            }
+
+            .mailerpress-initial-loader__spinner {
+                animation: mailerpress-initial-loader-spin 0.9s linear infinite;
+                border: 3px solid rgba(255, 255, 255, 0.2);
+                border-top-color: #ffffff;
+                border-radius: 999px;
+                height: 36px;
+                width: 36px;
+            }
+
+            .mailerpress-initial-loader__label {
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 1.4;
+                opacity: 0.82;
+            }
+
+            @keyframes mailerpress-initial-loader-spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+        <div class="mailerpress-initial-loader" role="status" aria-live="polite">
+            <div class="mailerpress-initial-loader__spinner" aria-hidden="true"></div>
+            <div class="mailerpress-initial-loader__label">
+                <?php esc_html_e('Loading MailerPress...', 'mailerpress'); ?>
+            </div>
+        </div>
+        <?php
     }
 
 

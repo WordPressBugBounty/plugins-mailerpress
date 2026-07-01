@@ -41,6 +41,7 @@ class EmailContentRenderer
 
         // Render cart recovery button blocks
         $htmlContent = $this->renderCartRecoveryButtonBlocks($htmlContent, $context);
+        $htmlContent = $this->repairLegacyCartRecoveryButtons($htmlContent, $context);
 
         // Render product showcase blocks
         $htmlContent = $this->renderProductShowcaseBlocks($htmlContent, $context);
@@ -50,12 +51,37 @@ class EmailContentRenderer
             $htmlContent = $this->renderProductReviewBlocks($htmlContent, $context);
         }
 
+        $htmlContent = $this->removeSubscriptionFooterIfUnavailable($htmlContent, $variables);
+
         // Decode HTML entities and URL-encoded merge tags
         $htmlContent = $this->decodeMergeTags($htmlContent);
 
         // Parse merge tags via HtmlParser
         $htmlParser = Kernel::getContainer()->get(HtmlParser::class);
         return $htmlParser->init($htmlContent, $variables)->replaceVariables();
+    }
+
+    private function removeSubscriptionFooterIfUnavailable(string $htmlContent, array $variables): string
+    {
+        $canRenderFooter = ($variables['MAILERPRESS_CONTACT_SUBSCRIBED'] ?? '') === '1'
+            && !empty($variables['UNSUB_LINK'])
+            && !empty($variables['MANAGE_SUB_LINK']);
+
+        if ($canRenderFooter) {
+            return $htmlContent;
+        }
+
+        $patterns = [
+            '/<mj-section\b[^>]*(?:css-class|class)\s*=\s*["\'][^"\']*\bfooter-email\b[^"\']*["\'][^>]*>.*?<\/mj-section>/is',
+            '/<table\b[^>]*class\s*=\s*["\'][^"\']*\bfooter-email\b[^"\']*["\'][^>]*>.*?<\/table>/is',
+            '/<div\b[^>]*class\s*=\s*["\'][^"\']*\bfooter-email\b[^"\']*["\'][^>]*>.*?<\/div>/is',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $htmlContent = preg_replace($pattern, '', $htmlContent) ?? $htmlContent;
+        }
+
+        return $htmlContent;
     }
 
     private function renderOrderBlocks(string $htmlContent, array $context): string
@@ -1264,15 +1290,7 @@ class EmailContentRenderer
             return $htmlContent;
         }
 
-        // Resolve recovery URL
-        $recoveryUrl = $context['cart_recovery_url'] ?? '';
-        if (empty($recoveryUrl) && !empty($context['cart_hash']) && function_exists('wc_get_cart_url')) {
-            $recoveryUrl = \add_query_arg('recover_cart', $context['cart_hash'], \wc_get_cart_url());
-        }
-
-        if (empty($recoveryUrl)) {
-            $recoveryUrl = '#';
-        }
+        $recoveryUrl = $this->resolveCartRecoveryUrl($context) ?: '#';
 
         foreach ($blocks as $block) {
             $fullMatch = $block[0];
@@ -1314,6 +1332,142 @@ class EmailContentRenderer
         }
 
         return $htmlContent;
+    }
+
+    private function repairLegacyCartRecoveryButtons(string $htmlContent, array $context): string
+    {
+        if (stripos($htmlContent, 'node-type-button') === false) {
+            return $htmlContent;
+        }
+
+        $recoveryUrl = $this->resolveCartRecoveryUrl($context);
+        if (empty($recoveryUrl)) {
+            return $htmlContent;
+        }
+
+        $previousUseInternalErrors = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+
+        if (!@$dom->loadHTML('<?xml encoding="UTF-8">' . $htmlContent, LIBXML_HTML_NODEFDTD)) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousUseInternalErrors);
+            return $htmlContent;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $buttonNodes = $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " node-type-button ")]');
+        $changed = false;
+
+        foreach ($buttonNodes as $buttonNode) {
+            if (!$buttonNode instanceof \DOMElement || !$this->hasMissingOrPlaceholderLink($xpath, $buttonNode)) {
+                continue;
+            }
+
+            $text = trim((string) preg_replace('/\s+/', ' ', $buttonNode->textContent ?? ''));
+            if (!$this->isCartRecoveryButtonText($text)) {
+                continue;
+            }
+
+            $paragraph = $xpath->query('.//p', $buttonNode)->item(0);
+            if (!$paragraph instanceof \DOMElement || !$paragraph->parentNode) {
+                continue;
+            }
+
+            $link = $dom->createElement('a');
+            while ($paragraph->firstChild) {
+                $link->appendChild($paragraph->firstChild);
+            }
+
+            $link->setAttribute('href', \esc_url($recoveryUrl));
+
+            $style = $paragraph->getAttribute('style');
+            if ($style !== '') {
+                $link->setAttribute('style', $style);
+            }
+
+            $paragraph->parentNode->replaceChild($link, $paragraph);
+            $changed = true;
+        }
+
+        $result = $changed
+            ? str_replace('<?xml encoding="UTF-8">', '', $dom->saveHTML())
+            : $htmlContent;
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseInternalErrors);
+
+        return $result;
+    }
+
+    private function hasMissingOrPlaceholderLink(\DOMXPath $xpath, \DOMElement $buttonNode): bool
+    {
+        $links = $xpath->query('.//a', $buttonNode);
+        if (!$links || $links->length === 0) {
+            return true;
+        }
+
+        foreach ($links as $link) {
+            if (!$link instanceof \DOMElement) {
+                continue;
+            }
+
+            $href = trim($link->getAttribute('href'));
+            if ($href !== '' && $href !== '#') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isCartRecoveryButtonText(string $text): bool
+    {
+        $normalized = strtolower(trim($text));
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return in_array($normalized, [
+            'complete my order',
+            'complete your order',
+            'complete my purchase',
+            'complete your purchase',
+            'return to cart',
+            'recover my cart',
+            'recover your cart',
+        ], true);
+    }
+
+    private function resolveCartRecoveryUrl(array $context): string
+    {
+        $cartHash = '';
+
+        if (!empty($context['user_id'])) {
+            try {
+                $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
+                $activeCart = $cartRepo->getActiveCartByUserId((int) $context['user_id']);
+                if ($activeCart && !empty($activeCart['cart_hash'])) {
+                    $cartHash = (string) $activeCart['cart_hash'];
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if ($cartHash === '' && !empty($context['cart_hash'])) {
+            $cartHash = (string) $context['cart_hash'];
+        }
+
+        if ($cartHash === '') {
+            return (string) ($context['cart_recovery_url'] ?? '');
+        }
+
+        if (function_exists('wc_get_checkout_url')) {
+            $baseUrl = \wc_get_checkout_url();
+        } elseif (function_exists('wc_get_cart_url')) {
+            $baseUrl = \wc_get_cart_url();
+        } else {
+            $baseUrl = \home_url('/');
+        }
+
+        return \add_query_arg('recover_cart', $cartHash, $baseUrl);
     }
 
     // ─── Product Showcase Block Rendering ───────────────────────────────────

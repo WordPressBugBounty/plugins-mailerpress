@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'emilien/mailerpress',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => 'd06e098856d2b0358c8505b61260d8ea1592b23a',
+        'pretty_version' => 'dev-beef77dbc46386b47116ab962295fc7f1fe315d7',
+        'version' => 'dev-beef77dbc46386b47116ab962295fc7f1fe315d7',
+        'reference' => 'beef77dbc46386b47116ab962295fc7f1fe315d7',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => false,
         ),
         'emilien/mailerpress' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => 'd06e098856d2b0358c8505b61260d8ea1592b23a',
+            'pretty_version' => 'dev-beef77dbc46386b47116ab962295fc7f1fe315d7',
+            'version' => 'dev-beef77dbc46386b47116ab962295fc7f1fe315d7',
+            'reference' => 'beef77dbc46386b47116ab962295fc7f1fe315d7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -4,6 +4,12 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   mailerPressOptinForms.forEach((form) => {
+    if (form.dataset.mailerpressOptinInitialized === "true") {
+      return;
+    }
+
+    form.dataset.mailerpressOptinInitialized = "true";
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 

@@ -38,6 +38,9 @@ class MergeTagBuilder
             $contact = $contactResult->contact;
             $unsubscribeToken = $contact->unsubscribe_token ?? '';
             $accessToken = $contact->access_token ?? '';
+            $canManageSubscription = ($contact->subscription_status ?? '') === 'subscribed'
+                && $unsubscribeToken !== ''
+                && $accessToken !== '';
 
             $variables = [
                 'TRACK_CLICK' => \home_url('/'),
@@ -45,22 +48,24 @@ class MergeTagBuilder
                 'CAMPAIGN_ID' => $templateId,
                 'JOB_ID' => $job->getId(),
                 'STEP_ID' => (string) $step->getStepId(),
-                'UNSUB_LINK' => \wp_unslash(
-                    \sprintf(
-                        '%s&data=%s&cid=%s&batchId=%s',
-                        mailerpress_get_page('unsub_page'),
-                        \esc_attr($unsubscribeToken),
-                        \esc_attr($accessToken),
-                        $batchId
+                'UNSUB_LINK' => $canManageSubscription ? \wp_unslash(
+                    \add_query_arg(
+                        \array_filter([
+                            'data' => $unsubscribeToken,
+                            'cid' => $accessToken,
+                            'batchId' => $batchId,
+                        ], static fn($value) => $value !== ''),
+                        mailerpress_get_page('unsub_page')
                     )
-                ),
-                'MANAGE_SUB_LINK' => \wp_unslash(
+                ) : '',
+                'MANAGE_SUB_LINK' => $canManageSubscription ? \wp_unslash(
                     \sprintf(
                         '%s&cid=%s',
                         mailerpress_get_page('manage_page'),
                         \esc_attr($accessToken)
                     )
-                ),
+                ) : '',
+                'MAILERPRESS_CONTACT_SUBSCRIBED' => $canManageSubscription ? '1' : '0',
                 'CONTACT_NAME' => \esc_html($contactName),
                 'TRACK_OPEN' => $this->buildTrackOpenUrl($contactResult->contactId, $templateId, $batchId, $job, $step),
                 'contact_name' => \esc_html($contactName),
@@ -76,8 +81,9 @@ class MergeTagBuilder
                 'CAMPAIGN_ID' => $templateId,
                 'JOB_ID' => $job->getId(),
                 'STEP_ID' => (string) $step->getStepId(),
-                'UNSUB_LINK' => \home_url('/'),
-                'MANAGE_SUB_LINK' => \home_url('/'),
+                'UNSUB_LINK' => '',
+                'MANAGE_SUB_LINK' => '',
+                'MAILERPRESS_CONTACT_SUBSCRIBED' => '0',
                 'CONTACT_NAME' => \esc_html($contactName),
                 'TRACK_OPEN' => $this->buildTrackOpenUrl($contactId, $templateId, null, $job, $step),
                 'contact_name' => \esc_html($contactName),
@@ -402,7 +408,7 @@ class MergeTagBuilder
 
         $reservedKeys = [
             'TRACK_CLICK', 'CONTACT_ID', 'CAMPAIGN_ID', 'UNSUB_LINK', 'MANAGE_SUB_LINK',
-            'CONTACT_NAME', 'TRACK_OPEN', 'hook_name', 'hook_arguments', 'hook_arguments_count',
+            'MAILERPRESS_CONTACT_SUBSCRIBED', 'CONTACT_NAME', 'TRACK_OPEN', 'hook_name', 'hook_arguments', 'hook_arguments_count',
             'user_id', 'contact_id', 'custom_data', 'parameter_1_custom_data', 'parameter_2_custom_data',
             'arg_0', 'arg_1', 'arg_2', 'arg_3', 'arg_4', 'arg_5', 'arg_6', 'arg_7', 'arg_8', 'arg_9',
         ];
