@@ -15,7 +15,7 @@
 <p>
     <?php echo esc_html($title); ?>
     <br>
-    <a href="<?php echo $isPreview ? '#' : esc_url($unsubscribe_url); ?>">
+    <a class="button" href="<?php echo $isPreview ? '#' : esc_url($unsubscribe_url); ?>">
         <?php esc_html_e('Yes, unsubscribe me', 'mailerpress'); ?>
     </a>
 </p>

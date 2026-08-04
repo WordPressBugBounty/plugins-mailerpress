@@ -2,10 +2,10 @@
 
 defined('ABSPATH') || exit;
 global $wpdb;
-$accessToken = wp_unslash($_GET['cid'] ?? '');
+$accessToken = isset($_GET['cid']) ? sanitize_text_field(wp_unslash($_GET['cid'])) : '';
 
-$contact = null;
-$contactId = null;
+$contact = isset($contact) && is_object($contact) ? $contact : null;
+$contactId = isset($contact->contact_id) ? (int) $contact->contact_id : null;
 
 if ($accessToken) {
     $contactTable = $wpdb->prefix . 'mailerpress_contact';
@@ -33,8 +33,10 @@ if ($contactId) {
 }
 
 $isPreview = isset($_GET['mp_preview']) && wp_validate_boolean(sanitize_text_field(wp_unslash($_GET['mp_preview'])));
-$disableListManagement = !empty($disableListManagement)
-    || (isset($_GET['disable_list_management']) && wp_validate_boolean(sanitize_text_field(wp_unslash($_GET['disable_list_management']))));
+$disableListManagement = wp_validate_boolean($disableListManagement ?? false);
+if ($isPreview && isset($_GET['disable_list_management'])) {
+    $disableListManagement = wp_validate_boolean(sanitize_text_field(wp_unslash($_GET['disable_list_management'])));
+}
 $currentStatus = sanitize_key($contact->subscription_status ?? 'subscribed');
 if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
     $currentStatus = 'subscribed';
@@ -81,20 +83,32 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
     <?php if (!$disableListManagement) : ?>
         <?php if (!empty($allLists)) : ?>
             <div class="mailerpress-form-line">
-                <label><?php esc_html_e('Manage your subscriptions', 'mailerpress'); ?></label>
-                <?php foreach ($allLists as $list) : ?>
-                    <div style="margin-bottom: 5px;">
-                        <label>
-                            <input
-                                    type="checkbox"
-                                    name="subscribed_lists[]"
-                                    value="<?php echo esc_attr($list->list_id); ?>"
-                                    <?php checked(in_array($list->list_id, $subscribedListIds)); ?>
-                            >
-                            <?php echo esc_html($list->name); ?>
-                        </label>
+                <fieldset class="mailerpress-subscription-list-group">
+                    <legend><?php esc_html_e('Manage your subscriptions', 'mailerpress'); ?></legend>
+                    <div class="mailerpress-subscription-list-options">
+                        <?php foreach ($allLists as $list) : ?>
+                            <?php $listInputId = 'mailerpress-subscription-list-' . absint($list->list_id); ?>
+                            <label class="mailerpress-subscription-list-option" for="<?php echo esc_attr($listInputId); ?>">
+                                <input
+                                        id="<?php echo esc_attr($listInputId); ?>"
+                                        class="mailerpress-subscription-list-input"
+                                        type="checkbox"
+                                        name="subscribed_lists[]"
+                                        value="<?php echo esc_attr($list->list_id); ?>"
+                                        <?php checked(in_array($list->list_id, $subscribedListIds)); ?>
+                                >
+                                <span class="mailerpress-subscription-list-indicator" aria-hidden="true"></span>
+                                <span class="mailerpress-subscription-list-copy">
+                                    <span class="mailerpress-subscription-list-name"><?php echo esc_html($list->name); ?></span>
+                                    <span class="mailerpress-subscription-list-status">
+                                        <span class="mailerpress-subscription-list-status-on"><?php esc_html_e('Subscribed', 'mailerpress'); ?></span>
+                                        <span class="mailerpress-subscription-list-status-off"><?php esc_html_e('Not subscribed', 'mailerpress'); ?></span>
+                                    </span>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
                     </div>
-                <?php endforeach; ?>
+                </fieldset>
             </div>
         <?php else : ?>
             <p><?php esc_html_e('No mailing lists available.', 'mailerpress'); ?></p>
@@ -127,6 +141,9 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
         const form = document.querySelector('.mailerpress-manage-subscription');
         const submitBtn = document.querySelector('.mailerpress-submit-btn');
         const responseMsg = document.getElementById('mailerpress-response-message');
+        if (!form || !submitBtn || !responseMsg) {
+            return;
+        }
         const originalBtnText = submitBtn.innerHTML;
 
         form.addEventListener('submit', function (e) {

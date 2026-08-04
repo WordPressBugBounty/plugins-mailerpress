@@ -1,11 +1,11 @@
-=== MailerPress - Newsletter, email marketing & AI automation ===
+=== MailerPress - Email Marketing, Newsletter, Email Automation & WooCommerce Emails ===
 Authors: mailerpress
 Contributors: mailerpress, seopress, rainbowgeek, maigret
 Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.0
-Stable tag: 2.0.6
+Stable tag: 2.0.7
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -65,6 +65,25 @@ Automate your email marketing to save time and boost engagement:
 * Automated double opt-in confirmation follow-ups (paid plan required)
 * Advanced automation workflows with triggers and conditions (paid plan required)
 
+= Supported WordPress Plugin Integrations =
+
+Connect MailerPress with popular form, page builder, e-commerce, membership, and automation plugins:
+
+Explore all available integrations: [https://mailerpress.com/integrations/](https://mailerpress.com/integrations/)
+
+* **Contact Form 7 (free)** — map form fields, lists, tags, custom fields, and double opt-in settings to add subscribers
+* **Gravity Forms (paid plan required)** — add form submissions to MailerPress lists with field mapping
+* **Fluent Forms (paid plan required)** — capture form submissions and synchronize subscriber data
+* **Elementor (paid plan required)** — use the MailerPress widget and Elementor Pro form action
+* **Bricks Builder (paid plan required)** — build opt-in forms with the native MailerPress element
+* **Divi Builder (paid plan required)** — connect the Divi Email Optin module to MailerPress
+* **WooCommerce (paid plan required)** — capture checkout opt-ins, manage subscriber preferences, and customize transactional emails
+* **Paid Memberships Pro (paid plan required)** — collect newsletter opt-ins at checkout and display subscription preferences in member accounts
+* **Advanced Custom Fields / ACF (paid plan required)** — use ACF content in Query blocks and campaign content
+* **WordPress users (paid plan required)** — synchronize WordPress user accounts with MailerPress contacts
+
+Third-party automation integrations are also available for **Bit Flows**, **FlowMattic**, **OttoKit**, and **SureForms**. These integrations are maintained by their respective plugin authors, and feature availability may depend on their plans.
+
 = WooCommerce Email Marketing (paid plan required) =
 
 Turn your WooCommerce store into an email marketing machine:
@@ -75,7 +94,7 @@ Turn your WooCommerce store into an email marketing machine:
 * Retrieve WooCommerce product content directly in your newsletters
 * Segment subscribers based on purchase behavior
 
-= Incoming & Outgoing Webhooks =
+= Incoming & Outgoing Webhooks (paid plan required) =
 
 Connect MailerPress to any external system:
 
@@ -89,12 +108,16 @@ Send emails using your preferred method:
 
 * PHP Mail (default — works out of the box)
 * Custom SMTP configuration
-* SendGrid integration (paid plan required)
 * Brevo / Sendinblue integration (paid plan required)
-* Mailjet integration (paid plan required)
-* Amazon SES integration (paid plan required)
+* SendGrid integration (paid plan required)
+* Gmail / Google Workspace integration (paid plan required)
 * Mailgun integration (paid plan required)
+* Mailjet integration (paid plan required)
 * Postmark integration (paid plan required)
+* Amazon SES integration (paid plan required)
+* Emailit integration (paid plan required)
+* SMTP2GO integration (paid plan required)
+* Resend integration (paid plan required)
 * Bounce management via email provider APIs (paid plan required)
 
 = All Free Features =
@@ -106,9 +129,9 @@ Send emails using your preferred method:
 * Double opt-in with confirmation emails
 * CSV import/export for subscriber migration
 * Subscriber segmentation
+* Contact Form 7 integration
 * Email campaign analytics
 * Post and page content retrieval for newsletters
-* Incoming and outgoing webhooks
 * Click and open tracking (with anonymous option)
 * Merge tags for email personalization
 * MJML template import
@@ -124,10 +147,14 @@ Send emails using your preferred method:
 Upgrade to <a href="https://mailerpress.com/">MailerPress</a> for advanced email marketing capabilities:
 
 * **WooCommerce email customization** — design and override transactional emails (order confirmation, shipping, account emails) with the drag-and-drop editor
-* **Professional email delivery** — SendGrid, Brevo, Mailjet, Amazon SES, Mailgun, Postmark
-* **AI-powered email content** — OpenAI, DeepSeek, Mistral, Google Gemini integration for content optimization and image generation
-* **Advanced form integrations** — Contact Form 7, Gravity Forms, Fluent Forms
-* **Page builder integrations** — Elementor, Bricks
+* **Professional email delivery** — Brevo, SendGrid, Gmail / Google Workspace, Mailgun, Mailjet, Postmark, Amazon SES, Emailit, SMTP2GO, Resend
+* **AI-powered email content** — OpenAI, Claude by Anthropic, DeepSeek, Mistral, and Google Gemini for content optimization and image generation
+* **Advanced form integrations** — Gravity Forms and Fluent Forms
+* **Page builder integrations** — Elementor, Bricks Builder, and Divi Builder
+* **E-commerce and membership integrations** — WooCommerce and Paid Memberships Pro
+* **WordPress user synchronization** — keep WordPress user accounts connected with MailerPress contacts
+* **Advanced Custom Fields integration** — use ACF content in Query blocks and campaigns
+* **Incoming and outgoing webhooks** — connect MailerPress to external apps and automation platforms
 * **Advanced automation workflows** — triggers, conditions, and behavioral targeting
 * **Custom fields and advanced segments** — target subscribers based on behavior and data
 * **Premium email templates** — professional designs ready to use
@@ -178,6 +205,10 @@ Go to MailerPress in your WordPress admin, click "Create Campaign", choose a tem
 
 Yes. MailerPress supports CSV import, so you can export subscribers from any email marketing tool (Mailchimp, MailPoet, Brevo, ConvertKit, ActiveCampaign, etc.) and import them into MailerPress in seconds.
 
+= What WordPress plugins integrate with MailerPress? =
+
+MailerPress supports form, page builder, e-commerce, membership, content, and automation plugins. See the "Supported WordPress Plugin Integrations" section above for the current integration list and Free or paid plan availability.
+
 = Does MailerPress work with WooCommerce? =
 
 Yes. With a paid plan, you can customize WooCommerce transactional emails (order confirmation, shipping notification, etc.) using the drag-and-drop editor, send promotional campaigns to customers, and include product content in your newsletters.
@@ -188,7 +219,7 @@ MailerPress provides a shortcode and a Gutenberg block for opt-in forms. The sho
 
 = What email sending services does MailerPress support? =
 
-The free version supports PHP Mail and custom SMTP. A paid plan adds integrations with SendGrid, Brevo (Sendinblue), Mailjet, Amazon SES, Mailgun, and Postmark for professional email delivery.
+The free version supports PHP Mail and custom SMTP. A paid plan adds integrations with Brevo (Sendinblue), SendGrid, Gmail / Google Workspace, Mailgun, Mailjet, Postmark, Amazon SES, Emailit, SMTP2GO, and Resend for professional email delivery.
 
 = Can I automate emails with MailerPress? =
 
@@ -229,6 +260,20 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.0.7 =
+* NEW: Give your MailerPress subscription pages a polished, on-brand look with ready-made layouts, custom colors, logos, typography, buttons, and instant desktop or mobile previews with MailerPress Pro.
+* IMPROVEMENT: Subscription preference pages are now clearer and more mobile-friendly, with easy-to-read list cards and visible subscription statuses.
+* IMPROVEMENT: Find contacts faster by searching names, email addresses, list and tag names, opt-in sources, custom field values, or contact IDs.
+* IMPROVEMENT: The Social block now supports more networks, reusable profile settings, multiple icon styles and sizes, horizontal or vertical layouts, and easier on-canvas editing.
+* IMPROVEMENT: Build a custom compliant footer in MailerPress Pro: the default footer now unlocks when a visible unsubscribe or manage-subscription link is present and locks again if that link is removed.
+* FIX: Subscription and unsubscribe confirmation pages now display more consistently across layouts and screen sizes.
+* FIX: Manually selected posts in Query blocks now stay in place when automated campaigns are prepared for sending.
+* FIX: Query blocks now return the expected posts without WordPress sticky-post behavior changing their order or selection.
+* FIX: Click-tracking links now work more reliably with WordPress permalink structures that require trailing slashes.
+* FIX: Writing in the email editor is more reliable: ordinary slashes are preserved, Enter creates and focuses the next text block correctly, and placeholder interactions no longer interrupt editing.
+* FIX: Adding columns and layouts now preserves valid email structure instead of creating nested columns or losing surrounding content.
+* FIX: Creating campaigns from custom templates no longer adds a duplicate default footer when the template already contains a valid unsubscribe or manage-subscription link.
+
 = 2.0.6 =
 * IMPROVEMENT: Build better-looking emails faster with direct image resizing in the editor, live drag handles, instant previews, and layout-aware limits that help your design stay clean.
 * IMPROVEMENT: Turn titles and section headings into clear calls to action by adding links directly from the heading toolbar.

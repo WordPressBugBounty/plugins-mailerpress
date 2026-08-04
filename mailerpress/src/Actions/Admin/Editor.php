@@ -27,6 +27,16 @@ use function MailerPress\Helpers\formatPostForApi;
 
 class Editor
 {
+    #[Action('admin_enqueue_scripts', priority: 0)]
+    public function disableWordPressEmojiReplacement(): void
+    {
+        if (!$this->isMailerPressEditor()) {
+            return;
+        }
+
+        remove_action('admin_print_scripts', 'print_emoji_detection_script');
+    }
+
     /**
      * @return mixed|string
      */

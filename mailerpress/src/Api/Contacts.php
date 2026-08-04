@@ -556,23 +556,53 @@ class Contacts
         $per_page = (int)($request->get_param('perPages') ?? 20);
         $page = (int)($request->get_param('paged') ?? 1);
         $offset = ($page - 1) * $per_page;
-        $search = $request->get_param('search');
+        $search_param = $request->get_param('search');
+        $search = is_scalar($search_param) ? trim(sanitize_text_field((string) $search_param)) : '';
 
         $where = '1=1';
         $params = [];
         $joins = '';
 
         // Search filter
-        if (!empty($search)) {
-            // Si la recherche est un nombre, chercher aussi par contact_id
+        if ($search !== '') {
+            $search_like = '%' . $wpdb->esc_like($search) . '%';
+            $search_conditions = [
+                'c.email LIKE %s',
+                'c.first_name LIKE %s',
+                'c.last_name LIKE %s',
+                "CONCAT_WS(' ', c.first_name, c.last_name) LIKE %s",
+                'c.opt_in_source LIKE %s',
+                "EXISTS (
+                    SELECT 1
+                    FROM {$contact_lists_table} cl_search
+                    INNER JOIN {$lists_table} l_search ON l_search.list_id = cl_search.list_id
+                    WHERE cl_search.contact_id = c.contact_id
+                      AND l_search.name LIKE %s
+                )",
+                "EXISTS (
+                    SELECT 1
+                    FROM {$contact_tags_table} ct_search
+                    INNER JOIN {$tags_table} t_search ON t_search.tag_id = ct_search.tag_id
+                    WHERE ct_search.contact_id = c.contact_id
+                      AND t_search.name LIKE %s
+                )",
+                "EXISTS (
+                    SELECT 1
+                    FROM {$custom_fields_table} cf_search
+                    INNER JOIN {$field_definitions_table} fd_search ON fd_search.field_key = cf_search.field_key
+                    WHERE cf_search.contact_id = c.contact_id
+                      AND cf_search.field_value LIKE %s
+                )",
+            ];
+            $search_params = array_fill(0, count($search_conditions), $search_like);
+
             if (is_numeric($search)) {
-                $where .= ' AND (c.email LIKE %s OR c.contact_id = %d)';
-                $params[] = '%' . $wpdb->esc_like($search) . '%';
-                $params[] = (int)$search;
-            } else {
-                $where .= ' AND c.email LIKE %s';
-                $params[] = '%' . $wpdb->esc_like($search) . '%';
+                $search_conditions[] = 'c.contact_id = %d';
+                $search_params[] = (int) $search;
             }
+
+            $where .= ' AND (' . implode(' OR ', $search_conditions) . ')';
+            $params = array_merge($params, $search_params);
         }
 
         // Subscription status filter

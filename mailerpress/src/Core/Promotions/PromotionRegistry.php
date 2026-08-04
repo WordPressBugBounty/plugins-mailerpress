@@ -47,7 +47,6 @@ class PromotionRegistry
                 $promotion['ends_at'],
                 $promotion['audiences'],
                 $promotion['target_domains'],
-                $promotion['placements'],
                 $promotion['screens'],
                 $promotion['dismiss_duration_days'],
                 $promotion['max_dismissals']
@@ -529,7 +528,7 @@ class PromotionRegistry
 
     private static function matchesList(array $values, string $needle): bool
     {
-        return in_array('*', $values, true) || in_array($needle, $values, true);
+        return $needle === '*' || in_array('*', $values, true) || in_array($needle, $values, true);
     }
 
     private static function matchesCapabilities(array $capabilities): bool

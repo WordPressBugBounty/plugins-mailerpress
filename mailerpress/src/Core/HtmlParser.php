@@ -24,6 +24,8 @@ final class HtmlParser
      */
     public static function preprocessBody(string $html): string
     {
+        $html = self::normalizeWordPressEmojiImages($html);
+
         $html = preg_replace(
             '#<span[^>]*data-emoji-id=["\'][^"\']*["\'][^>]*>(.*?)</span>#i',
             '$1',
@@ -50,7 +52,7 @@ final class HtmlParser
      */
     public function init(string $htmlContent, array $variables): static
     {
-        $this->htmlContent = $htmlContent;
+        $this->htmlContent = self::normalizeWordPressEmojiImages($htmlContent);
         $this->variables = $variables;
         
         // Use anonymous key from variables if provided, or generate one if this is an anonymous email (contact_id = 0)
@@ -130,6 +132,39 @@ final class HtmlParser
             // Retourner uniquement le contenu du span (l'emoji)
             return $matches[1] ?? '';
         }, $html);
+    }
+
+    private static function normalizeWordPressEmojiImages(string $html): string
+    {
+        if (
+            false === stripos($html, '<img')
+            || false === stripos($html, 'emoji')
+        ) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '#<img\b[^>]*\bclass\s*=\s*(["\'])[^"\']*\bemoji\b[^"\']*\1[^>]*>#i',
+            static function (array $matches): string {
+                $image = $matches[0];
+                $isWordPressEmoji = preg_match('#\bdata-wp-emoji\s*=#i', $image)
+                    || (
+                        preg_match('#\brole\s*=\s*(["\'])img\1#i', $image)
+                        && preg_match('#\bdraggable\s*=\s*(["\'])false\1#i', $image)
+                    )
+                    || preg_match('#/(?:images/core/emoji|twemoji@)#i', $image);
+
+                if (
+                    !$isWordPressEmoji
+                    || !preg_match('#\balt\s*=\s*(["\'])(.*?)\1#is', $image, $alt)
+                ) {
+                    return $image;
+                }
+
+                return html_entity_decode($alt[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            },
+            $html
+        ) ?? $html;
     }
 
     /**
@@ -254,7 +289,7 @@ final class HtmlParser
             // Build tracking URL in format: %WP_DOMAIN/tracking-link/{token}
             // The token is already base64url encoded (safe for URLs), so we can use it directly
             // But we need to ensure it's properly encoded for the URL path
-            $trackingUrl = \home_url('/tracking-link/' . rawurlencode($token));
+            $trackingUrl = \user_trailingslashit(\home_url('/tracking-link/' . rawurlencode($token)));
 
             // If WooCommerce product, we need to add product info to the token data
             // Since the token already contains the URL, we can check it on redirect
@@ -477,6 +512,8 @@ final class HtmlParser
      */
     public static function sanitizeTestEmail(string $htmlContent): string
     {
+        $htmlContent = self::normalizeWordPressEmojiImages($htmlContent);
+
         // 1️⃣ Remove emoji spans (keep only emoji content)
         $pattern = '#<span[^>]*data-emoji-id=["\'][^"\']*["\'][^>]*>(.*?)</span>#i';
         $content = preg_replace_callback($pattern, function ($matches) {

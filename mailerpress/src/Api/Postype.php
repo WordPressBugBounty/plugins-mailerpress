@@ -75,6 +75,7 @@ class Postype
             'post_type' => $post_type,
             'post_status' => 'publish',
             'posts_per_page' => $request->get_param('per_page') ?? 10,
+            'ignore_sticky_posts' => true,
             'orderby' => $request->get_param('orderby') ?? 'date',
             'order' => $request->get_param('order') ?? 'DESC',
             'paged' => $request->get_param('page') ?? 1,

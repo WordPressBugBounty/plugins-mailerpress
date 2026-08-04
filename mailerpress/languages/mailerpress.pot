@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.0.6\n"
+"Project-Id-Version: MailerPress 2.0.7\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-30T13:39:43+00:00\n"
+"POT-Creation-Date: 2026-08-04T07:29:06+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mailerpress\n"
@@ -46,7 +46,7 @@ msgid "No campaigns found."
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php:126
-#: src/Api/Contacts.php:3182
+#: src/Api/Contacts.php:3212
 #: src/functions.php:989
 #: build/dist/js/mail-editor.js:1
 msgid "Confirm your subscription to [site:title]"
@@ -240,8 +240,8 @@ msgid "Invalid contact token."
 msgstr ""
 
 #: src/Actions/Ajax/ManageSubscription.php:47
-#: src/Api/Contacts.php:3165
-#: src/Api/Contacts.php:3301
+#: src/Api/Contacts.php:3195
+#: src/Api/Contacts.php:3331
 msgid "Contact not found."
 msgstr ""
 
@@ -366,50 +366,50 @@ msgstr ""
 msgid "Just click this link to unsubscribe from our emails."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:280
+#: src/Actions/Pages/Pages.php:284
 msgid "Subscription confirmed"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:281
+#: src/Actions/Pages/Pages.php:285
 #: src/Actions/Shortcodes/MyLists.php:86
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:78
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:143
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:138
-#: templates/manage-subscription.php:64
+#: templates/manage-subscription.php:66
 #: build/dist/js/mail-editor.js:1
 msgid "Unsubscribed"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:282
+#: src/Actions/Pages/Pages.php:286
 msgid "Confirm unsubscribe"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:283
+#: src/Actions/Pages/Pages.php:287
 #: build/dist/js/mail-editor.js:1
 msgid "Manage subscription"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:302
+#: src/Actions/Pages/Pages.php:306
 msgid "MailerPress Dynamic Page — Preview mode"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:303
+#: src/Actions/Pages/Pages.php:307
 msgid "This shortcode renders different content depending on the URL parameters sent in email links. Click a state below to preview it:"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:532
+#: src/Actions/Pages/Pages.php:536
 msgid "You have successfully subscribed."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:537
+#: src/Actions/Pages/Pages.php:541
 msgid "You have successfully unsubscribed."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:542
+#: src/Actions/Pages/Pages.php:546
 msgid "Confirm your unsubscribe request."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:547
+#: src/Actions/Pages/Pages.php:551
 msgid "Manage your email subscription."
 msgstr ""
 
@@ -515,7 +515,7 @@ msgid "Subscribe"
 msgstr ""
 
 #: src/Actions/Shortcodes/MyLists.php:75
-#: templates/manage-subscription.php:141
+#: templates/manage-subscription.php:158
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mailerpress-pro-workflow.js:1
 msgid "Saving..."
@@ -553,7 +553,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:683
 #: src/Core/Workflows/Services/TriggerManager.php:725
 #: src/Core/Workflows/Services/TriggerManager.php:756
-#: templates/manage-subscription.php:70
+#: templates/manage-subscription.php:72
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:1
 #: packages/gutenberg/mailerpress-form-input/edit.js:67
@@ -571,7 +571,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:684
 #: src/Core/Workflows/Services/TriggerManager.php:726
 #: src/Core/Workflows/Services/TriggerManager.php:757
-#: templates/manage-subscription.php:76
+#: templates/manage-subscription.php:78
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:1
 #: packages/gutenberg/mailerpress-form-input/edit.js:71
@@ -579,7 +579,7 @@ msgid "Last Name"
 msgstr ""
 
 #: src/Actions/Shortcodes/MyLists.php:84
-#: templates/manage-subscription.php:58
+#: templates/manage-subscription.php:60
 msgid "Subscription status"
 msgstr ""
 
@@ -587,7 +587,8 @@ msgstr ""
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:70
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:141
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:136
-#: templates/manage-subscription.php:61
+#: templates/manage-subscription.php:63
+#: templates/manage-subscription.php:104
 #: build/dist/js/mail-editor.js:1
 msgid "Subscribed"
 msgstr ""
@@ -640,6 +641,7 @@ msgid "Enter your last name"
 msgstr ""
 
 #: src/Actions/ThirdParty/ContactForm7/Setup.php:19
+#: build/dist/js/mail-editor.js:1
 msgid "Website"
 msgstr ""
 
@@ -2031,13 +2033,13 @@ msgid "%d actions processed"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:132
-#: src/Api/Contacts.php:2088
-#: src/Api/Contacts.php:2750
+#: src/Api/Contacts.php:2118
+#: src/Api/Contacts.php:2780
 msgid "Batch ID is required"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:146
-#: src/Api/Contacts.php:2170
+#: src/Api/Contacts.php:2200
 msgid "Batch not found"
 msgstr ""
 
@@ -2258,9 +2260,9 @@ msgid "Invalid IDs provided"
 msgstr ""
 
 #: src/Api/Campaigns.php:708
-#: src/Api/Contacts.php:2153
-#: src/Api/Contacts.php:2223
-#: src/Api/Contacts.php:2289
+#: src/Api/Contacts.php:2183
+#: src/Api/Contacts.php:2253
+#: src/Api/Contacts.php:2319
 msgid "Invalid batch ID"
 msgstr ""
 
@@ -2537,184 +2539,184 @@ msgstr ""
 msgid "Note deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:819
+#: src/Api/Contacts.php:849
 msgid "API key missing required scope: contacts:write"
 msgstr ""
 
-#: src/Api/Contacts.php:837
+#: src/Api/Contacts.php:867
 msgid "Authentication required. Please refresh the page and try again."
 msgstr ""
 
-#: src/Api/Contacts.php:866
+#: src/Api/Contacts.php:896
 msgid "Too many submission attempts. Please try again later."
 msgstr ""
 
-#: src/Api/Contacts.php:926
-#: src/Api/Contacts.php:992
-#: src/Api/Contacts.php:1068
+#: src/Api/Contacts.php:956
+#: src/Api/Contacts.php:1022
+#: src/Api/Contacts.php:1098
 msgid "Contact added successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:935
+#: src/Api/Contacts.php:965
 #: src/Services/ContactUpsertService.php:31
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/Api/Contacts.php:970
+#: src/Api/Contacts.php:1000
 msgid "Unable to save contact."
 msgstr ""
 
-#: src/Api/Contacts.php:993
-#: src/Api/Contacts.php:1027
-#: src/Api/Contacts.php:1705
+#: src/Api/Contacts.php:1023
+#: src/Api/Contacts.php:1057
+#: src/Api/Contacts.php:1735
 #: src/functions.php:347
 msgid "Contact updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1360
+#: src/Api/Contacts.php:1390
 msgid "This email address is already in use by another contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1480
+#: src/Api/Contacts.php:1510
 #: build/dist/js/mail-editor.js:1
 msgid "Contacts updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1513
+#: src/Api/Contacts.php:1543
 #: src/functions.php:239
 msgid "Missing contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:1725
+#: src/Api/Contacts.php:1755
 msgid "Contact IDs must be an array and cannot be empty"
 msgstr ""
 
-#: src/Api/Contacts.php:1742
+#: src/Api/Contacts.php:1772
 msgid "One or more contacts were not found."
 msgstr ""
 
-#: src/Api/Contacts.php:1758
+#: src/Api/Contacts.php:1788
 msgid "Contacts deleted successfully"
 msgstr ""
 
-#: src/Api/Contacts.php:1765
+#: src/Api/Contacts.php:1795
 msgid "Failed to delete the contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1788
+#: src/Api/Contacts.php:1818
 msgid "Missing contact_id or list_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1809
-#: src/Api/Contacts.php:1879
+#: src/Api/Contacts.php:1839
+#: src/Api/Contacts.php:1909
 msgid "Database error occurred."
 msgstr ""
 
-#: src/Api/Contacts.php:1816
-#: src/Api/Contacts.php:1886
+#: src/Api/Contacts.php:1846
+#: src/Api/Contacts.php:1916
 msgid "No matching record found."
 msgstr ""
 
-#: src/Api/Contacts.php:1827
+#: src/Api/Contacts.php:1857
 msgid "List removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1858
+#: src/Api/Contacts.php:1888
 msgid "Missing contact_id or tag_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1897
+#: src/Api/Contacts.php:1927
 msgid "Tag removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1929
+#: src/Api/Contacts.php:1959
 msgid "Failed to delete contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1934
+#: src/Api/Contacts.php:1964
 msgid "All contacts have been deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1956
+#: src/Api/Contacts.php:1986
 msgid "Failed to create delete batch."
 msgstr ""
 
-#: src/Api/Contacts.php:2009
+#: src/Api/Contacts.php:2039
 msgid "Delete batch created successfully. Deletion in progress..."
 msgstr ""
 
-#: src/Api/Contacts.php:2102
+#: src/Api/Contacts.php:2132
 msgid "Delete batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2136
+#: src/Api/Contacts.php:2166
 msgid "Delete batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:2240
+#: src/Api/Contacts.php:2270
 msgid "No failed chunks to retry"
 msgstr ""
 
-#: src/Api/Contacts.php:2271
+#: src/Api/Contacts.php:2301
 #, php-format
 msgid "Retrying %d failed chunks"
 msgstr ""
 
-#: src/Api/Contacts.php:2340
+#: src/Api/Contacts.php:2370
 #, php-format
 msgid "Reset %d stuck chunks and scheduled %d chunks for processing"
 msgstr ""
 
-#: src/Api/Contacts.php:2416
+#: src/Api/Contacts.php:2446
 msgid "No contacts to export."
 msgstr ""
 
-#: src/Api/Contacts.php:2466
+#: src/Api/Contacts.php:2496
 msgid "Export started"
 msgstr ""
 
-#: src/Api/Contacts.php:2576
+#: src/Api/Contacts.php:2606
 msgid "Failed to create import batch"
 msgstr ""
 
-#: src/Api/Contacts.php:2611
+#: src/Api/Contacts.php:2641
 msgid "Batch ID and chunk data are required"
 msgstr ""
 
-#: src/Api/Contacts.php:2625
-#: src/Api/Contacts.php:2764
+#: src/Api/Contacts.php:2655
+#: src/Api/Contacts.php:2794
 msgid "Import batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2832
+#: src/Api/Contacts.php:2862
 msgid "Import batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:3096
+#: src/Api/Contacts.php:3126
 #: src/Api/MyLists.php:142
 msgid "Invalid email address."
 msgstr ""
 
-#: src/Api/Contacts.php:3173
-#: src/Api/Contacts.php:3309
+#: src/Api/Contacts.php:3203
+#: src/Api/Contacts.php:3339
 msgid "This contact is not in pending status."
 msgstr ""
 
-#: src/Api/Contacts.php:3265
-#: src/Api/Contacts.php:3273
+#: src/Api/Contacts.php:3295
+#: src/Api/Contacts.php:3303
 msgid "Failed to send confirmation reminder email."
 msgstr ""
 
-#: src/Api/Contacts.php:3280
+#: src/Api/Contacts.php:3310
 msgid "Confirmation reminder email sent successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:3320
+#: src/Api/Contacts.php:3350
 #: build/dist/js/mail-editor.js:1
 msgid "Failed to confirm contact."
 msgstr ""
 
-#: src/Api/Contacts.php:3327
+#: src/Api/Contacts.php:3357
 #: build/dist/js/mail-editor.js:1
 msgid "Contact confirmed successfully."
 msgstr ""
@@ -3809,36 +3811,36 @@ msgstr ""
 msgid "View Dashboard"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:117
+#: src/Core/Promotions/PromotionRegistry.php:116
 msgid "Limited time"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:119
+#: src/Core/Promotions/PromotionRegistry.php:118
 msgid "Save 30% on MailerPress with coupon mailerpress_v2"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:120
+#: src/Core/Promotions/PromotionRegistry.php:119
 msgid "Use coupon code mailerpress_v2 at checkout to get 30% off for a limited time."
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:133
+#: src/Core/Promotions/PromotionRegistry.php:132
 msgid "Claim 30% off now"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:145
+#: src/Core/Promotions/PromotionRegistry.php:144
 #: build/dist/js/mail-editor.js:1
 msgid "Recommended"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:147
+#: src/Core/Promotions/PromotionRegistry.php:146
 msgid "Unlock more growth tools with MailerPress Pro"
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:148
+#: src/Core/Promotions/PromotionRegistry.php:147
 msgid "Unlock AI email creation, premium sending providers, automations, segmentation, webhooks, and WordPress/WooCommerce email customization."
 msgstr ""
 
-#: src/Core/Promotions/PromotionRegistry.php:161
+#: src/Core/Promotions/PromotionRegistry.php:160
 msgid "View plans"
 msgstr ""
 
@@ -4806,37 +4808,41 @@ msgstr ""
 msgid "Yes, unsubscribe me"
 msgstr ""
 
-#: templates/manage-subscription.php:48
+#: templates/manage-subscription.php:50
 msgid "Uncheck lists to unsubscribe from them, then save your preferences."
 msgstr ""
 
-#: templates/manage-subscription.php:53
+#: templates/manage-subscription.php:55
 msgid "Email*"
 msgstr ""
 
-#: templates/manage-subscription.php:84
+#: templates/manage-subscription.php:87
 msgid "Manage your subscriptions"
 msgstr ""
 
-#: templates/manage-subscription.php:100
-msgid "No mailing lists available."
+#: templates/manage-subscription.php:105
+msgid "Not subscribed"
 msgstr ""
 
 #: templates/manage-subscription.php:114
+msgid "No mailing lists available."
+msgstr ""
+
+#: templates/manage-subscription.php:128
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mailerpress-pro-workflow.js:1
 msgid "Save"
 msgstr ""
 
-#: templates/manage-subscription.php:119
+#: templates/manage-subscription.php:133
 msgid "You can change the values, but submitting the form is not possible — this is for preview purposes only."
 msgstr ""
 
-#: templates/manage-subscription.php:153
+#: templates/manage-subscription.php:170
 msgid "Unexpected response"
 msgstr ""
 
-#: templates/manage-subscription.php:159
+#: templates/manage-subscription.php:176
 msgid "Something went wrong. Please try again."
 msgstr ""
 
@@ -5350,6 +5356,10 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Upgrade"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "The email footer can only be removed after you add an Unsubscribe or Manage Subscription link elsewhere in the email."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -8611,11 +8621,207 @@ msgid "Hero"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Account URL"
+msgid "WordPress"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
-msgid "Icon Image"
+msgid "500px"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Amazon"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Bandcamp"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Behance"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Bluesky"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "CodePen"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "DeviantArt"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Discord"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Dribbble"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Dropbox"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Etsy"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Facebook"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "RSS Feed"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Flickr"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Foursquare"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Goodreads"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Google"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "GitHub"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Gravatar"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Instagram"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Last.fm"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "LinkedIn"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Mail"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Mastodon"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Meetup"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Patreon"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Pinterest"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Pocket"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Reddit"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Snapchat"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "SoundCloud"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Spotify"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Telegram"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Threads"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "TikTok"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Tumblr"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Twitch"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Twitter"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Vimeo"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "VK"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "WhatsApp"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "X"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Xing"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Yelp"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "YouTube"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Search social networks..."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "No social networks found."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Choose a social network"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Justification"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Orientation"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -8624,6 +8830,74 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Vertical"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Add social profile"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Logos only"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Pill shape"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Icon size"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Small"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Huge"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Spacing between icons"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Social profile"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Back to Social"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Move up"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Move down"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Remove social profile"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Profile URL"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Change network"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Icon Image"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Edit social link"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Enter social link"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -10629,6 +10903,14 @@ msgid "Edit category"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
+msgid "Design pages"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Design with Pro"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
 msgid "Settings to customize your MailerPress experience."
 msgstr ""
 
@@ -10702,6 +10984,14 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Type an email address and press Enter to add it. These will be used as default recipients when sending test emails."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Social profiles"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "New Social blocks automatically use these profiles. You can still change their links and order in each email."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1
@@ -10798,6 +11088,22 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:1
 msgid "Yes, Enable Data Cleanup"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Design MailerPress Pages with Pro"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "MailerPress Pro unlocks ready-made templates, fullscreen subscription pages, and color controls for every page that uses the [mailerpress_pages] shortcode."
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Not now"
+msgstr ""
+
+#: build/dist/js/mail-editor.js:1
+msgid "Already have Pro? Install and activate the Pro plugin to access the page design settings."
 msgstr ""
 
 #: build/dist/js/mail-editor.js:1

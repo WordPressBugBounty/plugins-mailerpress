@@ -1,63 +1,596 @@
-.mailerpress-change-email-info {
-    font-size: 0.9rem;
-    color: #555;
+.mailerpress-pages-fullscreen-body {
+    border: 0;
+    margin: 0;
+    outline: 0;
+}
+
+.mailerpress-pages-fullscreen-shell {
+    border: 0;
+    min-height: 100vh;
+    outline: 0;
+}
+
+.mailerpress-pages-template {
+    --mailerpress-pages-accent-color: #2271b1;
+    --mailerpress-pages-background-color: #f6f8fb;
+    --mailerpress-pages-background-image: none;
+    --mailerpress-pages-background-repeat: no-repeat;
+    --mailerpress-pages-background-size: cover;
+    --mailerpress-pages-content-background-color: #ffffff;
+    --mailerpress-pages-text-color: #1e1e1e;
+    --mailerpress-pages-muted-color: #646970;
+    --mailerpress-pages-border-color: #dcdcde;
+    --mailerpress-pages-border-radius: 20px;
+    --mailerpress-pages-max-width: 720px;
+    --mailerpress-pages-horizontal-padding: clamp(24px, 6vw, 72px);
+    --mailerpress-pages-content-align: left;
+    box-sizing: border-box;
+    color: var(--mailerpress-pages-text-color);
+    font-family: var(--mailerpress-pages-font-family, inherit);
+    font-size: 16px;
     line-height: 1.5;
-    margin-bottom: 1.5rem;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: var(--mailerpress-pages-max-width);
+    width: 100%;
+}
+
+.mailerpress-pages-template *,
+.mailerpress-pages-template *::before,
+.mailerpress-pages-template *::after {
+    box-sizing: border-box;
+}
+
+/* Some themes draw a border/outline around sections nested in post content
+   (border shorthand without color = currentColor). Never on our pages —
+   the doubled class keeps this stronger than typical theme selectors. */
+section.mailerpress-pages-template.mailerpress-pages-template {
+    border: 0;
+    outline: 0;
+}
+
+.mailerpress-pages-template--fullscreen {
+    align-items: center;
+    background-color: var(--mailerpress-pages-background-color);
+    background-image: var(--mailerpress-pages-background-image);
+    background-position: center;
+    background-repeat: var(--mailerpress-pages-background-repeat);
+    background-size: var(--mailerpress-pages-background-size);
+    border: 0;
+    box-shadow: none;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    max-width: none;
+    outline: 0;
+    padding: clamp(24px, 6vw, 72px) var(--mailerpress-pages-horizontal-padding);
+}
+
+.mailerpress-pages-template__layout {
+    width: 100%;
+}
+
+.mailerpress-pages-template--fullscreen .mailerpress-pages-template__layout {
+    max-width: var(--mailerpress-pages-max-width);
+}
+
+.mailerpress-pages-template__intro {
+    margin-bottom: 24px;
+}
+
+.mailerpress-pages-template__brand {
+    line-height: 0;
+    margin-bottom: 22px;
+}
+
+.mailerpress-pages-template__logo {
+    display: inline-block;
+    height: auto;
+    max-height: 76px;
+    max-width: min(220px, 100%);
+    object-fit: contain;
+}
+
+.mailerpress-pages-template__eyebrow {
+    color: var(--mailerpress-pages-accent-color);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.3;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+}
+
+.mailerpress-pages-template__intro h1 {
+    color: var(--mailerpress-pages-text-color);
+    font-size: var(--mailerpress-pages-heading-size, var(--mailerpress-pages-layout-heading-size, clamp(32px, 4vw, 52px)));
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.mailerpress-pages-template__description {
+    color: var(--mailerpress-pages-muted-color);
+    font-size: 16px;
+    line-height: 1.55;
+    margin: 14px 0 0;
+    max-width: 58ch;
+}
+
+.mailerpress-pages-template__content {
+    color: var(--mailerpress-pages-text-color);
+    font-size: 16px;
+    min-width: 0;
+}
+
+.mailerpress-pages-template__intro,
+.mailerpress-pages-template__content > p {
+    text-align: var(--mailerpress-pages-content-align);
+}
+
+.mailerpress-pages-template__content p {
+    color: var(--mailerpress-pages-text-color);
+    line-height: 1.6;
+}
+
+.mailerpress-pages-template__content > p {
+    font-size: 18px;
+    margin-bottom: 0;
+    margin-top: 0;
+}
+
+.mailerpress-pages-template__content a {
+    color: var(--mailerpress-pages-accent-color);
+    font-weight: 600;
+}
+
+.mailerpress-pages-template--center-card .mailerpress-pages-template__layout {
+    background: var(--mailerpress-pages-content-background-color);
+    border-radius: var(--mailerpress-pages-border-radius);
+    box-shadow: var(--mailerpress-pages-shadow, 0 18px 45px rgba(0, 0, 0, 0.08));
+    padding: clamp(28px, 5vw, 52px);
+}
+
+.mailerpress-pages-template--center-card {
+    --mailerpress-pages-content-align: center;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__layout {
+    background: var(--mailerpress-pages-content-background-color);
+    border-radius: var(--mailerpress-pages-border-radius);
+    box-shadow: var(--mailerpress-pages-shadow, 0 24px 60px rgba(15, 23, 42, 0.12));
+    display: grid;
+    grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+    overflow: clip;
+}
+
+.mailerpress-pages-template--split-panel {
+    --mailerpress-pages-layout-heading-size: clamp(32px, 3vw, 44px);
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__intro {
+    align-self: start;
+    background: var(--mailerpress-pages-accent-color);
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+    padding: clamp(28px, 5vw, 48px);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__layout::before {
+    align-self: stretch;
+    background: var(--mailerpress-pages-accent-color);
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+}
+
+body.admin-bar .mailerpress-pages-template--split-panel .mailerpress-pages-template__intro {
+    top: 32px;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__brand,
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__brand {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 12px;
+    display: inline-flex;
+    padding: 10px 12px;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__eyebrow,
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__intro h1,
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__description {
+    color: #fff;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__description {
+    opacity: 0.9;
+}
+
+.mailerpress-pages-template--split-panel .mailerpress-pages-template__content {
+    grid-column: 2;
+    grid-row: 1;
+    padding: clamp(28px, 5vw, 48px);
+}
+
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__layout {
+    background: var(--mailerpress-pages-content-background-color);
+    border-radius: var(--mailerpress-pages-border-radius);
+    box-shadow: var(--mailerpress-pages-shadow, 0 16px 35px rgba(15, 23, 42, 0.08));
+    overflow: hidden;
+}
+
+.mailerpress-pages-template--brand-band {
+    --mailerpress-pages-layout-heading-size: clamp(32px, 4vw, 48px);
+}
+
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__intro {
+    background: var(--mailerpress-pages-accent-color);
+    margin: 0;
+    padding: clamp(24px, 4vw, 40px);
+}
+
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__eyebrow,
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__intro h1,
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__description {
+    color: #fff;
+}
+
+.mailerpress-pages-template--brand-band .mailerpress-pages-template__content {
+    padding: clamp(24px, 4vw, 40px);
+}
+
+/* Doubled class: must win over the section border reset above. */
+section.mailerpress-pages-template--editorial.mailerpress-pages-template--editorial {
+    border-left: 6px solid var(--mailerpress-pages-accent-color);
+    padding-left: clamp(20px, 4vw, 36px);
+}
+
+.mailerpress-pages-template--editorial .mailerpress-pages-template__layout {
+    max-width: var(--mailerpress-pages-max-width);
+}
+
+.mailerpress-pages-template--editorial .mailerpress-pages-template__intro h1 {
+    font-size: var(--mailerpress-pages-heading-size, clamp(36px, 5vw, 60px));
+}
+
+section.mailerpress-pages-template--fullscreen.mailerpress-pages-template--editorial {
+    border-left: 0;
+    padding-left: var(--mailerpress-pages-horizontal-padding);
+    padding-right: var(--mailerpress-pages-horizontal-padding);
+}
+
+.mailerpress-pages-template--hero-card {
+    --mailerpress-pages-content-align: center;
+    --mailerpress-pages-layout-heading-size: clamp(34px, 4vw, 52px);
+}
+
+.mailerpress-pages-template--hero-card .mailerpress-pages-template__layout {
+    align-content: start;
+    display: grid;
+    gap: clamp(28px, 5vw, 48px);
+}
+
+.mailerpress-pages-template--hero-card .mailerpress-pages-template__intro {
+    margin: 0 auto;
+    max-width: 680px;
+}
+
+.mailerpress-pages-template--hero-card .mailerpress-pages-template__content {
+    background: var(--mailerpress-pages-content-background-color);
+    border: 1px solid var(--mailerpress-pages-border-color);
+    border-radius: var(--mailerpress-pages-border-radius);
+    border-top: 5px solid var(--mailerpress-pages-accent-color);
+    box-shadow: var(--mailerpress-pages-shadow, 0 20px 48px rgba(15, 23, 42, 0.1));
+    padding: clamp(28px, 5vw, 48px);
+}
+
+.mailerpress-pages-template--sidebar-card {
+    --mailerpress-pages-layout-heading-size: clamp(32px, 3.5vw, 48px);
+}
+
+.mailerpress-pages-template--sidebar-card .mailerpress-pages-template__layout {
+    align-content: start;
+    align-items: start;
+    display: grid;
+    gap: clamp(28px, 5vw, 56px);
+    grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+}
+
+.mailerpress-pages-template--sidebar-card .mailerpress-pages-template__intro {
+    border-left: 6px solid var(--mailerpress-pages-accent-color);
+    margin: 0;
+    min-width: 0;
+    padding: clamp(8px, 2vw, 18px) 0 clamp(8px, 2vw, 18px) clamp(20px, 3vw, 32px);
+}
+
+.mailerpress-pages-template--sidebar-card .mailerpress-pages-template__content {
+    background: var(--mailerpress-pages-content-background-color);
+    border: 1px solid var(--mailerpress-pages-border-color);
+    border-radius: var(--mailerpress-pages-border-radius);
+    box-shadow: var(--mailerpress-pages-shadow, 0 18px 42px rgba(15, 23, 42, 0.09));
+    min-width: 0;
+    padding: clamp(28px, 5vw, 48px);
+}
+
+.mailerpress-change-email-info {
+    color: var(--mailerpress-pages-muted-color, #555);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0 0 24px;
 }
 
 .mailerpress-form-line {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 20px;
+}
+
+.mailerpress-form-line:last-child {
+    margin-bottom: 0;
 }
 
 .mailerpress-form-line label {
-    font-size: 1rem;
-    font-weight: 500;
+    color: var(--mailerpress-pages-text-color, #333);
+    font-size: 15px;
+    font-weight: 600;
     line-height: 1.4;
-    color: #333;
+}
+
+.mailerpress-form-line strong {
+    color: var(--mailerpress-pages-text-color, #222);
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.mailerpress-subscription-list-group {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.mailerpress-subscription-list-group legend {
+    color: var(--mailerpress-pages-text-color, #333);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0 0 0.85rem;
+    padding: 0;
+}
+
+.mailerpress-subscription-list-options {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.mailerpress-subscription-list-option {
+    align-items: center;
+    background: var(--mailerpress-pages-content-background-color, #fff);
+    border: 1px solid var(--mailerpress-pages-border-color, #dcdcde);
+    border-radius: 14px;
+    cursor: pointer;
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: 24px minmax(0, 1fr);
+    margin: 0;
+    min-height: 64px;
+    padding: 0.9rem 1rem;
+    position: relative;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.mailerpress-subscription-list-option:hover {
+    border-color: var(--mailerpress-pages-accent-color, #0073aa);
+    transform: translateY(-1px);
+}
+
+.mailerpress-subscription-list-input {
+    cursor: pointer;
+    height: 100%;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    z-index: 2;
+}
+
+.mailerpress-subscription-list-indicator {
+    align-items: center;
+    background: #fff;
+    border: 2px solid var(--mailerpress-pages-border-color, #dcdcde);
+    border-radius: 999px;
+    box-sizing: border-box;
+    display: inline-flex;
+    height: 22px;
+    justify-content: center;
+    position: relative;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+    width: 22px;
+    z-index: 1;
+}
+
+.mailerpress-subscription-list-indicator::after {
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    content: "";
+    height: 8px;
+    opacity: 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+    transition: opacity 0.2s;
+    width: 4px;
+}
+
+.mailerpress-subscription-list-copy {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+    z-index: 1;
+}
+
+.mailerpress-subscription-list-name {
+    color: var(--mailerpress-pages-text-color, #222);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.mailerpress-subscription-list-status {
+    color: var(--mailerpress-pages-muted-color, #646970);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.mailerpress-subscription-list-status-on {
+    color: var(--mailerpress-pages-accent-color, #0073aa);
+    display: none;
+}
+
+.mailerpress-subscription-list-input:checked + .mailerpress-subscription-list-indicator {
+    background: var(--mailerpress-pages-accent-color, #0073aa);
+    border-color: var(--mailerpress-pages-accent-color, #0073aa);
+}
+
+.mailerpress-subscription-list-input:checked + .mailerpress-subscription-list-indicator::after {
+    opacity: 1;
+}
+
+.mailerpress-subscription-list-input:checked ~ .mailerpress-subscription-list-copy .mailerpress-subscription-list-status-on {
+    display: inline;
+}
+
+.mailerpress-subscription-list-input:checked ~ .mailerpress-subscription-list-copy .mailerpress-subscription-list-status-off {
+    display: none;
+}
+
+.mailerpress-subscription-list-option:has(.mailerpress-subscription-list-input:checked) {
+    background: color-mix(in srgb, var(--mailerpress-pages-accent-color, #0073aa) 8%, var(--mailerpress-pages-content-background-color, #fff));
+    border-color: color-mix(in srgb, var(--mailerpress-pages-accent-color, #0073aa) 58%, var(--mailerpress-pages-border-color, #dcdcde));
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--mailerpress-pages-accent-color, #0073aa) 10%, transparent);
+}
+
+.mailerpress-subscription-list-input:focus-visible + .mailerpress-subscription-list-indicator {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mailerpress-pages-accent-color, #0073aa) 24%, transparent);
 }
 
 .mailerpress-form-line input[type="text"],
 .mailerpress-form-line input[type="password"],
 .mailerpress-form-line select,
 .mailerpress-form-line button {
-    box-sizing: border-box;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
-    line-height: 1.5;
-    min-height: 44px;
     background-color: #fff;
-    color: #222;
+    border: 1px solid var(--mailerpress-pages-border-color, #ccc);
+    border-radius: 10px;
+    box-sizing: border-box;
+    color: var(--mailerpress-pages-text-color, #222);
     font-family: inherit;
+    font-size: 16px;
     font-weight: 400;
-    width: 100%;
+    line-height: 1.5;
+    min-height: 46px;
+    padding: 0.65rem 0.9rem;
     transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
 }
 
 .mailerpress-form-line input:focus,
 .mailerpress-form-line select:focus {
-    border-color: #0073aa;
+    border-color: var(--mailerpress-pages-accent-color, #0073aa);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mailerpress-pages-accent-color, #0073aa) 22%, transparent);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.2);
 }
 
-.mailerpress-form-line button {
-    background-color: #0073aa;
-    border-color: #0073aa;
-    color: #fff;
+.mailerpress-form-line button,
+.mailerpress-pages-template .button,
+.mailerpress-pages-template a[href*="action=unsubscribe"] {
+    align-items: center;
+    background-color: var(--mailerpress-pages-button-background-color, var(--mailerpress-pages-accent-color, #0073aa));
+    border: 1px solid var(--mailerpress-pages-button-background-color, var(--mailerpress-pages-accent-color, #0073aa));
+    border-radius: var(--mailerpress-pages-button-radius, 999px);
+    color: var(--mailerpress-pages-button-text-color, #fff);
     cursor: pointer;
-    font-weight: 500;
+    display: inline-flex;
+    font-size: 16px;
+    font-weight: 700;
+    justify-content: center;
+    line-height: 1.4;
+    min-height: 46px;
+    padding: 0.65rem 1.3rem;
+    text-decoration: none;
+    transition: filter 0.2s, transform 0.2s;
     width: auto;
-    align-self: flex-start;
-    padding: 0.5rem 1.5rem;
-    transition: background-color 0.2s, border-color 0.2s;
 }
 
-.mailerpress-form-line button:hover {
-    background-color: #005f8d;
-    border-color: #005f8d;
+.mailerpress-pages-template__content > p > .button {
+    margin-top: 20px;
+}
+
+.mailerpress-form-line button:hover,
+.mailerpress-pages-template .button:hover,
+.mailerpress-pages-template a[href*="action=unsubscribe"]:hover {
+    filter: brightness(0.92);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 720px) {
+    .mailerpress-pages-template--fullscreen {
+        align-items: stretch;
+        padding: min(var(--mailerpress-pages-horizontal-padding), 24px);
+    }
+
+    .mailerpress-pages-template--fullscreen.mailerpress-pages-template--editorial {
+        padding-left: min(var(--mailerpress-pages-horizontal-padding), 24px);
+        padding-right: min(var(--mailerpress-pages-horizontal-padding), 24px);
+    }
+
+    .mailerpress-pages-template--center-card .mailerpress-pages-template__layout,
+    .mailerpress-pages-template--split-panel .mailerpress-pages-template__layout,
+    .mailerpress-pages-template--brand-band .mailerpress-pages-template__layout {
+        border-radius: 0;
+        min-height: 100vh;
+    }
+
+    .mailerpress-pages-template--split-panel .mailerpress-pages-template__layout {
+        grid-template-columns: 1fr;
+        overflow: hidden;
+    }
+
+    .mailerpress-pages-template--split-panel .mailerpress-pages-template__intro {
+        position: static;
+    }
+
+    .mailerpress-pages-template--split-panel .mailerpress-pages-template__content {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .mailerpress-pages-template--sidebar-card .mailerpress-pages-template__layout {
+        grid-template-columns: 1fr;
+    }
+
+    .mailerpress-pages-template--sidebar-card .mailerpress-pages-template__intro {
+        border-left: 0;
+        border-top: 6px solid var(--mailerpress-pages-accent-color);
+        padding: 24px 0 0;
+    }
+
+    .mailerpress-pages-template__intro h1 {
+        font-size: 32px;
+    }
+}
+
+@media (max-width: 782px) {
+    body.admin-bar .mailerpress-pages-template--split-panel .mailerpress-pages-template__intro {
+        top: 46px;
+    }
 }

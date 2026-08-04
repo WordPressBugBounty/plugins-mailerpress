@@ -89,6 +89,12 @@ class DynamicPostRenderer
             $queryInnerHtml = $block[3];
             $queryEndComment = $block[4];
 
+            $queryData = json_decode($queryJson, true);
+            if (is_array($queryData) && 'manual' === ($queryData['selection'] ?? null)) {
+                $allBlocksEmpty = false;
+                continue;
+            }
+
             $excludedIds = array_values(array_unique(array_map('intval', array_merge($this->excludedPostIds, $this->usedPostIds))));
             $queryArgs = $this->parseQueryArgs($queryJson, $excludedIds);
             if (!$queryArgs) {
@@ -315,6 +321,7 @@ class DynamicPostRenderer
             'post_type' => sanitize_key($postType),
             'post_status' => 'publish',
             'posts_per_page' => $postsPerPage > 0 ? $postsPerPage : 1,
+            'ignore_sticky_posts' => true,
             'offset' => $offset,
             'orderby' => $orderby,
             'order' => $order,
@@ -447,7 +454,7 @@ class DynamicPostRenderer
     protected function renderPostTemplate(WP_Post $post, string $template): string
     {
         return preg_replace_callback(
-            '/<!-- START ([a-zA-Z0-9-_ :]+) -->(.*?)<!-- END ([a-zA-Z0-9-_ ]+) -->/is',
+            '/<!-- START ([^>]+) -->(.*?)<!-- END ([a-zA-Z0-9-_ ]+) -->/is',
             function ($blockMatches) use ($post) {
                 $blockNameWithKey = trim($blockMatches[1]);
                 $blockContent = $blockMatches[2];

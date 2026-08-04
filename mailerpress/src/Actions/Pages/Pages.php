@@ -168,7 +168,7 @@ class Pages
                 if (is_string($defaultSettings)) {
                     $defaultSettings = json_decode($defaultSettings, true) ?: [];
                 }
-                $disableListManagement = !empty($defaultSettings['disableListManagement']);
+                $disableListManagement = wp_validate_boolean($defaultSettings['disableListManagement'] ?? false);
 
                 $content = $renderer->render('manage-subscription', [
                     'contact' => $contact,
@@ -252,7 +252,11 @@ class Pages
                 break;
         }
 
-        return $content;
+        return (string) apply_filters('mailerpress_pages_rendered_content', $content, [
+            'action' => $action,
+            'atts' => $atts,
+            'is_preview' => $is_preview,
+        ]);
     }
 
     /**

@@ -98,6 +98,13 @@ class Init
             return;
         }
 
+        $campaign_type = $campaign->campaign_type ?? 'newsletter';
+        $is_site_template = $this->isSiteTemplateCampaign($campaign_id, $campaign_type);
+
+        if ($is_site_template && 'trash' !== $campaign->status) {
+            return;
+        }
+
         $current_user_id = get_current_user_id();
 
         // Check if user owns the campaign or can edit others
@@ -114,12 +121,42 @@ class Init
         // Only block editing if campaign is in a non-editable status
         // Allow editing draft, scheduled, and error campaigns
         // Exception: Always allow editing automation campaigns (campaign_type = 'automation') regardless of status
-        $campaign_type = $campaign->campaign_type ?? 'newsletter';
         $is_automation_campaign = $campaign_type === 'automation';
 
         if (!$is_automation_campaign && in_array($campaign->status, ['sent', 'pending', 'trash', 'in_progress'], true)) {
             wp_die(__('Sorry, you are not allowed to edit this item.'));
         }
+    }
+
+    private function isSiteTemplateCampaign(int $campaignId, string $campaignType): bool
+    {
+        if (in_array($campaignType, ['confirm_email', 'wp_email', 'wc_email'], true)) {
+            return true;
+        }
+
+        $signupConfirmation = mailerpress_get_signup_confirmation_option();
+        if ((int)($signupConfirmation['campaign_id'] ?? 0) === $campaignId) {
+            return true;
+        }
+
+        foreach (['mailerpress_wp_email_templates', 'mailerpress_wc_email_templates'] as $optionName) {
+            $templates = get_option($optionName, []);
+            if (is_string($templates)) {
+                $templates = json_decode($templates, true);
+            }
+
+            if (!is_array($templates)) {
+                continue;
+            }
+
+            foreach ($templates as $template) {
+                if (is_array($template) && (int)($template['campaign_id'] ?? 0) === $campaignId) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
