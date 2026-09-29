@@ -16,7 +16,7 @@ class Users
     #[Endpoint(
         'save-user-preferences',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function post(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {
@@ -67,7 +67,7 @@ class Users
     #[Endpoint(
         'get-user-preferences',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function get(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {
@@ -90,7 +90,7 @@ class Users
     #[Endpoint(
         'save-user-meta',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function saveUserMeta(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {

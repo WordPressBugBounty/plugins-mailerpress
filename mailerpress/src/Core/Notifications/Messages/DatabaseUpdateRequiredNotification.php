@@ -42,7 +42,7 @@ class DatabaseUpdateRequiredNotification extends AbstractNotificationMessage
 	{
 		return [
 			'label' => __( 'Run Database Repair', 'mailerpress' ),
-			'url'   => admin_url( 'admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings&activeView=database-repair' ),
+			'url'   => admin_url( 'admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftools&activeView=database-repair' ),
 		];
 	}
 }

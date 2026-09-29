@@ -47,6 +47,7 @@ class Step
     public function isAction(): bool { return $this->type === 'ACTION'; }
     public function isDelay(): bool { return $this->type === 'DELAY'; }
     public function isCondition(): bool { return $this->type === 'CONDITION'; }
+    public function isGoal(): bool { return $this->type === 'GOAL'; }
 
     public function toArray(): array
     {

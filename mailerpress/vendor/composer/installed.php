@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'emilien/mailerpress',
-        'pretty_version' => 'dev-555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
-        'version' => 'dev-555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
-        'reference' => '555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
+        'pretty_version' => 'dev-990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
+        'version' => 'dev-990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
+        'reference' => '990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => false,
         ),
         'emilien/mailerpress' => array(
-            'pretty_version' => 'dev-555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
-            'version' => 'dev-555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
-            'reference' => '555bc9e6c00c89e6059df377a1f94c3d356a9f8e',
+            'pretty_version' => 'dev-990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
+            'version' => 'dev-990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
+            'reference' => '990b3f5a09f0c007cb52a053c8875c03d5d83ef2',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

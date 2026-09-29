@@ -216,6 +216,7 @@ class CreateCampaignStepHandler implements StepHandlerInterface
                 $postData = [
                     'ID' => $post->ID,
                     'post_title' => $post->post_title,
+                    'category_names' => \MailerPress\Helpers\getPostCategoryNames($post),
                     'post_excerpt' => $post->post_excerpt ?: \wp_trim_words($post->post_content, 55),
                     'post_content' => $post->post_content,
                     'post_date' => $post->post_date,

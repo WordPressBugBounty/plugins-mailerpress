@@ -5,6 +5,10 @@
             <key name="emailSubject" />
             <key name="emailContent" />
         </key>
+        <key name="mailerpress_inactive_subscribers">
+            <key name="reengagement_subject" />
+            <key name="reengagement_content" />
+        </key>
         <key name="woocommerce_mailerpress_settings">
             <key name="subscribe_label" />
         </key>

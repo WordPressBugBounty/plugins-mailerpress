@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkmailerpress||=[]).push([[1910],{91910(s,e,n){n.r(e),n.d(e,{default:()=>i});var r=n(20444),t=n(31395),u=n(10790);const a=[(0,t.qy)()];function i(s){return(0,u.jsx)(r.Ay,{...s,extensions:a})}}}]);

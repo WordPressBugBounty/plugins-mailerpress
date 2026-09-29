@@ -145,6 +145,48 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
             return;
         }
         const originalBtnText = submitBtn.innerHTML;
+        const ajaxUrl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
+
+        function refreshFormNonce() {
+            const requestBody = new URLSearchParams();
+            requestBody.set('action', 'mailerpress_refresh_optin_nonce');
+
+            return fetch(`${ajaxUrl}?_=${Date.now()}`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: requestBody.toString()
+            })
+                .then(response => response.json())
+                .then(response => {
+                    const nonceField = form.querySelector('[name="mailerpress_nonce"]');
+                    if (!response.success || !response.data?.manage_nonce || !nonceField) {
+                        throw new Error('Unable to refresh the form nonce.');
+                    }
+
+                    nonceField.value = response.data.manage_nonce;
+                });
+        }
+
+        function submitForm(nonceRefreshed = false) {
+            return fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                body: new FormData(form)
+            })
+                .then(response => response.json())
+                .then(response => {
+                    if (!response.success && response.data?.code === 'invalid_nonce' && !nonceRefreshed) {
+                        return refreshFormNonce().then(() => submitForm(true));
+                    }
+
+                    return response;
+                });
+        }
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -159,13 +201,7 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
             responseMsg.style.display = 'none';
             responseMsg.textContent = '';
 
-            const formData = new FormData(form);
-
-            fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
-                method: 'POST',
-                body: formData
-            })
-                .then(res => res.json())
+            submitForm()
                 .then(res => {
                     responseMsg.textContent = res.data?.message || '<?php esc_attr_e('Unexpected response',
                             'mailerpress'); ?>';

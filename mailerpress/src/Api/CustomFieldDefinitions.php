@@ -16,7 +16,7 @@ class CustomFieldDefinitions
     #[Endpoint(
         'custom-field/all',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadCustomFields'],
     )]
     public function getAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -55,7 +55,7 @@ class CustomFieldDefinitions
     #[Endpoint(
         'custom-field',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function create(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

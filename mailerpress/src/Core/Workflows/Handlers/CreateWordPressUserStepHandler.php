@@ -5,6 +5,7 @@ namespace MailerPress\Core\Workflows\Handlers;
 use MailerPress\Core\Workflows\Models\Step;
 use MailerPress\Core\Workflows\Models\AutomationJob;
 use MailerPress\Core\Workflows\Results\StepResult;
+use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 
 /**
  * Create WordPress User Step Handler
@@ -21,14 +22,19 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
         return $key === 'create_wp_user';
     }
 
-    private const BLOCKED_ROLES = ['administrator'];
+    private const ALLOWED_ROLES = ['subscriber', 'customer'];
+
+    public static function isAllowedRole($role): bool
+    {
+        return is_string($role) && in_array($role, self::ALLOWED_ROLES, true) && wp_roles()->is_role($role);
+    }
 
     public function getDefinition(): array
     {
         $roles = wp_roles()->get_names();
         $roleOptions = [];
         foreach ($roles as $roleKey => $roleName) {
-            if (in_array($roleKey, self::BLOCKED_ROLES, true)) {
+            if (!self::isAllowedRole($roleKey)) {
                 continue;
             }
             $roleOptions[] = [
@@ -130,6 +136,13 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
 
     public function handle(Step $step, AutomationJob $job, array $context = []): StepResult
     {
+        $automation = (new AutomationRepository())->find((int) $step->getAutomationId());
+        $author = $automation ? (int) ($automation->toArray()['author'] ?? 0) : 0;
+
+        if (!$author || !user_can($author, 'create_users') || !user_can($author, 'promote_users')) {
+            return StepResult::failed(__('The workflow author cannot manage WordPress users.', 'mailerpress'));
+        }
+
         $settings = $step->getSettings();
 
         $email     = sanitize_email($this->replacePlaceholders($settings['email'] ?? '', $context));
@@ -140,7 +153,7 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
         $sendNotification = (bool) ($settings['send_notification'] ?? true);
         $updateExisting   = (bool) ($settings['update_existing'] ?? false);
 
-        if (in_array($role, self::BLOCKED_ROLES, true)) {
+        if (!self::isAllowedRole($role)) {
             return StepResult::failed(
                 sprintf(__('Role "%s" is not allowed in automated workflows.', 'mailerpress'), $role)
             );
@@ -163,6 +176,12 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
                     'status'  => 'already_exists',
                     'message' => __('WordPress user already exists, skipped.', 'mailerpress'),
                 ]);
+            }
+
+            if (is_super_admin($existingUser->ID) || empty($existingUser->roles)
+                || array_diff($existingUser->roles, self::ALLOWED_ROLES)
+                || array_diff(array_keys($existingUser->caps), self::ALLOWED_ROLES)) {
+                return StepResult::failed(__('This WordPress user cannot be updated by a workflow.', 'mailerpress'));
             }
 
             // Update existing user

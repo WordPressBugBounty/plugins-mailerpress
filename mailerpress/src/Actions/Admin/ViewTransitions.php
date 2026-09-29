@@ -20,11 +20,25 @@ class ViewTransitions
             return;
         }
 
+        // Handle incoming WordPress transitions that the browser may skip.
+        wp_print_inline_script_tag('
+            window.addEventListener("pagereveal", function (event) {
+                if (event.viewTransition) {
+                    event.viewTransition.ready.catch(function () {});
+                }
+            });
+        ', ['id' => 'mailerpress-admin-view-transitions']);
+
         $version = defined('MAILERPRESS_VERSION') ? MAILERPRESS_VERSION : null;
 
         wp_register_style(self::OPT_OUT_HANDLE, false, [], $version);
         wp_enqueue_style(self::OPT_OUT_HANDLE);
-        wp_add_inline_style(self::OPT_OUT_HANDLE, '@view-transition { navigation: none; }');
+        wp_add_inline_style(self::OPT_OUT_HANDLE, '
+            @view-transition { navigation: auto; }
+            ::view-transition-group(*),
+            ::view-transition-old(*),
+            ::view-transition-new(*) { animation: none; }
+        ');
     }
 
     #[Action(['admin_enqueue_scripts', 'admin_print_styles', 'wp_print_styles'], priority: 999)]

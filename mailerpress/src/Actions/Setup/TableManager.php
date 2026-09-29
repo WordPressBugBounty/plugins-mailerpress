@@ -14,6 +14,9 @@ use MailerPress\Core\Migrations\Manager;
 
 class TableManager
 {
+    // Bump when migrations change, including within the same plugin release.
+    private const SCHEMA_VERSION = '2026_09_15_100000';
+
     /**
      * Run migrations early on 'init' hook with high priority
      * This ensures migrations run before triggers are registered (which happens on 'init' at default priority)
@@ -28,6 +31,7 @@ class TableManager
 
         $installedVersion = get_option('mailerpress_plugin_version');
         $versionChanged = $installedVersion !== $current_version;
+        $schemaChanged = get_option('mailerpress_schema_version') !== self::SCHEMA_VERSION;
 
         // Always check migrations if version changed. Local migration polling must be explicitly enabled.
         $isDevelopment = (bool) apply_filters(
@@ -35,12 +39,8 @@ class TableManager
             defined('MAILERPRESS_DEV_MIGRATIONS') && MAILERPRESS_DEV_MIGRATIONS
         );
 
-        // Skip migration check ONLY if:
-        // - Version hasn't changed AND
-        // - Not in development mode
-        // This optimizes performance in production while allowing easy local testing
-        // In dev mode, only run migration checks in admin context (not on frontend)
-        if (!$versionChanged && (!$isDevelopment || !is_admin())) {
+        // A new schema must run even when the plugin release number is unchanged.
+        if (!$versionChanged && !$schemaChanged && (!$isDevelopment || !is_admin())) {
             // Version unchanged - skip migration check
             // But still add default data
             add_action('init', [$this, 'addDefaultData'], 20);
@@ -63,11 +63,12 @@ class TableManager
                 $tablesToDrop,
                 $forceMode
             );
-            $manager->run();
+            $completed = $manager->run();
 
-            // Update stored version only if migrations succeeded
-            if ($versionChanged) {
+            // A locked or incomplete run must remain eligible for the next request.
+            if ($completed && ($versionChanged || $schemaChanged)) {
                 update_option('mailerpress_plugin_version', $current_version);
+                update_option('mailerpress_schema_version', self::SCHEMA_VERSION);
 
                 // Run diagnostic to detect issues that migrations didn't fix (e.g. dbDelta silent failures)
                 // If issues are found, an admin notice will prompt the user to run a one-click repair
@@ -75,11 +76,6 @@ class TableManager
             }
         } catch (\Throwable $e) {
             // Log error but don't crash the plugin
-            // Still update version to prevent infinite retry loops (only if version changed)
-            if ($versionChanged) {
-                update_option('mailerpress_plugin_version', $current_version);
-            }
-
             // Optionally show admin notice (if in admin)
             if (is_admin() && current_user_can('manage_options')) {
                 add_action('admin_notices', function () use ($e) {

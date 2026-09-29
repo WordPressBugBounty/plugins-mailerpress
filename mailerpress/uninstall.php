@@ -103,10 +103,11 @@ $wpdb->query(
     WHERE hook LIKE 'mailerpress_%'"
 );
 
-// Delete MailerPress group from Action Scheduler
+// Delete MailerPress groups from Action Scheduler
 $wpdb->query(
     "DELETE FROM {$wpdb->prefix}actionscheduler_groups
-    WHERE slug = 'mailerpress'"
+    WHERE slug = 'mailerpress'
+       OR slug LIKE 'mailerpress\\_campaign\\_%'"
 );
 
 // 8. DELETE PRO PLUGIN IF IT EXISTS

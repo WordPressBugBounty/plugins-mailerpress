@@ -21,31 +21,17 @@ class DatabaseRepairLogger
     public static function init(): void
     {
         try {
-            $uploadDir = wp_upload_dir();
-
-            if (isset($uploadDir['error']) && $uploadDir['error']) {
-                // Fallback si wp_upload_dir échoue
-                $uploadDir['basedir'] = WP_CONTENT_DIR . '/uploads';
-            }
-
-            $logDir = $uploadDir['basedir'] . '/mailerpress-logs';
-
-            // Créer le dossier de logs s'il n'existe pas
-            if (!file_exists($logDir)) {
-                $created = wp_mkdir_p($logDir);
-                if (!$created) {
-                    // Fallback: utiliser le dossier de plugins
-                    $logDir = WP_PLUGIN_DIR . '/mailerpress/logs';
-                    wp_mkdir_p($logDir);
-                }
+            // File output is opt-in (WP_DEBUG_LOG) and goes to the protected log directory.
+            // In-memory logs (getLogs()) keep working regardless.
+            $logDir = DebugFileLogger::getDirectory();
+            if (null === $logDir) {
+                self::$logFile = '';
+                return;
             }
 
             self::$logFile = $logDir . '/database-repair-' . date('Y-m-d') . '.log';
-
-            // Tester l'écriture avec un message initial
-            $testMessage = "[" . date('Y-m-d H:i:s') . "] [INFO] Logger initialisé\n";
-            $written = @file_put_contents(self::$logFile, $testMessage, FILE_APPEND | LOCK_EX);
         } catch (\Throwable $e) {
+            self::$logFile = '';
         }
     }
 
@@ -70,8 +56,11 @@ class DatabaseRepairLogger
             'context' => $context,
         ];
 
-        // Écrire dans le fichier
-        @file_put_contents(self::$logFile, $logEntry, FILE_APPEND | LOCK_EX);}
+        // Écrire dans le fichier (uniquement si WP_DEBUG_LOG est actif)
+        if ('' !== self::$logFile) {
+            @file_put_contents(self::$logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        }
+    }
 
     /**
      * Log une erreur
@@ -191,10 +180,9 @@ class DatabaseRepairLogger
             self::init();
         }
 
-        $uploadDir = wp_upload_dir();
-        $logDir = $uploadDir['basedir'] . '/mailerpress-logs';
+        $logDir = DebugFileLogger::getDirectory();
 
-        if (!is_dir($logDir)) {
+        if (null === $logDir || !is_dir($logDir)) {
             return;
         }
 

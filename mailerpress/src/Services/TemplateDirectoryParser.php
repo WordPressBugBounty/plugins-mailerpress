@@ -77,6 +77,7 @@ class TemplateDirectoryParser
         $category_id = $this->get_or_create_category($category_name);
 
         $json_version = $data['version'] ?? '1.0.0';
+        $content = $this->normalizeContent($data['json'] ?? '');
 
         // Get usage_type from JSON data, default to 'newsletter' for backward compatibility
         $usage_type = $data['usage_type'] ?? 'newsletter';
@@ -94,7 +95,7 @@ class TemplateDirectoryParser
                     $table_name,
                     [
                         'name' => $data['name'] ?? 'Unknown',
-                        'content' => $data['json'] ?? '',
+                        'content' => $content,
                         'description' => $data['description'] ?? '',
                         'updated_at' => current_time('mysql'),
                         'version' => $json_version,
@@ -110,7 +111,7 @@ class TemplateDirectoryParser
                 $table_name,
                 [
                     'name' => $data['name'] ?? 'Unknown',
-                    'content' => $data['json'] ?? '',
+                    'content' => $content,
                     'description' => $data['description'] ?? '',
                     'path' => $file_path,
                     'created_at' => current_time('mysql'),
@@ -164,5 +165,15 @@ class TemplateDirectoryParser
                 $name
             )
         );
+    }
+
+    private function normalizeContent(mixed $content): string
+    {
+        if (is_array($content)) {
+            $encoded = \wp_json_encode($content);
+            return is_string($encoded) ? $encoded : '';
+        }
+
+        return is_string($content) ? $content : '';
     }
 }

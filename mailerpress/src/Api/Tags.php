@@ -7,7 +7,6 @@ namespace MailerPress\Api;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Attributes\Endpoint;
-use MailerPress\Core\Capabilities;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Api\Permissions;
 
@@ -16,7 +15,7 @@ class Tags
     #[Endpoint(
         'tags',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadTags']
     )]
     public function all(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -25,8 +24,8 @@ class Tags
         $tagTable = Tables::get(Tables::MAILERPRESS_TAGS);
         $contactTags = Tables::get(Tables::CONTACT_TAGS);
         $search = $request->get_param('search');
-        $per_page = (int)($request->get_param('perPages') ?? 20);
-        $page = (int)($request->get_param('paged') ?? 1);
+        $per_page = max(1, (int)($request->get_param('perPages') ?? 20));
+        $page = max(1, (int)($request->get_param('paged') ?? 1));
         $offset = ($page - 1) * $per_page;
 
         // Filters
@@ -50,21 +49,20 @@ class Tags
     SELECT
         t.*,
         t.tag_id AS id,
-        COUNT(ct.contact_id) AS contact_count
-    FROM {$tagTable} t
-    LEFT JOIN
-        {$contactTags} ct ON t.tag_id = ct.tag_id
-    WHERE {$where}
-    GROUP BY t.tag_id
+        (SELECT COUNT(ct.contact_id) FROM {$contactTags} ct WHERE ct.tag_id = t.tag_id) AS contact_count
+    FROM (
+        SELECT t.* FROM {$tagTable} t WHERE {$where}
+        ORDER BY {$orderBy} LIMIT %d OFFSET %d
+    ) t
     ORDER BY {$orderBy}
-    LIMIT %d OFFSET %d
 ", [...$params, $per_page, $offset]);
 
-        $total_query = $wpdb->prepare("
+        $total_query = "
 		    SELECT COUNT(*)
 		    FROM {$tagTable} t
 		    WHERE {$where}
-		", $params);
+		";
+        $total_query = $params ? $wpdb->prepare($total_query, $params) : $total_query;
 
         $total_count = (int) $wpdb->get_var($total_query);
 
@@ -90,7 +88,7 @@ class Tags
     #[Endpoint(
         'tag/all',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadTags'],
     )]
     public function getAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -109,7 +107,7 @@ class Tags
     #[Endpoint(
         'tags',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageTags']
     )]
     public function create(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -170,14 +168,6 @@ class Tags
     )]
     public function deleteTag(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
-        if (!current_user_can(Capabilities::DELETE_TAGS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to do that.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         global $wpdb;
 
         $tag_ids = $request->get_param('ids');
@@ -243,18 +233,10 @@ class Tags
     #[Endpoint(
         'tag/all',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canDeleteLists'],
+        permissionCallback: [Permissions::class, 'canDeleteTags'],
     )]
     public function deleteAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
-        if (!current_user_can(Capabilities::DELETE_TAGS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to do that.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         global $wpdb;
         $table_name = Tables::get(Tables::MAILERPRESS_TAGS);
 
@@ -274,7 +256,7 @@ class Tags
     #[Endpoint(
         'tag/(?P<id>\d+)/rename',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageTags'],
     )]
     public function rename(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

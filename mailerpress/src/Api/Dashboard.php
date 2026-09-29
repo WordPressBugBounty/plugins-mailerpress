@@ -4,17 +4,51 @@ namespace MailerPress\Api;
 
 \defined('ABSPATH') || exit;
 
+use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
+use MailerPress\Core\Capabilities;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
 use MailerPress\Models\Batch;
 
 class Dashboard
 {
+    private function campaignOwnerWhere(\WP_REST_Request $request, string $alias = ''): string
+    {
+        if (
+            ApiAuthentication::isApiKeyRequest($request)
+            || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+        ) {
+            return '';
+        }
+
+        global $wpdb;
+
+        $column = $alias === '' ? 'user_id' : "{$alias}.user_id";
+
+        return $wpdb->prepare(" AND {$column} = %d", get_current_user_id());
+    }
+
+    private function automationOwnerWhere(\WP_REST_Request $request, string $alias = ''): string
+    {
+        if (
+            ApiAuthentication::isApiKeyRequest($request)
+            || current_user_can('edit_others_posts')
+        ) {
+            return '';
+        }
+
+        global $wpdb;
+
+        $column = $alias === '' ? 'author' : "{$alias}.author";
+
+        return $wpdb->prepare(" AND {$column} = %d", get_current_user_id());
+    }
+
     #[Endpoint(
         'dashboard/campaigns',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function campaignByIntervalDate(\WP_REST_Request $request)
     {
@@ -22,6 +56,7 @@ class Dashboard
 
         $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $interval = (int) $request->get_param('interval') ?: 30;
+        $ownerWhere = $this->campaignOwnerWhere($request);
 
         $query = $wpdb->prepare("
         SELECT *
@@ -29,6 +64,7 @@ class Dashboard
         WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
           AND (status IS NULL OR status != %s)
           AND (campaign_type IS NULL OR campaign_type = %s)
+          {$ownerWhere}
         ORDER BY created_at DESC
         LIMIT 5
     ", $interval, 'trash', 'newsletter');
@@ -186,7 +222,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/email-batches-by-date',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function emailBatchesByDateRange(\WP_REST_Request $request)
     {
@@ -199,6 +235,7 @@ class Dashboard
         // Fetch start_date and end_date params from the request
         $startDateParam = $request->get_param('start_date');
         $endDateParam = $request->get_param('end_date');
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Ensure the date format is compatible with MySQL
         try {
@@ -248,6 +285,7 @@ class Dashboard
       AND b.scheduled_at <= %s
       AND c.status != 'draft'
       AND c.status != 'trash'
+      {$ownerWhere}
     ORDER BY b.scheduled_at DESC
 ", $startDateFormatted, $endDateFormatted);
 
@@ -461,7 +499,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/click-rate',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function clickRate(\WP_REST_Request $request)
     {
@@ -470,6 +508,7 @@ class Dashboard
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $clickTrackingTable = Tables::get(Tables::MAILERPRESS_CLICK_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Période actuelle : 30 derniers jours
         $currentInterval = 30;
@@ -487,6 +526,7 @@ class Dashboard
                   AND b.scheduled_at < NOW()
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $currentInterval)
         );
 
@@ -495,7 +535,10 @@ class Dashboard
             SELECT
                 COALESCE(COUNT(DISTINCT CASE WHEN contact_id > 0 THEN CONCAT(contact_id, '|', url) END), 0) +
                 COALESCE(COUNT(DISTINCT CASE WHEN contact_id = 0 AND anonymous_key IS NOT NULL THEN CONCAT(anonymous_key, '|', url) END), 0)
-            FROM {$clickTrackingTable}
+            FROM {$clickTrackingTable} ct
+            INNER JOIN {$campaignsTable} c ON ct.campaign_id = c.campaign_id
+            WHERE 1=1
+              {$ownerWhere}
         ");
 
         // Total de clics pour la période précédente (toujours 0 car on ne filtre plus par date)
@@ -515,7 +558,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/open-rate',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function openRate(\WP_REST_Request $request)
     {
@@ -524,6 +567,7 @@ class Dashboard
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Période actuelle : 30 derniers jours
         $currentInterval = 30;
@@ -542,6 +586,7 @@ class Dashboard
                   AND b.sent_emails > 0
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $currentInterval)
         );
 
@@ -549,18 +594,24 @@ class Dashboard
         // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
         // Utiliser des sous-requêtes séparées car COUNT(DISTINCT CASE WHEN ...) peut ne pas fonctionner correctement
         $identifiedOpens = (int)$wpdb->get_var("
-            SELECT COUNT(DISTINCT contact_id)
-            FROM {$trackingTable}
-            WHERE opened_at IS NOT NULL
-              AND contact_id > 0
+            SELECT COUNT(DISTINCT t.contact_id)
+            FROM {$trackingTable} t
+            INNER JOIN {$batchesTable} b ON t.batch_id = b.id
+            INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
+            WHERE t.opened_at IS NOT NULL
+              AND t.contact_id > 0
+              {$ownerWhere}
         ");
 
         $anonymousOpens = (int)$wpdb->get_var("
-            SELECT COUNT(DISTINCT anonymous_key)
-            FROM {$trackingTable}
-            WHERE opened_at IS NOT NULL
-              AND contact_id = 0
-              AND anonymous_key IS NOT NULL
+            SELECT COUNT(DISTINCT t.anonymous_key)
+            FROM {$trackingTable} t
+            INNER JOIN {$batchesTable} b ON t.batch_id = b.id
+            INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
+            WHERE t.opened_at IS NOT NULL
+              AND t.contact_id = 0
+              AND t.anonymous_key IS NOT NULL
+              {$ownerWhere}
         ");
 
         $currentOpens = $identifiedOpens + $anonymousOpens;
@@ -582,13 +633,14 @@ class Dashboard
     #[Endpoint(
         'dashboard/active-campaigns',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function activeCampaigns(\WP_REST_Request $request)
     {
         global $wpdb;
 
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $ownerWhere = $this->campaignOwnerWhere($request);
 
         // Période actuelle : 30 derniers jours
         $currentInterval = 30;
@@ -602,6 +654,7 @@ class Dashboard
                 FROM {$campaignsTable}
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
                   AND (status IS NULL OR (status != 'draft' AND status != 'trash'))
+                  {$ownerWhere}
             ", $currentInterval)
         );
 
@@ -613,6 +666,7 @@ class Dashboard
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
                   AND created_at < DATE_SUB(NOW(), INTERVAL %d DAY)
                   AND (status IS NULL OR (status != 'draft' AND status != 'trash'))
+                  {$ownerWhere}
             ", $currentInterval + $previousInterval, $currentInterval)
         );
 
@@ -633,7 +687,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/contacts-summary',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadAudience'],
     )]
     public function contactsSummary(\WP_REST_Request $request)
     {
@@ -673,18 +727,22 @@ class Dashboard
         // Total unsubscribed contacts
         $unsubscribedTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable} WHERE subscription_status = 'unsubscribed'");
 
+        // Total inactive contacts
+        $inactiveTotal = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$contactsTable} WHERE subscription_status = 'inactive'");
+
         return rest_ensure_response([
             'total_count' => $currentTotal,
             'change' => round($change, 2),
             'bounced' => $bouncedTotal,
             'unsubscribed' => $unsubscribedTotal,
+            'inactive' => $inactiveTotal,
         ]);
     }
 
     #[Endpoint(
         'dashboard/email-performance',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function emailPerformance(\WP_REST_Request $request)
     {
@@ -693,6 +751,7 @@ class Dashboard
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Récupérer la période depuis les paramètres (par défaut 7 jours)
         $interval = (int)$request->get_param('interval') ?: 7;
@@ -708,6 +767,7 @@ class Dashboard
                   AND b.sent_emails > 0
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $interval)
         );
 
@@ -721,6 +781,7 @@ class Dashboard
                   AND b.scheduled_at < NOW()
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $interval)
         );
 
@@ -740,6 +801,7 @@ class Dashboard
                   AND b.sent_emails > 0
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $interval)
         );
 
@@ -759,6 +821,7 @@ class Dashboard
                   AND b.sent_emails > 0
                   AND c.status != 'draft'
                   AND c.status != 'trash'
+                  {$ownerWhere}
             ", $interval)
         );
 
@@ -781,7 +844,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/planned-campaigns',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function plannedCampaigns(\WP_REST_Request $request)
     {
@@ -790,6 +853,7 @@ class Dashboard
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $limit = (int)$request->get_param('limit') ?: 5;
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Récupérer toutes les campagnes draft et scheduled
         // Pour scheduled: récupérer celles avec un batch et scheduled_at
@@ -811,6 +875,7 @@ class Dashboard
                 OR (c.status = 'draft')
             )
             AND c.status != 'trash'
+            {$ownerWhere}
             ORDER BY COALESCE(b.scheduled_at, c.created_at) ASC
             LIMIT %d
         ", $limit);
@@ -842,7 +907,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/unsubscribe-rate',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function unsubscribeRate(\WP_REST_Request $request)
     {
@@ -851,6 +916,7 @@ class Dashboard
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Période actuelle : 30 derniers jours
         $currentInterval = 30;
@@ -860,10 +926,13 @@ class Dashboard
         // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
         $currentUnsubscribes = (int)$wpdb->get_var("
             SELECT
-                COALESCE(COUNT(DISTINCT CASE WHEN contact_id > 0 THEN contact_id END), 0) +
-                COALESCE(COUNT(DISTINCT CASE WHEN contact_id = 0 AND anonymous_key IS NOT NULL THEN anonymous_key END), 0)
-            FROM {$trackingTable}
-            WHERE unsubscribed_at IS NOT NULL
+                COALESCE(COUNT(DISTINCT CASE WHEN t.contact_id > 0 THEN t.contact_id END), 0) +
+                COALESCE(COUNT(DISTINCT CASE WHEN t.contact_id = 0 AND t.anonymous_key IS NOT NULL THEN t.anonymous_key END), 0)
+            FROM {$trackingTable} t
+            INNER JOIN {$batchesTable} b ON t.batch_id = b.id
+            INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
+            WHERE t.unsubscribed_at IS NOT NULL
+              {$ownerWhere}
         ");
 
         // Total de désabonnements pour la période précédente (toujours 0 car on ne filtre plus par date)
@@ -883,7 +952,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/recent-campaigns',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function recentCampaigns(\WP_REST_Request $request)
     {
@@ -893,6 +962,7 @@ class Dashboard
         $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $limit = (int)$request->get_param('limit') ?: 5;
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
         $query = $wpdb->prepare("
             SELECT
@@ -910,6 +980,7 @@ class Dashboard
             WHERE c.status = 'sent'
             AND c.status != 'trash'
             AND b.sent_emails > 0
+            {$ownerWhere}
             ORDER BY b.created_at DESC
             LIMIT %d
         ", $limit);
@@ -1034,7 +1105,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/contact-growth',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadAudience'],
     )]
     public function contactGrowth(\WP_REST_Request $request)
     {
@@ -1123,7 +1194,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/top-performing-campaigns',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function topPerformingCampaigns(\WP_REST_Request $request)
     {
@@ -1134,8 +1205,9 @@ class Dashboard
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $clickTrackingTable = Tables::get(Tables::MAILERPRESS_CLICK_TRACKING);
         $limit = (int)$request->get_param('limit') ?: 5;
+        $ownerWhere = $this->campaignOwnerWhere($request, 'c');
 
-        $query = $wpdb->prepare("
+        $query = "
             SELECT
                 c.campaign_id,
                 c.name,
@@ -1151,8 +1223,9 @@ class Dashboard
             WHERE c.status = 'sent'
             AND c.status != 'trash'
             AND b.sent_emails > 0
+            {$ownerWhere}
             ORDER BY b.created_at DESC
-        ");
+        ";
 
         $results = $wpdb->get_results($query);
 
@@ -1272,22 +1345,23 @@ class Dashboard
     #[Endpoint(
         'dashboard/active-workflows',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
     )]
     public function activeWorkflows(\WP_REST_Request $request)
     {
         global $wpdb;
 
         $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
+        $ownerWhere = $this->automationOwnerWhere($request);
 
         // Compter les workflows actifs (ENABLED)
         $activeWorkflows = (int)$wpdb->get_var(
-            "SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'ENABLED'"
+            "SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'ENABLED'{$ownerWhere}"
         );
 
         // Compter les workflows totaux
         $totalWorkflows = (int)$wpdb->get_var(
-            "SELECT COUNT(*) FROM {$automationsTable}"
+            "SELECT COUNT(*) FROM {$automationsTable} WHERE 1=1{$ownerWhere}"
         );
 
         // Calculer le changement (comparaison avec la période précédente - 30 jours)
@@ -1295,7 +1369,8 @@ class Dashboard
             $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$automationsTable}
                 WHERE status = 'ENABLED'
-                AND updated_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
+                AND updated_at < DATE_SUB(NOW(), INTERVAL %d DAY)
+                {$ownerWhere}",
                 30
             )
         );
@@ -1317,13 +1392,15 @@ class Dashboard
     #[Endpoint(
         'dashboard/workflow-jobs',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
     )]
     public function workflowJobs(\WP_REST_Request $request)
     {
         global $wpdb;
 
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
+        $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
+        $ownerWhere = $this->automationOwnerWhere($request, 'a');
 
         // Période actuelle : 30 derniers jours
         $currentInterval = 30;
@@ -1333,9 +1410,11 @@ class Dashboard
         // Calcul pour la période actuelle (30 derniers jours)
         $currentJobs = (int)$wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$jobsTable}
-                WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
-                AND created_at < NOW()",
+                "SELECT COUNT(*) FROM {$jobsTable} j
+                INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+                WHERE j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                AND j.created_at < NOW()
+                {$ownerWhere}",
                 $currentInterval
             )
         );
@@ -1343,9 +1422,11 @@ class Dashboard
         // Calcul pour la période précédente (jours 31-60)
         $previousJobs = (int)$wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$jobsTable}
-                WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
-                AND created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
+                "SELECT COUNT(*) FROM {$jobsTable} j
+                INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+                WHERE j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                AND j.created_at < DATE_SUB(NOW(), INTERVAL %d DAY)
+                {$ownerWhere}",
                 $currentInterval + $previousInterval,
                 $currentInterval
             )
@@ -1353,8 +1434,10 @@ class Dashboard
 
         // Jobs actifs (en cours)
         $activeJobs = (int)$wpdb->get_var(
-            "SELECT COUNT(*) FROM {$jobsTable}
-            WHERE status IN ('ACTIVE', 'PROCESSING', 'WAITING')"
+            "SELECT COUNT(*) FROM {$jobsTable} j
+            INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+            WHERE j.status IN ('ACTIVE', 'PROCESSING', 'WAITING')
+            {$ownerWhere}"
         );
 
         // Calcul du changement en pourcentage
@@ -1375,7 +1458,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/recent-workflows',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
     )]
     public function recentWorkflows(\WP_REST_Request $request)
     {
@@ -1384,6 +1467,7 @@ class Dashboard
         $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
         $limit = (int)$request->get_param('limit') ?: 5;
+        $ownerWhere = $this->automationOwnerWhere($request, 'a');
 
         // Récupérer les workflows actifs et en brouillon avec leurs statistiques
         $query = $wpdb->prepare(
@@ -1400,6 +1484,7 @@ class Dashboard
             FROM {$automationsTable} a
             LEFT JOIN {$jobsTable} j ON a.id = j.automation_id
             WHERE a.status IN ('ENABLED', 'DRAFT')
+            {$ownerWhere}
             GROUP BY a.id, a.name, a.status, a.updated_at
             ORDER BY a.updated_at DESC
             LIMIT %d",
@@ -1436,26 +1521,30 @@ class Dashboard
     #[Endpoint(
         'dashboard/automation-activity',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
     )]
     public function automationActivity(\WP_REST_Request $request)
     {
         global $wpdb;
 
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
+        $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
         $interval = (int) $request->get_param('interval') ?: 7;
+        $ownerWhere = $this->automationOwnerWhere($request, 'a');
 
         // Get jobs grouped by day within the interval
         $results = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT
-                    DATE(created_at) as date,
+                    DATE(j.created_at) as date,
                     COUNT(*) as total,
-                    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
-                    SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed
-                FROM {$jobsTable}
-                WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
-                GROUP BY DATE(created_at)
+                    SUM(CASE WHEN j.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN j.status = 'FAILED' THEN 1 ELSE 0 END) as failed
+                FROM {$jobsTable} j
+                INNER JOIN {$automationsTable} a ON j.automation_id = a.id
+                WHERE j.created_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+                {$ownerWhere}
+                GROUP BY DATE(j.created_at)
                 ORDER BY date ASC",
                 $interval
             ),
@@ -1508,7 +1597,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/best-open-day',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function bestOpenDay(\WP_REST_Request $request)
     {
@@ -1516,6 +1605,9 @@ class Dashboard
 
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $batchesTable  = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $trackingOwnerWhere = $this->campaignOwnerWhere($request, 'tc');
+        $batchOwnerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Get open rate by day people actually opened (not send day).
         // total_sent is computed in a subquery to avoid LEFT JOIN inflation.
@@ -1528,12 +1620,17 @@ class Dashboard
                     COUNT(t.id) * 100.0 / NULLIF(bs.total_sent, 0),
                 2) AS open_rate
             FROM {$trackingTable} t
+            INNER JOIN {$batchesTable} tb ON t.batch_id = tb.id
+            INNER JOIN {$campaignsTable} tc ON tb.campaign_id = tc.campaign_id
             INNER JOIN (
-                SELECT SUM(total_emails) AS total_sent
-                FROM {$batchesTable}
-                WHERE status = 'sent'
+                SELECT SUM(b.total_emails) AS total_sent
+                FROM {$batchesTable} b
+                INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
+                WHERE b.status = 'sent'
+                {$batchOwnerWhere}
             ) bs ON 1=1
             WHERE t.opened_at IS NOT NULL
+            {$trackingOwnerWhere}
             GROUP BY DAYOFWEEK(t.opened_at)
             HAVING COUNT(t.id) >= 10
             ORDER BY open_rate DESC
@@ -1568,7 +1665,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/best-open-hour',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canManageCampaign'],
     )]
     public function bestOpenHour(\WP_REST_Request $request)
     {
@@ -1576,7 +1673,10 @@ class Dashboard
 
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $batchesTable  = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $timeFormat    = get_option('time_format', 'H:i');
+        $trackingOwnerWhere = $this->campaignOwnerWhere($request, 'tc');
+        $batchOwnerWhere = $this->campaignOwnerWhere($request, 'c');
 
         // Optional day filter: MySQL DAYOFWEEK (1=Sunday … 7=Saturday)
         $day = absint( $request->get_param( 'day' ) );
@@ -1597,12 +1697,17 @@ class Dashboard
                     COUNT(t.id) * 100.0 / NULLIF(bs.total_sent, 0),
                 2) AS open_rate
             FROM {$trackingTable} t
+            INNER JOIN {$batchesTable} tb ON t.batch_id = tb.id
+            INNER JOIN {$campaignsTable} tc ON tb.campaign_id = tc.campaign_id
             INNER JOIN (
-                SELECT SUM(total_emails) AS total_sent
-                FROM {$batchesTable}
-                WHERE status = 'sent'
+                SELECT SUM(b.total_emails) AS total_sent
+                FROM {$batchesTable} b
+                INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
+                WHERE b.status = 'sent'
+                {$batchOwnerWhere}
             ) bs ON 1=1
             WHERE t.opened_at IS NOT NULL
+            {$trackingOwnerWhere}
             {$dayFilterTracking}
             GROUP BY HOUR(t.opened_at)
             HAVING COUNT(t.id) >= 10
@@ -1637,7 +1742,7 @@ class Dashboard
     #[Endpoint(
         'dashboard/audience-growth',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadAudience'],
     )]
     public function audienceGrowth(\WP_REST_Request $request)
     {

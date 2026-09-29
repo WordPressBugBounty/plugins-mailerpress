@@ -10,6 +10,7 @@ use MailerPress\Blocks\PatternsCategories;
 use MailerPress\Blocks\TemplatesCategories;
 use MailerPress\Api\Options;
 use MailerPress\Core\Attributes\Action;
+use MailerPress\Core\Capabilities;
 use MailerPress\Core\CapabilitiesManager;
 use MailerPress\Core\Attributes\Filter;
 use MailerPress\Core\EmailManager\EmailServiceInterface;
@@ -60,12 +61,14 @@ class Editor
 
         if (file_exists(Kernel::$config['root'] . '/build/dist/js/mail-editor.asset.php')) {
             $asset_file = include Kernel::$config['root'] . '/build/dist/js/mail-editor.asset.php';
+            $script_path = Kernel::$config['root'] . '/build/dist/js/mail-editor.js';
+            $script_version = $asset_file['version'] . '-' . (file_exists($script_path) ? filemtime($script_path) : time());
 
             wp_register_script(
                 'mail-editor',
                 Kernel::$config['rootUrl'] . 'build/dist/js/mail-editor.js',
-                $asset_file['dependencies'],
-                $asset_file['version'],
+                array_merge($asset_file['dependencies'], $this->registerInitialChunks('dist/js/mail-editor')),
+                $script_version,
                 ['in_footer' => true]
             );
 
@@ -81,6 +84,8 @@ class Editor
                 'fromAddress' => get_bloginfo('admin_email'),
                 'fromName' => get_bloginfo('name'),
             ]));
+
+            $emailSenders = self::getEmailSenders();
 
             $whiteLabel = apply_filters('mailerpress_white_label_options', [
                 'white_label_active' => false,
@@ -99,11 +104,25 @@ class Editor
                 $globalTypographySettings = json_decode($globalTypographySettings, true);
             }
 
+            $themeStyles = Kernel::getContainer()->get(ThemeStyles::class)->getThemeStyles();
+            $activeTheme = get_option('mailerpress_theme', 'Core');
+            if (!is_string($activeTheme) || !isset($themeStyles[$activeTheme])) {
+                $activeTheme = 'Core';
+            }
+            $isBlockTheme = function_exists('wp_is_block_theme') && wp_is_block_theme();
+            $hasThemeJson = $isBlockTheme
+                && function_exists('wp_theme_has_theme_json')
+                && wp_theme_has_theme_json();
+
             wp_localize_script('mail-editor', 'jsVars', [
+                'mergeTagGroups' => Kernel::getContainer()->get(\MailerPress\Core\MergeTags::class)->getEditorGroups(),
                 'licenceActivated' => get_option('mailerpress_license_activated', false),
                 'autoSave' => apply_filters('mailerpress_editor_auto_save', MINUTE_IN_SECONDS),
                 'userCaps' => CapabilitiesManager::getCurrentUserCaps(),
-                'bounceConfig' => get_option('mailerpress_bounce_config'),
+                'canManageRoleAccess' => current_user_can('manage_options') && current_user_can('promote_users'),
+                'bounceConfig' => current_user_can(Capabilities::MANAGE_SETTINGS)
+                    ? get_option('mailerpress_bounce_config')
+                    : [],
                 'hasCompletedSetup' => get_user_meta(
                     get_current_user_id(),
                     'mailerpress_setup_completed',
@@ -117,13 +136,15 @@ class Editor
                     'codeEditorTheme' => 'light',
                 ], $userPreferences),
                 'home' => home_url(),
-                'activeTheme' => get_option('mailerpress_theme', 'Core'),
+                'activeTheme' => $activeTheme,
                 'frequencySending' => get_option('mailerpress_frequency_sending', false),
                 'adminEmail' => get_bloginfo('admin_email'),
                 'campaign' => $post,
                 'patternCategories' => Kernel::getContainer()->get(PatternsCategories::class)->getCategories(),
                 'templateCategories' => Kernel::getContainer()->get(TemplatesCategories::class)->getCategories(),
                 'templatesMapping' => Kernel::getContainer()->get(TemplatesCategories::class)->getTemplatesGroupByCategories(),
+                'newsletterTemplateCategories' => Kernel::getContainer()->get(TemplatesCategories::class)->getCategories('newsletter'),
+                'newsletterTemplatesMapping' => Kernel::getContainer()->get(TemplatesCategories::class)->getTemplatesGroupByCategories('newsletter'),
                 'adminUrl' => admin_url('admin.php'),
                 'adminReturn' => admin_url(),
                 'pluginInited' => $this->checkPluginInit(),
@@ -158,15 +179,17 @@ class Editor
                 'savedPatterns' => formatPatternsForEditor(Kernel::getContainer()->get(PatternModel::class)->getAll()),
                 'contactTags' => Kernel::getContainer()->get(Tags::class)->getAll(),
                 'endpointBase' => \sprintf('/%s/', esc_html(Kernel::getContainer()->get('rest_namespace'))),
-                'themeStyles' => Kernel::getContainer()->get(ThemeStyles::class)->getThemeStyles(),
-                'globalStyles' => wp_get_global_styles(),
+                'themeStyles' => $themeStyles,
+                'globalStyles' => wp_get_global_styles([], ['transforms' => ['resolve-variables']]),
                 'globalSettings' => wp_get_global_settings(),
                 'defaultBlocksSettings' => Kernel::getContainer()->get(ThemeStyles::class)->loadJsonSettings(),
-                'isBlockTheme' => function_exists('wp_is_block_theme') ? wp_is_block_theme() : false,
+                'isBlockTheme' => $isBlockTheme,
+                'hasThemeJson' => $hasThemeJson,
                 'emailServiceConfiguration' => Options::redactEmailServicesForResponse(
                     Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations()
                 ),
                 'globalSender' => $globalSender,
+                'emailSenders' => $emailSenders,
                 'nonce' => wp_create_nonce('wp_rest'),
                 'editorFonts' => get_option('mailerpress_fonts_v2', []),
                 'pluginDirUrl' => Kernel::$config['rootUrl'],
@@ -196,6 +219,8 @@ class Editor
                 'timeFormat' => get_option( 'time_format', 'g:i a' ),
                 'hasWooCommerce' => function_exists('wc_get_products'),
                 'locale' => get_user_locale(),
+                'adminLocale' => get_user_locale(),
+                'siteLocale' => get_locale(),
                 'links' => \MailerPress\Core\ExternalLinks::all(),
                 'manage_link' => [
                     'subscription' => mailerpress_get_page('unsub_page'),
@@ -213,11 +238,23 @@ class Editor
                 'activeIntegrations' => [
                     'gravity_forms' => is_plugin_active('gravityforms/gravityforms.php'),
                     'cf7'           => is_plugin_active('contact-form-7/wp-contact-form-7.php'),
+                    'kadence_forms' => is_plugin_active('kadence-blocks/kadence-blocks.php'),
                     'elementor'     => is_plugin_active('elementor/elementor.php'),
                     'bricks'        => is_plugin_active('bricks/bricks.php'),
                     'fluent_form'   => is_plugin_active('fluentform/fluentform.php'),
+                    'surecart'      => is_plugin_active('surecart/surecart.php')
+                        || class_exists('\SureCart\SureCart')
+                        || class_exists('\SureCart\Models\Purchase')
+                        || function_exists('surecart')
+                        || defined('SURECART_PLUGIN_FILE'),
+                    'fluentcart'    => is_plugin_active('fluent-cart/fluent-cart.php')
+                        || is_plugin_active('fluentcart/fluentcart.php')
+                        || defined('FLUENTCART_VERSION')
+                        || defined('FLUENT_CART_DIR_FILE'),
                     'divi'          => defined('ET_BUILDER_VERSION'),
                     'woocommerce'   => is_plugin_active('woocommerce/woocommerce.php'),
+                    'easy_digital_downloads' => is_plugin_active('easy-digital-downloads/easy-digital-downloads.php')
+                        || is_plugin_active('easy-digital-downloads-pro/easy-digital-downloads.php'),
                     'pmpro'         => function_exists('pmpro_hasMembershipLevel'),
 
                     'bit_flows'     => is_plugin_active('bit-flows/bit-flows.php'),
@@ -226,25 +263,6 @@ class Editor
                     'sure_forms'    => is_plugin_active('sureforms/sureforms.php'),
                 ],
             ]);
-        }
-
-        $buildPath = Kernel::$config['root'] . '/build/';
-        $buildUrl = rtrim(Kernel::$config['rootUrl'], '/') . '/build/';
-
-        foreach (glob($buildPath . '*.asset.php') as $assetFile) {
-            $vendorFile = include $assetFile;
-            $jsFile = basename(str_replace('.asset.php', '.js', $assetFile));
-            $handle = 'mailerpress-editor-js-' . pathinfo($jsFile, PATHINFO_FILENAME);
-
-            wp_register_script(
-                $handle,
-                $buildUrl . $jsFile,
-                array_merge($vendorFile['dependencies'], ['wp-i18n']),
-                $vendorFile['version'] ?? false,
-                true // in footer
-            );
-
-            wp_enqueue_script($handle);
         }
 
         if (file_exists(Kernel::$config['root'] . '/build/dist/css/mail-editor.asset.php')) {
@@ -262,7 +280,7 @@ class Editor
             wp_enqueue_script(
                 'mailerpress-pro-workflow',
                 Kernel::$config['rootUrl'] . 'build/dist/js/mailerpress-pro-workflow.js',
-                $asset_file_2['dependencies'],
+                array_merge($asset_file_2['dependencies'], $this->registerInitialChunks('dist/js/mailerpress-pro-workflow')),
                 $asset_file_2['version'],
                 ['in_footer' => true]
             );
@@ -274,6 +292,44 @@ class Editor
             [], // no dependencies or add if needed
             MAILERPRESS_VERSION
         );
+    }
+
+    /** Register webpack's initial dependencies, leaving lazy chunks to its runtime. */
+    private function registerInitialChunks(string $entry): array
+    {
+        $buildPath = Kernel::$config['root'] . '/build/';
+        $buildUrl = rtrim(Kernel::$config['rootUrl'], '/') . '/build/';
+        $manifestPath = $buildPath . 'entrypoints.json';
+        if (file_exists($manifestPath)) {
+            $manifest = json_decode((string) file_get_contents($manifestPath), true);
+            $files = $manifest[$entry] ?? [];
+        } else {
+            // Support installations built before the entrypoint manifest was introduced.
+            $files = array_map(
+                static fn ($file) => basename(str_replace('.asset.php', '.js', $file)),
+                glob($buildPath . '*.asset.php') ?: []
+            );
+        }
+
+        $handles = [];
+        foreach ($files as $file) {
+            if ($file === $entry . '.js') {
+                continue;
+            }
+            $assetPath = $buildPath . substr($file, 0, -3) . '.asset.php';
+            $asset = file_exists($assetPath) ? include $assetPath : [];
+            $handle = 'mailerpress-editor-js-' . pathinfo($file, PATHINFO_FILENAME);
+            wp_register_script(
+                $handle,
+                $buildUrl . $file,
+                array_merge($asset['dependencies'] ?? [], ['wp-i18n']),
+                $asset['version'] ?? (string) filemtime($buildPath . $file),
+                true
+            );
+            $handles[] = $handle;
+        }
+
+        return $handles;
     }
 
     #[Action('admin_head')]
@@ -381,6 +437,54 @@ class Editor
                 return !$isE2eCaptureProvider;
             }
         ));
+    }
+
+    public static function getEmailSenders(): array
+    {
+        $senders = get_option( 'mailerpress_email_senders', '' );
+
+        if ( is_string( $senders ) && ! empty( $senders ) ) {
+            $senders = json_decode( $senders, true );
+        }
+
+        if ( is_array( $senders ) && ! empty( $senders ) ) {
+            return $senders;
+        }
+
+        $defaultSettings = get_option( 'mailerpress_default_settings', [] );
+        if ( is_string( $defaultSettings ) ) {
+            $defaultSettings = json_decode( $defaultSettings, true ) ?: [];
+        }
+
+        $globalSender = get_option( 'mailerpress_global_email_senders', '' );
+        if ( is_string( $globalSender ) && ! empty( $globalSender ) ) {
+            $globalSender = json_decode( $globalSender, true ) ?: [];
+        }
+
+        $fromAddress = $defaultSettings['fromAddress']
+            ?? ( is_array( $globalSender ) ? ( $globalSender['fromAddress'] ?? '' ) : '' );
+        $fromName = $defaultSettings['fromName']
+            ?? ( is_array( $globalSender ) ? ( $globalSender['fromName'] ?? '' ) : '' );
+        $replyToAddress = $defaultSettings['replyToAddress'] ?? '';
+        $replyToName = $defaultSettings['replyToName'] ?? '';
+
+        if ( empty( $fromAddress ) ) {
+            $fromAddress = get_bloginfo( 'admin_email' );
+        }
+        if ( empty( $fromName ) ) {
+            $fromName = get_bloginfo( 'name' );
+        }
+
+        return [
+            [
+                'id'             => 'default',
+                'fromAddress'    => $fromAddress,
+                'fromName'       => $fromName,
+                'replyToAddress' => $replyToAddress,
+                'replyToName'    => $replyToName,
+                'isDefault'      => true,
+            ],
+        ];
     }
 
     public function checkPluginInit(): bool

@@ -72,6 +72,8 @@ class ApiAuthFilters
             '/campaigns/sent',
             // Visitor subscribe form — must work for non-logged-in users
             '/my-lists/subscribe',
+            // RFC 8058 one-click unsubscribe — POST sent by mailbox providers (Gmail, Outlook)
+            '/one-click-unsubscribe',
         ];
 
         foreach ($public_patterns as $pattern) {
@@ -101,9 +103,14 @@ class ApiAuthFilters
             $has_valid_nonce = $nonce && false !== wp_verify_nonce($nonce, 'wp_rest');
 
             if (!$has_api_key && !$has_valid_nonce) {
+                $is_contact_submission = 'POST' === strtoupper($_SERVER['REQUEST_METHOD'] ?? '')
+                    && 1 === preg_match('#/mailerpress/v1/contact/?(?:\?.*)?$#', $request_uri);
+
                 return new \WP_Error(
-                    'rest_not_authenticated',
-                    __('Authentication required.', 'mailerpress'),
+                    $is_contact_submission ? 'invalid_nonce' : 'rest_not_authenticated',
+                    $is_contact_submission
+                        ? __('Security check failed. Please try again.', 'mailerpress')
+                        : __('Authentication required.', 'mailerpress'),
                     ['status' => 401]
                 );
             }

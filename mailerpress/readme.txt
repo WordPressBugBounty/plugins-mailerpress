@@ -4,8 +4,8 @@ Contributors: mailerpress, seopress, rainbowgeek, maigret
 Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
-Tested up to: 7.0
-Stable tag: 2.0.7
+Tested up to: 7.1
+Stable tag: 2.1.0
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -260,102 +260,34 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
-= 2.0.7 =
-* NEW: Give your MailerPress subscription pages a polished, on-brand look with ready-made layouts, custom colors, logos, typography, buttons, and instant desktop or mobile previews with MailerPress Pro.
-* IMPROVEMENT: Subscription preference pages are now clearer and more mobile-friendly, with easy-to-read list cards and visible subscription statuses.
-* IMPROVEMENT: Find contacts faster by searching names, email addresses, list and tag names, opt-in sources, custom field values, or contact IDs.
-* IMPROVEMENT: The Social block now supports more networks, reusable profile settings, multiple icon styles and sizes, horizontal or vertical layouts, and easier on-canvas editing.
-* IMPROVEMENT: Build a custom compliant footer in MailerPress Pro: the default footer now unlocks when a visible unsubscribe or manage-subscription link is present and locks again if that link is removed.
-* FIX: Subscription and unsubscribe confirmation pages now display more consistently across layouts and screen sizes.
-* FIX: Manually selected posts in Query blocks now stay in place when automated campaigns are prepared for sending.
-* FIX: Query blocks now return the expected posts without WordPress sticky-post behavior changing their order or selection.
-* FIX: Click-tracking links now work more reliably with WordPress permalink structures that require trailing slashes.
-* FIX: Writing in the email editor is more reliable: ordinary slashes are preserved, Enter creates and focuses the next text block correctly, and placeholder interactions no longer interrupt editing.
-* FIX: Adding columns and layouts now preserves valid email structure instead of creating nested columns or losing surrounding content.
-* FIX: Creating campaigns from custom templates no longer adds a duplicate default footer when the template already contains a valid unsubscribe or manage-subscription link.
-
-= 2.0.6 =
-* IMPROVEMENT: Build better-looking emails faster with direct image resizing in the editor, live drag handles, instant previews, and layout-aware limits that help your design stay clean.
-* IMPROVEMENT: Turn titles and section headings into clear calls to action by adding links directly from the heading toolbar.
-* IMPROVEMENT: Fine-tune your email design with per-corner border radius controls for buttons, sections, columns, hero blocks, and images.
-* IMPROVEMENT: Writing and editing email content now feels more natural, with smoother text splitting and better cursor placement when pressing Enter.
-* FIX: Abandoned Cart automations now capture more guest checkout activity once a shopper enters an email address, helping you recover carts even before an account is created.
-* FIX: Cart recovery emails now bring shoppers back to checkout with their saved items restored, including older emails that used a standard "Complete my order" button.
-* FIX: The default Abandoned Cart Reminder template now uses the dedicated Cart Recovery Button, and the button text can be edited directly on the email canvas.
-* FIX: Creating an email from a template inside an automation now avoids the brief "no email template assigned" warning and keeps the selected template attached more reliably.
-* FIX: Background contact imports are more dependable for larger files, reducing the risk of imports stopping before every contact is processed.
-* FIX: Table blocks are easier to edit with a larger editing view, and common editor actions such as paste, undo, redo, and slash block insertion now behave more naturally while typing.
-* FIX: Automated campaigns now keep sender details up to date when default sender settings change.
-* FIX: WooCommerce automation icons now display cleanly in the workflow editor.
-* FIX: Improved editor reliability for footer patterns, pattern insertion, merge-tag links, email rendering, and text editing.
-* FIX: Font choices are now saved more consistently when email HTML contains encoded font names.
-* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
-
-= 2.0.5 =
-* IMPROVEMENT: Smoother contact management across imports, APIs, workflows, and webhooks.
-* IMPROVEMENT: Better CSV imports with cleaner field mapping and more reliable large-file processing.
-* IMPROVEMENT: Query Block filtering is now easier to extend for advanced Post Meta and ACF use cases.
-* IMPROVEMENT: Action Scheduler checks and chunk workers now run with less overhead and stop recurring workers when no chunks remain.
-* FIX: Automated campaigns now keep their schedule in sync when deactivated, restored, trashed, or deleted.
-* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
-
-= 2.0.4 =
-* IMPROVEMENT: More reliable open tracking, with faster pixel responses and improved accuracy across email clients.
-* IMPROVEMENT: Smarter sending performance that reduces server load by running workers only when emails are waiting to be sent.
-* IMPROVEMENT: Faster and smoother batch sending for larger campaigns, helping high-volume newsletters move through the queue more efficiently.
-* FIX: Automation email templates now open more reliably on sites where third-party plugins perform database activity during campaign creation.
-* FIX: Gmail connection is now smoother and more dependable during OAuth setup.
-* FIX: Gmail accounts now stay connected correctly after the first authorization instead of appearing expired right away.
-* FIX: Contact export emails are now sent correctly by ensuring the export Action Scheduler callbacks are registered.
-* FIX: The "View in Browser" link now stays in place after editing text blocks.
-* SECURITY: Additional hardening to keep MailerPress safer and more reliable.
-
-= 2.0.3 =
-* NEW: Introduced the new Product Review block for post-purchase review request emails with dynamic product cards and “Leave a Review” buttons
-* IMPROVEMENT: Added new ESP sending configurations for improved flexibility and compatibility
-* IMPROVEMENT: Added more spacing and padding controls for the Post Content block
-* IMPROVEMENT: Enhanced workflow editor navigation with a clearer “Back to automation” experience
-* FIX: Fixed workflows not being re-evaluated after double opt-in confirmation
-* FIX: Fixed MailerPress workflow conditions not being evaluated correctly
-* FIX: Fixed incorrect contacts API filtering results for certain fields
-* FIX: Fixed Countdown block timezone and display inconsistencies
-* FIX: Fixed campaign revisions not loading correctly in some cases
-* FIX: Fixed manage subscription page layout and styling issues
-* FIX: Fixed ESP bounce webhook handlers returning HTTP 500 errors for unknown email addresses, preventing endless retries from providers such as SMTP2GO, Mailgun, and Brevo
-* FIX: Raw HTML campaigns now enforce unsubscribe and manage subscription links for GDPR compliance, including warning notices and quick-insert helpers
-* SECURITY: Fixed a privilege escalation vulnerability in the workflow REST API
-* SECURITY: Restricted the “Create WordPress User” action from assigning the Administrator role
-
-= 2.0.2 =
-* FIX: Fixed a bug where inserting columns in the editor removed previously added content
-* FIX: Fixed a fatal error occurring in the workflow system under certain conditions
-* FIX: Fixed incorrect calculations in the “Best open days/hours” widget
-* FIX: Fixed an issue where confirming a subscription with a custom URL could result in a blank page
-* FIX: Fixed an issue where the public URL displayed unwanted HTML code
-* IMPROVEMENT: You can now filter your contact list using the new segment filters
-* IMPROVEMENT: WordPress user sync now loads all roles directly from the settings page
-* IMPROVEMENT: Enhanced Query Block support for post meta with improved date format display
-
-= 2.0.1 =
-* FIX: Dashboard access issue causing an error and dark screen for some users
-* FIX: MailerPress Opt-in Form Gutenberg block returning a 401 unauthorized error when used inside an FSE template
-
-= 2.0 <a href="https://mailerpress.com/mailerpress-2-0/">Read the blog post update</a> =
-* NEW: Advanced Automation System [Beta] – Create sophisticated email workflows with a visual automation builder, including trigger-based campaigns, conditional logic, and multi-step workflows to automate your entire email marketing funnel.
-* NEW: Multiple Email Editors – Choose from three powerful editors when creating campaigns: Visual Editor (drag-and-drop builder with blocks and templates) and Raw HTML Editor (paste or write HTML code directly for pre-built templates).
-* NEW: WordPress Email Customization – Customize all system emails with your branded email templates using the MailerPress editor, including new user welcome emails, password resets, comment notifications, admin alerts, and automatic update notifications. Replace default WordPress emails with professional designs.
-* NEW: WooCommerce Email Customization – Fully customize WooCommerce transactional emails, including order confirmations, customer invoices, shipment notifications, low stock alerts, and more using the MailerPress email editor with dynamic merge tags for product details and order information.
-* NEW: Three New Email Service Providers – Added support for Resend, EmailIt, and SMTP2GO, expanding your sending options with reliable and scalable email delivery services. Each provider includes bounce tracking and webhook support.
-* NEW: WordPress Default ESP – Use the native WordPress wp_mail() function for email sending, fully compatible with all major third-party SMTP plugins (WP Mail SMTP, Brevo, Mailgun, etc.) for seamless integration with your existing WordPress email infrastructure.
-* NEW: Divi Builder Integration – Native integration with Divi Builder's opt-in email module, allowing seamless subscriber capture directly from Divi email modules with automatic list and tag assignment.
-* NEW: Notification Center – Intelligent notification system that automatically checks site configuration and displays contextual alerts for issues (WP-Cron disabled, missing setup steps) and product updates. Notifications can be dismissed permanently or temporarily.
-* NEW: WordPress users can now be synchronized directly with MailerPress.
-* NEW: You can now translate some MailerPress settings using the new wpml-config file.
-* IMPROVEMENT: The Query Block now supports post meta in addition to ACF.
-* IMPROVEMENT: White Label now allows you to hide premium templates if needed.
-* IMPROVEMENT: Improved Review & Send modal UX/UI.
-* IMPROVEMENT: Template Creation – Create and save email templates directly without needing to create a campaign first. Templates can now be managed independently for reuse across multiple campaigns.
-* IMPROVEMENT: API Key Management – Enhanced API key management to provide access to the MailerPress public API with granular permission controls, allowing you to restrict access to specific resources (contacts, campaigns, lists, etc.) and configure rate limits and IP restrictions per key.
-* SECURITY: Fixed REST API authentication to enforce API key scopes on all protected endpoints, preventing unauthorized access to restricted operations.
+= 2.1 <a href="https://mailerpress.com/mailerpress-2-1/">Read the blog post update</a> =
+* NEW: Conditional Block Display — Personalize email blocks using contact data, engagement, and WooCommerce purchase history.
+* NEW: A/B Testing with MailerPress Pro — Test up to five campaign variations and choose a winner based on opens or clicks.
+* NEW: Migration Center — Import contacts, lists, tags, and custom fields from MailPoet or Newsletter, plus external email platforms with MailerPress Pro.
+* NEW: Contact Engagement — Identify inactive subscribers and send a re-engagement email. MailerPress Pro also lets you resend campaigns to contacts who did not open or click.
+* NEW: Multiple Sender Addresses — Save multiple sender identities and choose one for each campaign.
+* NEW: MailerPress Pro integrations for SureCart, FluentCart, Easy Digital Downloads, and Kadence Blocks Advanced Forms.
+* NEW: WooCommerce Inactive Customer automation with MailerPress Pro, including ready-made win-back workflows.
+* NEW: Access Control with MailerPress Pro — Manage access to MailerPress features by WordPress role.
+* NEW: OpenAI image generation and configurable monthly AI usage limits with MailerPress Pro.
+* NEW: ToSend and self-hosted Postal delivery support with MailerPress Pro.
+* NEW: One-click unsubscribe from compatible inboxes and a Subscription Links block for the email editor.
+* NEW: Custom Merge Tags — Register custom personalization tags for campaign and automation content and subjects.
+* NEW: Wait Until Date and Load Post Fields automation steps for scheduled journeys and dynamic email content.
+* NEW: Automation Goals — Track conversions and advance or pause contacts based on their actions.
+* IMPROVEMENT: WordPress user synchronization with MailerPress Pro supports multiple configurations with separate roles, lists, tags, and field mappings.
+* IMPROVEMENT: Clearer contact engagement profiles and more precise engagement-based segmentation.
+* IMPROVEMENT: Paste content from Word and Google Docs as editable email blocks while preserving compatible formatting and images.
+* IMPROVEMENT: Drag content, add columns, and resize columns directly in the email preview.
+* IMPROVEMENT: Better theme style compatibility, Post Content formatting controls, and Product Showcase search.
+* IMPROVEMENT: Redesigned template library, contextual help panels, and clearer pre-send checks.
+* IMPROVEMENT: Campaign click reports include visual heatmaps with MailerPress Pro.
+* FIX: Returning subscribers receive a new double opt-in confirmation when required, without duplicate pending emails.
+* FIX: Prevent duplicate campaign sends and scheduling, improve cancellation cleanup, and preserve sender selections.
+* FIX: Resolve duplicate automation triggers and authentication issues affecting protected API endpoints.
+* FIX: Improve emoji support, background image preservation, default font rendering, and conditional content consistency.
+* FIX: Public campaign previews preserve branding and hide recipient-only subscription links.
+* FIX: Resolve email editor drag-and-drop, empty-column deletion, and layout control issues.
+* SECURITY: Strengthen validation and sanitization of pasted content and images.
 
 <a href="https://mailerpress.com/docs/mailerpress-changelog/" target="_blank">View our complete changelog</a>

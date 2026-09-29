@@ -43,6 +43,7 @@ class ExternalLinks
         'docs.subscription_pages'       => 'https://mailerpress.com/docs/manage-mailerpress-subscription-and-unsubscribe-pages/',
         'docs.editor_guide'             => 'https://mailerpress.com/docs/how-to-use-the-mailerpress-editor/',
         'docs.bounce_tracking'          => 'https://mailerpress.com/docs/bounce-tracking',
+        'docs.public_api'               => 'https://mailerpress.com/docs/mailerpress-public-api/',
 
         // Integration docs
         'docs.int_gravity_forms'        => 'https://mailerpress.com/docs/how-to-connect-gravity-forms-to-mailerpress',
@@ -58,10 +59,11 @@ class ExternalLinks
         'addons.turbo'                  => 'https://mailerpress.com/add-ons/turbo',
 
         // Blog / Announcements
-        'blog.v2'                       => 'https://mailerpress.com/mailerpress-2-0/',
+        'blog.v2'                       => 'https://mailerpress.com/mailerpress-2-1/',
 
         // Account
         'my_account'                    => 'https://mailerpress.com/my-account/',
+        'support_ticket'                => 'https://mailerpress.com/account/help/#support-ticket-form',
     ];
 
     /**
@@ -88,6 +90,7 @@ class ExternalLinks
             'docs.subscription_pages'   => 'https://mailerpress.com/fr/docs/manage-mailerpress-subscription-and-unsubscribe-pages/',
             'docs.editor_guide'         => 'https://mailerpress.com/fr/docs/how-to-use-the-mailerpress-editor/',
             'docs.bounce_tracking'      => 'https://mailerpress.com/fr/docs/bounce-tracking',
+            'docs.public_api'           => 'https://mailerpress.com/fr/docs/api-rest-mailerpress/',
             'docs.int_gravity_forms'    => 'https://mailerpress.com/fr/docs/comment-connecter-gravity-forms-mailerpress',
             'docs.int_cf7'              => 'https://mailerpress.com/fr/docs/comment-connecter-mailerpress-contact-form-7',
             'docs.int_elementor'        => 'https://mailerpress.com/fr/docs/ajouter-formulaire-mailerpress-elementor-capturer-emails',
@@ -97,7 +100,7 @@ class ExternalLinks
             'docs.int_pmpro'            => 'https://mailerpress.com/fr/docs/comment-integrer-mailerpress-a-paid-memberships-pro',
             'addons.optin'              => 'https://mailerpress.com/fr/add-ons/optin-forms',
             'addons.turbo'              => 'https://mailerpress.com/fr/add-ons/turbo',
-            'blog.v2'                   => 'https://mailerpress.com/fr/mailerpress-2-0/',
+            'blog.v2'                   => 'https://mailerpress.com/fr/mailerpress-2-1/',
             'my_account'                => 'https://mailerpress.com/fr/my-account/',
         ],
         // Add more locales here:

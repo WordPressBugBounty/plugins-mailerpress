@@ -33,6 +33,7 @@ class Tables
     public const MAILERPRESS_AUTOMATIONS_JOBS = 'mailerpress_automations_jobs';
     public const MAILERPRESS_AUTOMATIONS_LOG = 'mailerpress_automations_log';
     public const MAILERPRESS_AUTOMATIONS_META = 'mailerpress_automations_meta';
+    public const MAILERPRESS_AUTOMATIONS_GOALS = 'mailerpress_automations_goals';
     public const MAILERPRESS_TRACK_CART = 'mailerpress_track_cart';
     public const MAILERPRESS_PROVIDER_ACCOUNTS = 'mailerpress_provider_accounts';
     public const MAILERPRESS_PROVIDER_CONTACTS = 'mailerpress_provider_contacts';
@@ -47,11 +48,15 @@ class Tables
     public const MAILERPRESS_EMBED_API_KEYS = 'mailerpress_embed_api_keys'; // Tables created by FREE, used by PRO
     public const MAILERPRESS_EMBED_RATE_LIMIT = 'mailerpress_embed_rate_limit'; // Tables created by FREE, used by PRO
     public const MAILERPRESS_API_KEYS = 'mailerpress_api_keys'; // Full REST API keys
+    public const MAILERPRESS_AI_USAGE_EVENTS = 'mailerpress_ai_usage_events';
     public const MAILERPRESS_AB_TESTS = 'mailerpress_ab_tests';
     public const MAILERPRESS_AB_TEST_PARTICIPANTS = 'mailerpress_ab_test_participants';
     public const MAILERPRESS_WEBHOOK_LOGS = 'mailerpress_webhook_logs';
     public const MAILERPRESS_MIGRATIONS = 'mailerpress_migrations';
     public const MAILERPRESS_SYNC_CONNECTORS = 'mailerpress_sync_connectors';
+    public const MAILERPRESS_MIGRATION_RUNS = 'mailerpress_migration_runs';
+    public const MAILERPRESS_MIGRATION_CHUNKS = 'mailerpress_migration_chunks';
+    public const MAILERPRESS_MIGRATION_MAPPINGS = 'mailerpress_migration_mappings';
 
     public static function getAll(): array
     {
@@ -81,6 +86,7 @@ class Tables
             self::get(self::MAILERPRESS_AUTOMATIONS_JOBS),
             self::get(self::MAILERPRESS_AUTOMATIONS_LOG),
             self::get(self::MAILERPRESS_AUTOMATIONS_META),
+            self::get(self::MAILERPRESS_AUTOMATIONS_GOALS),
             self::get(self::MAILERPRESS_TRACK_CART),
             self::get(self::MAILERPRESS_PROVIDER_ACCOUNTS),
             self::get(self::MAILERPRESS_PROVIDER_CONTACTS),
@@ -95,11 +101,15 @@ class Tables
             self::get(self::MAILERPRESS_EMBED_API_KEYS),
             self::get(self::MAILERPRESS_EMBED_RATE_LIMIT),
             self::get(self::MAILERPRESS_API_KEYS),
+            self::get(self::MAILERPRESS_AI_USAGE_EVENTS),
             self::get(self::MAILERPRESS_AB_TESTS),
             self::get(self::MAILERPRESS_AB_TEST_PARTICIPANTS),
             self::get(self::MAILERPRESS_WEBHOOK_LOGS),
             self::get(self::MAILERPRESS_MIGRATIONS),
             self::get(self::MAILERPRESS_SYNC_CONNECTORS),
+            self::get(self::MAILERPRESS_MIGRATION_RUNS),
+            self::get(self::MAILERPRESS_MIGRATION_CHUNKS),
+            self::get(self::MAILERPRESS_MIGRATION_MAPPINGS),
         ];
     }
 

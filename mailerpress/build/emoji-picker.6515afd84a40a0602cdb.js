@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkmailerpress||=[]).push([[7686],{86060(e,r,s){s.r(r),s.d(r,{default:()=>u});var i=s(79701),t=s(10790);function u(e){return(0,t.jsx)(i.Ay,{...e,emojiStyle:i.Ai.NATIVE})}}}]);

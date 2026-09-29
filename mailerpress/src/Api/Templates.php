@@ -20,7 +20,7 @@ class Templates
     #[Endpoint(
         'templates/all',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canReadTemplates']
     )]
     public function all(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -52,10 +52,13 @@ class Templates
         $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table_name}", 0);
         $hasUsageType = in_array('usage_type', $columns, true);
 
-        if ($hasUsageType) {
-            if (empty($usage_type) || !in_array($usage_type, ['newsletter', 'automation'], true)) {
-                $usage_type = 'newsletter';
+        if ($hasUsageType && !empty($usage_type)) {
+            if (!in_array($usage_type, ['newsletter', 'automation'], true)) {
+                $usage_type = null;
             }
+        }
+
+        if ($hasUsageType && !empty($usage_type)) {
             $where .= ' AND (usage_type = %s OR usage_type IS NULL)';
             $params[] = $usage_type;
         }
@@ -193,7 +196,7 @@ class Templates
                     $categories_table,
                     [
                         'name' => $catName,
-                        'slug' => sanitize_title($catName),
+                        'slug' => $this->getUniqueCategorySlug($categories_table, sanitize_title($catName), 0),
                         'type' => 'template',
                         'created_at' => current_time('mysql'),
                     ],
@@ -304,7 +307,7 @@ class Templates
                     $categories_table,
                     [
                         'name' => $catName,
-                        'slug' => sanitize_title($catName),
+                        'slug' => $this->getUniqueCategorySlug($categories_table, sanitize_title($catName), 0),
                         'type' => 'template',
                         'created_at' => current_time('mysql'),
                     ],
@@ -510,6 +513,25 @@ class Templates
         $category_id = (int)$category['category_id'];
         $new_slug = sanitize_title($new_name);
 
+        $existing_same_name = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT category_id FROM {$categories_table} WHERE name = %s AND type = %s AND category_id <> %d LIMIT 1",
+                $new_name,
+                'template',
+                $category_id
+            )
+        );
+
+        if ($existing_same_name) {
+            return new \WP_Error(
+                'already_exists',
+                __('A template category with this name already exists.', 'mailerpress'),
+                ['status' => 409]
+            );
+        }
+
+        $new_slug = $this->getUniqueCategorySlug($categories_table, $new_slug, $category_id);
+
         // Update the category
         $updated = $wpdb->update(
             $categories_table,
@@ -534,6 +556,29 @@ class Templates
             'status' => 'success',
             'message' => __('Category renamed successfully.', 'mailerpress'),
         ], 200);
+    }
+
+    private function getUniqueCategorySlug(string $categories_table, string $base_slug, int $current_category_id): string
+    {
+        global $wpdb;
+
+        $base_slug = $base_slug !== '' ? $base_slug : 'category';
+        $base_slug = substr($base_slug, 0, 190);
+        $slug = $base_slug;
+        $suffix = 2;
+
+        while ($wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT category_id FROM {$categories_table} WHERE slug = %s AND category_id <> %d LIMIT 1",
+                $slug,
+                $current_category_id
+            )
+        )) {
+            $slug = substr($base_slug, 0, 185) . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 
     #[Endpoint(

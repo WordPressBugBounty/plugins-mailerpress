@@ -11,7 +11,7 @@ class RemotePromotionFeed
     private const CACHE_TTL = 30 * MINUTE_IN_SECONDS;
     private const STALE_CACHE_TTL = DAY_IN_SECONDS;
     private const FAILURE_TTL = 10 * MINUTE_IN_SECONDS;
-    private const REQUEST_TIMEOUT = 0.5;
+    private const REQUEST_TIMEOUT = 3.0;
     private const LOCK_TTL = 15;
 
     public static function getPromotions(array $context = []): array

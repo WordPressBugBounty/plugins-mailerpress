@@ -11,7 +11,7 @@ use WP_REST_Response;
 class CampaignRevisions
 {
     // Add a new revision
-    #[Endpoint('campaign/revision/(?P<id>\d+)', methods: 'POST', permissionCallback: [Permissions::class, 'canManageCampaign'])]
+    #[Endpoint('campaign/revision/(?P<id>\d+)', methods: 'POST', permissionCallback: [Permissions::class, 'canEditCampaign'])]
     public function addRevision(WP_REST_Request $request): WP_REST_Response
     {
         global $wpdb;
@@ -89,7 +89,7 @@ class CampaignRevisions
     }
 
     // Get a single revision
-    #[Endpoint('campaign/(?P<id>\d+)/revision/(?P<revision_id>\d+)', methods: 'GET', permissionCallback: [Permissions::class, 'canManageCampaign'])]
+    #[Endpoint('campaign/(?P<id>\d+)/revision/(?P<revision_id>\d+)', methods: 'GET', permissionCallback: [Permissions::class, 'canReadCampaign'])]
     public function getRevision(WP_REST_Request $request): WP_Error|array|\stdClass
     {
         global $wpdb;
@@ -111,7 +111,7 @@ class CampaignRevisions
     }
 
     // Get all revisions for a campaign
-    #[Endpoint('campaign/(?P<id>\d+)/revisions', methods: 'GET', permissionCallback: [Permissions::class, 'canManageCampaign'])]
+    #[Endpoint('campaign/(?P<id>\d+)/revisions', methods: 'GET', permissionCallback: [Permissions::class, 'canReadCampaign'])]
     public function getAllRevisions(WP_REST_Request $request): array|WP_Error
     {
         global $wpdb;
@@ -152,7 +152,7 @@ class CampaignRevisions
     }
 
     // Restore a revision
-    #[Endpoint('campaign/(?P<id>\d+)/restore-revision/(?P<revision_id>\d+)', methods: 'POST', permissionCallback: [Permissions::class, 'canManageCampaign'])]
+    #[Endpoint('campaign/(?P<id>\d+)/restore-revision/(?P<revision_id>\d+)', methods: 'POST', permissionCallback: [Permissions::class, 'canEditCampaign'])]
     public function restoreRevision(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         global $wpdb;

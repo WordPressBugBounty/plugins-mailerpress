@@ -7,7 +7,7 @@ namespace MailerPress\Core\Migrations;
 class CustomTableManager
 {
     protected string $tableName;
-    protected string $version = '2.0.7';
+    protected string $version = '2.1.0';
     protected string $versionOptionName;
     protected array $columns = [];
     protected array|string|null $primaryKey = null;
@@ -17,6 +17,7 @@ class CustomTableManager
     protected array $columnsToDrop = [];
     protected array $foreignKeysToDrop = [];
     protected array $indexesToDrop = [];
+    protected array $uniqueIndexesToDrop = [];
     protected bool $isCreateOperation = false;
 
 
@@ -446,6 +447,49 @@ class CustomTableManager
                 }
                 $effectiveCols = array_unique(array_merge($currentCols, $pendingCols));
 
+                // Resolve drops first so an index being removed cannot satisfy its replacement.
+                // Drop foreign keys
+                foreach ($this->foreignKeysToDrop as $column) {
+                    // Find ALL foreign keys on this column by querying information_schema
+                    // We can't rely on the constructed name alone because dbDelta may have
+                    // created the FK with a MySQL auto-generated name (e.g. tableName_ibfk_1)
+                    $fkConstraints = $wpdb->get_col(
+                        "SELECT CONSTRAINT_NAME
+                         FROM information_schema.KEY_COLUMN_USAGE
+                         WHERE TABLE_NAME = '{$this->tableName}'
+                           AND CONSTRAINT_SCHEMA = DATABASE()
+                           AND COLUMN_NAME = '{$column}'
+                           AND REFERENCED_TABLE_NAME IS NOT NULL"
+                    );
+                    foreach ($fkConstraints as $constraintName) {
+                        $alterParts[] = "DROP FOREIGN KEY `$constraintName`";
+                    }
+                }
+
+                // Drop indexes
+                $indexNamesToDrop = array_fill_keys($this->getUniqueIndexNamesToDrop(), true);
+                foreach ($this->indexesToDrop as $columnOrName) {
+                    // Get actual index names from database
+                    $indexes = $wpdb->get_results("SHOW INDEX FROM {$this->tableName}");
+
+                    foreach ($indexes as $index) {
+                        // Match by column name or index name
+                        if ($index->Column_name === $columnOrName || $index->Key_name === $columnOrName) {
+                            if ($index->Key_name !== 'PRIMARY') { // Don't drop primary key
+                                $indexNamesToDrop[$index->Key_name] = true;
+                            }
+                        }
+                    }
+
+                }
+
+                // Drop and replace indexes in the same ALTER to preserve FK support.
+                foreach ($indexNamesToDrop as $indexName => $_) {
+                    $quotedName = str_replace('`', '``', $indexName);
+                    $alterParts[] = "DROP INDEX `$quotedName`";
+                    unset($currentIndexes[strtoupper($indexName)]);
+                }
+
                 // Add new indexes
                 foreach ($this->indexes as $key => $clause) {
                     // Extract column names from index clause
@@ -466,17 +510,12 @@ class CustomTableManager
                             continue; // Skip this index if columns don't exist
                         }
 
-                        // Check if index already exists by checking all columns
+                        // Compare ordered columns independently of the database-generated index name.
                         $indexExists = false;
-                        foreach ($cols as $col) {
-                            $indexKey = strtoupper($col);
-                            if (isset($currentIndexes[$indexKey])) {
-                                // Check if all columns match
-                                $existingCols = $currentIndexes[$indexKey];
-                                if (is_array($existingCols) && count(array_intersect($cols, $existingCols)) === count($cols)) {
-                                    $indexExists = true;
-                                    break;
-                                }
+                        foreach ($currentIndexes as $existingCols) {
+                            if ($existingCols === array_map('strtolower', $cols)) {
+                                $indexExists = true;
+                                break;
                             }
                         }
 
@@ -511,45 +550,6 @@ class CustomTableManager
                     }
                 }
 
-                // Drop foreign keys
-                foreach ($this->foreignKeysToDrop as $column) {
-                    // Find ALL foreign keys on this column by querying information_schema
-                    // We can't rely on the constructed name alone because dbDelta may have
-                    // created the FK with a MySQL auto-generated name (e.g. tableName_ibfk_1)
-                    $fkConstraints = $wpdb->get_col(
-                        "SELECT CONSTRAINT_NAME
-                         FROM information_schema.KEY_COLUMN_USAGE
-                         WHERE TABLE_NAME = '{$this->tableName}'
-                           AND CONSTRAINT_SCHEMA = DATABASE()
-                           AND COLUMN_NAME = '{$column}'
-                           AND REFERENCED_TABLE_NAME IS NOT NULL"
-                    );
-                    foreach ($fkConstraints as $constraintName) {
-                        $alterParts[] = "DROP FOREIGN KEY `$constraintName`";
-                    }
-                }
-
-                // Drop indexes
-                foreach ($this->indexesToDrop as $columnOrName) {
-                    // Get actual index names from database
-                    $indexes = $wpdb->get_results("SHOW INDEX FROM {$this->tableName}");
-                    $indexNamesToDrop = [];
-
-                    foreach ($indexes as $index) {
-                        // Match by column name or index name
-                        if ($index->Column_name === $columnOrName || $index->Key_name === $columnOrName) {
-                            if ($index->Key_name !== 'PRIMARY') { // Don't drop primary key
-                                $indexNamesToDrop[$index->Key_name] = true;
-                            }
-                        }
-                    }
-
-                    // Add to alter parts
-                    foreach ($indexNamesToDrop as $indexName => $_) {
-                        $alterParts[] = "DROP INDEX `$indexName`";
-                    }
-                }
-
                 // Drop columns
                 foreach ($this->columnsToDrop as $columnName) {
                     if (in_array($columnName, $currentCols, true)) {
@@ -577,7 +577,7 @@ class CustomTableManager
             if (
                 $this->isCreateOperation ||
                 $installedVersion === false ||
-                $this->version === '2.0.7' ||
+                $this->version === '2.1.0' ||
                 version_compare($this->version, (string) $installedVersion, '>')
             ) {
                 update_option($this->versionOptionName, $this->version, false);
@@ -695,5 +695,45 @@ class CustomTableManager
         }
 
         return $this;
+    }
+
+    /** Queue removal of unique indexes on exactly these columns, regardless of name/order. */
+    public function dropUniqueIndex(array $columns): static
+    {
+        if (empty($columns)) {
+            throw new \InvalidArgumentException('Unique index columns must not be empty.');
+        }
+        $columns = array_map('strtolower', $columns);
+        sort($columns);
+        $this->uniqueIndexesToDrop[] = $columns;
+        return $this;
+    }
+
+    /** Read-only lookup shared by migration execution and validation. */
+    public function getUniqueIndexNamesToDrop(): array
+    {
+        global $wpdb;
+        if (empty($this->uniqueIndexesToDrop)) {
+            return [];
+        }
+        $quotedTable = str_replace('`', '``', $this->tableName);
+        $rows = $wpdb->get_results("SHOW INDEX FROM `$quotedTable`");
+        if ($rows === null || !empty($wpdb->last_error)) {
+            throw new \RuntimeException('Could not inspect indexes for ' . $this->tableName . ': ' . $wpdb->last_error);
+        }
+        $indexes = [];
+        foreach ($rows as $row) {
+            if ($row->Key_name !== 'PRIMARY' && (int) $row->Non_unique === 0) {
+                $indexes[$row->Key_name][] = strtolower($row->Column_name);
+            }
+        }
+        $names = [];
+        foreach ($indexes as $name => $columns) {
+            sort($columns);
+            if (in_array($columns, $this->uniqueIndexesToDrop, true)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
     }
 }

@@ -117,6 +117,22 @@ class AutomationJobRepository
         return $result ? new AutomationJob($result) : null;
     }
 
+    public function findAnyByAutomationAndUser(int $automationId, int $userId): ?AutomationJob
+    {
+        $query = $this->wpdb->prepare(
+            "SELECT * FROM {$this->table}
+             WHERE automation_id = %d
+             AND user_id = %d
+             ORDER BY created_at DESC
+             LIMIT 1",
+            $automationId,
+            $userId
+        );
+        $result = $this->wpdb->get_row($query, ARRAY_A);
+
+        return $result ? new AutomationJob($result) : null;
+    }
+
     /**
      * Find completed job by automation and contact_id (via logs or user_id)
      * This works for both WordPress users and MailerPress contacts
@@ -158,19 +174,68 @@ class AutomationJobRepository
         }
 
         // If not found, check logs for contact_id in context data
-        $escapedPattern = $this->wpdb->esc_like('"contact_id":' . $contactId);
-
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
              INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
              WHERE j.automation_id = %d
              AND j.status = 'COMPLETED'
-             AND l.data LIKE %s
+             AND JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.contact_id')) = %s
              ORDER BY j.updated_at DESC
              LIMIT 1",
             $automationId,
-            '%' . $escapedPattern . '%'
+            (string) $contactId
+        );
+
+        $result = $this->wpdb->get_row($query, ARRAY_A);
+
+        return $result ? new AutomationJob($result) : null;
+    }
+
+    /**
+     * Find any job by automation and contact_id.
+     *
+     * This is used for run_once_per_subscriber, where any previously started
+     * job means the subscriber has already entered the automation.
+     */
+    public function findAnyByAutomationAndContact(int $automationId, int $contactId): ?AutomationJob
+    {
+        $logTable = $this->wpdb->prefix . 'mailerpress_automations_log';
+        $contactsTable = $this->wpdb->prefix . 'mailerpress_contact';
+
+        $job = $this->findAnyByAutomationAndUser($automationId, $contactId);
+        if ($job) {
+            return $job;
+        }
+
+        $contact = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT email FROM {$contactsTable} WHERE contact_id = %d",
+                $contactId
+            ),
+            ARRAY_A
+        );
+
+        if ($contact && !empty($contact['email'])) {
+            $user = get_user_by('email', $contact['email']);
+            if ($user) {
+                $job = $this->findAnyByAutomationAndUser($automationId, $user->ID);
+                if ($job) {
+                    return $job;
+                }
+            }
+        }
+
+        $query = $this->wpdb->prepare(
+            "SELECT DISTINCT j.* FROM {$this->table} j
+             INNER JOIN {$logTable} l
+             ON j.automation_id = l.automation_id AND j.user_id = l.user_id
+             WHERE j.automation_id = %d
+             AND JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.contact_id')) = %s
+             ORDER BY j.created_at DESC
+             LIMIT 1",
+            $automationId,
+            (string) $contactId
         );
 
         $result = $this->wpdb->get_row($query, ARRAY_A);
@@ -224,19 +289,17 @@ class AutomationJobRepository
             ? "('ACTIVE', 'PROCESSING', 'WAITING')"
             : "('ACTIVE', 'PROCESSING')";
 
-        $escapedPattern = $this->wpdb->esc_like('"contact_id":' . $contactId);
-
         $query = $this->wpdb->prepare(
             "SELECT DISTINCT j.* FROM {$this->table} j
              INNER JOIN {$logTable} l
              ON j.automation_id = l.automation_id AND j.user_id = l.user_id
              WHERE j.automation_id = %d
              AND j.status IN {$statuses}
-             AND l.data LIKE %s
+             AND JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.contact_id')) = %s
              ORDER BY j.created_at DESC
              LIMIT 1",
             $automationId,
-            '%' . $escapedPattern . '%'
+            (string) $contactId
         );
 
         $result = $this->wpdb->get_row($query, ARRAY_A);

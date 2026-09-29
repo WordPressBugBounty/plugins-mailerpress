@@ -140,9 +140,9 @@ class AutomatedCampaign
         $tags,
         $segment,
     ): void {
-        as_schedule_single_action(
+        MailerPressEmailBatch::scheduleAction(
             time() + 5,
-            'mailerpress_batch_email',
+            (int) $post,
             [
                 $sendType,
                 $post,
@@ -152,8 +152,7 @@ class AutomatedCampaign
                 $lists,
                 $tags,
                 $segment,
-            ],
-            'mailerpress'
+            ]
         );
     }
 

@@ -8,14 +8,17 @@ namespace MailerPress\Api;
 
 use DI\DependencyException;
 use DI\NotFoundException;
+use MailerPress\Actions\ActionScheduler\Processors\ExportContact;
 use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
+use MailerPress\Core\Capabilities;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
 use MailerPress\Models\CustomFields;
 use MailerPress\Services\RateLimiter;
 use MailerPress\Services\RateLimitConfig;
 use MailerPress\Services\ContactUpsertService;
+use MailerPress\Services\InactiveContactManager;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -275,27 +278,19 @@ class Contacts
 
         $whereClause = "WHERE " . implode(" AND ", $conditions);
 
+        $totals = $wpdb->get_row($wpdb->prepare(
+            "SELECT SUM(opened) AS total_opened, SUM(click_count) AS total_clicked,
+                    SUM(status = 'bad') AS total_unsubscribed, SUM(revenue) AS total_revenue,
+                    MAX(updated_at) AS last_activity
+             FROM {$contactStatsTable} {$whereClause}",
+            ...$params
+        ));
         $stats = [
-            'total_opened' => (int)$wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(opened) FROM {$contactStatsTable} {$whereClause}",
-                ...$params
-            )),
-            'total_clicked' => (int)$wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(click_count) FROM {$contactStatsTable} {$whereClause}",
-                ...$params
-            )),
-            'total_unsubscribed' => (int)$wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$contactStatsTable} {$whereClause} AND status = 'bad'",
-                ...$params
-            )),
-            'total_revenue' => (float)$wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(revenue) FROM {$contactStatsTable} {$whereClause}",
-                ...$params
-            )),
-            'last_activity' => $wpdb->get_var($wpdb->prepare(
-                "SELECT MAX(updated_at) FROM {$contactStatsTable} {$whereClause}",
-                ...$params
-            )),
+            'total_opened' => (int)($totals->total_opened ?? 0),
+            'total_clicked' => (int)($totals->total_clicked ?? 0),
+            'total_unsubscribed' => (int)($totals->total_unsubscribed ?? 0),
+            'total_revenue' => (float)($totals->total_revenue ?? 0),
+            'last_activity' => $totals->last_activity ?? 0,
         ];
 
         // Normalize nulls to 0
@@ -316,29 +311,44 @@ class Contacts
     public static function handleExportDownload(WP_REST_Request $request)
     {
         $export_id = sanitize_text_field($request->get_param('export_id'));
-        $token = sanitize_text_field($request->get_param('token'));
+        $token = (string) $request->get_param('token');
 
-        $export_data = get_option("mailerpress_export_{$export_id}");
-        if (!$export_data) {
+        if (!preg_match('/^[a-zA-Z0-9-]{1,64}$/', $export_id)) {
             return new \WP_REST_Response(['message' => __('Export not found.', 'mailerpress')], 404);
         }
 
-        if ($token !== $export_data['token']) {
+        $export_data = get_option("mailerpress_export_{$export_id}");
+        if (!is_array($export_data) || empty($export_data['token']) || empty($export_data['zip_path'])) {
+            return new \WP_REST_Response(['message' => __('Export not found.', 'mailerpress')], 404);
+        }
+
+        // Constant-time comparison: the token is the only credential protecting the file.
+        if ('' === $token || !hash_equals((string) $export_data['token'], $token)) {
             return new \WP_REST_Response(['message' => __('Invalid token.', 'mailerpress')], 403);
         }
 
-        if (time() > $export_data['expires']) {
+        if (time() > (int) ($export_data['expires'] ?? 0)) {
+            ExportContact::purge($export_id);
             return new \WP_REST_Response(['message' => __('Link expired.', 'mailerpress')], 410);
         }
 
-        $zip_path = $export_data['zip_path'];
-        if (!file_exists($zip_path)) {
+        // The file must live in the export directory, whatever the stored option says.
+        $zip_path = realpath((string) $export_data['zip_path']);
+        $export_root = realpath(ExportContact::getExportDirectory());
+        if (
+            false === $zip_path
+            || false === $export_root
+            || !str_starts_with($zip_path, $export_root . DIRECTORY_SEPARATOR)
+            || !is_file($zip_path)
+        ) {
             return new \WP_REST_Response(['message' => __('File not found.', 'mailerpress')], 404);
         }
 
+        nocache_headers();
         header('Content-Type: application/zip');
         header('Content-Disposition: attachment; filename="' . basename($zip_path) . '"');
         header('Content-Length: ' . filesize($zip_path));
+        header('X-Content-Type-Options: nosniff');
         readfile($zip_path);
         exit;
     }
@@ -550,11 +560,23 @@ class Contacts
         $tags_table = Tables::get(Tables::MAILERPRESS_TAGS);
         $lists_table = Tables::get(Tables::MAILERPRESS_LIST);
         $contact_lists_table = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
+        $contact_stats_table = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
         $custom_fields_table = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
         $field_definitions_table = Tables::get(Tables::MAILERPRESS_CUSTOM_FIELD_DEFINITIONS);
+        $engagementColumns = [
+            'last_engagement_at',
+            'last_sending_at',
+            'last_open_at',
+            'last_click_at',
+            'last_subscribed_at',
+            'email_count',
+            'inactivated_at',
+            'inactivation_reason',
+        ];
+        $engagementSelect = $this->contactSelectColumns($engagementColumns);
 
-        $per_page = (int)($request->get_param('perPages') ?? 20);
-        $page = (int)($request->get_param('paged') ?? 1);
+        $per_page = max(1, (int)($request->get_param('perPages') ?? 20));
+        $page = max(1, (int)($request->get_param('paged') ?? 1));
         $offset = ($page - 1) * $per_page;
         $search_param = $request->get_param('search');
         $search = is_scalar($search_param) ? trim(sanitize_text_field((string) $search_param)) : '';
@@ -572,26 +594,23 @@ class Contacts
                 'c.last_name LIKE %s',
                 "CONCAT_WS(' ', c.first_name, c.last_name) LIKE %s",
                 'c.opt_in_source LIKE %s',
-                "EXISTS (
-                    SELECT 1
+                "c.contact_id IN (
+                    SELECT cl_search.contact_id
                     FROM {$contact_lists_table} cl_search
                     INNER JOIN {$lists_table} l_search ON l_search.list_id = cl_search.list_id
-                    WHERE cl_search.contact_id = c.contact_id
-                      AND l_search.name LIKE %s
+                    WHERE l_search.name LIKE %s
                 )",
-                "EXISTS (
-                    SELECT 1
+                "c.contact_id IN (
+                    SELECT ct_search.contact_id
                     FROM {$contact_tags_table} ct_search
                     INNER JOIN {$tags_table} t_search ON t_search.tag_id = ct_search.tag_id
-                    WHERE ct_search.contact_id = c.contact_id
-                      AND t_search.name LIKE %s
+                    WHERE t_search.name LIKE %s
                 )",
-                "EXISTS (
-                    SELECT 1
+                "c.contact_id IN (
+                    SELECT cf_search.contact_id
                     FROM {$custom_fields_table} cf_search
                     INNER JOIN {$field_definitions_table} fd_search ON fd_search.field_key = cf_search.field_key
-                    WHERE cf_search.contact_id = c.contact_id
-                      AND cf_search.field_value LIKE %s
+                    WHERE cf_search.field_value LIKE %s
                 )",
             ];
             $search_params = array_fill(0, count($search_conditions), $search_like);
@@ -625,9 +644,9 @@ class Contacts
         }
 
         if (!empty($listIds)) {
-            $joins .= " INNER JOIN {$contact_lists_table} cl ON cl.contact_id = c.contact_id ";
             $placeholders = implode(',', array_fill(0, count($listIds), '%d'));
-            $where .= " AND cl.list_id IN ($placeholders)";
+            $where .= " AND EXISTS (SELECT 1 FROM {$contact_lists_table} cl
+                WHERE cl.contact_id = c.contact_id AND cl.list_id IN ($placeholders))";
             $params = array_merge($params, $listIds);
         }
 
@@ -644,9 +663,9 @@ class Contacts
         }
 
         if (!empty($tagIds)) {
-            $joins .= " INNER JOIN {$contact_tags_table} ct_filter ON ct_filter.contact_id = c.contact_id ";
             $placeholders = implode(',', array_fill(0, count($tagIds), '%d'));
-            $where .= " AND ct_filter.tag_id IN ($placeholders)";
+            $where .= " AND EXISTS (SELECT 1 FROM {$contact_tags_table} ct_filter
+                WHERE ct_filter.contact_id = c.contact_id AND ct_filter.tag_id IN ($placeholders))";
             $params = array_merge($params, $tagIds);
         }
 
@@ -667,8 +686,133 @@ class Contacts
             }
         }
 
+        $engagementParam = $request->get_param('engagement');
+        $engagementLevels = [];
+        $allowedEngagementLevels = ['not_engaged', 'moderately_engaged', 'highly_engaged'];
+
+        if (is_string($engagementParam)) {
+            $engagementParam = [$engagementParam];
+        }
+
+        if (!empty($engagementParam) && is_array($engagementParam)) {
+            foreach ($engagementParam as $engagement) {
+                $engagementLevel = is_array($engagement)
+                    ? sanitize_key((string)($engagement['id'] ?? $engagement['value'] ?? ''))
+                    : sanitize_key((string)$engagement);
+
+                if (in_array($engagementLevel, $allowedEngagementLevels, true)) {
+                    $engagementLevels[] = $engagementLevel;
+                }
+            }
+        }
+
+        $engagementLevels = array_values(array_unique($engagementLevels));
+
+        if (!empty($engagementLevels)) {
+            $engagementScore = $this->contactEngagementScoreSql();
+            $engagementWhere = [];
+
+            foreach ($engagementLevels as $engagementLevel) {
+                if ($engagementLevel === 'not_engaged') {
+                    $engagementWhere[] = "{$engagementScore} < 45";
+                } elseif ($engagementLevel === 'moderately_engaged') {
+                    $engagementWhere[] = "({$engagementScore} >= 45 AND {$engagementScore} < 75)";
+                } elseif ($engagementLevel === 'highly_engaged') {
+                    $engagementWhere[] = "{$engagementScore} >= 75";
+                }
+            }
+
+            if (!empty($engagementWhere)) {
+                $where .= " AND EXISTS (
+                    SELECT SUM(engagement_stats.opened) AS total_opened,
+                           SUM(engagement_stats.click_count) AS total_clicked
+                    FROM {$contact_stats_table} engagement_stats
+                    WHERE engagement_stats.contact_id = c.contact_id
+                    HAVING (" . implode(' OR ', $engagementWhere) . ")
+                )";
+            }
+        }
+
+        // Each custom field criterion intersects with the other contact filters.
+        $customFilters = array_filter(
+            $request->get_query_params(),
+            static fn ($key) => is_string($key) && str_starts_with($key, 'custom_'),
+            ARRAY_FILTER_USE_KEY
+        );
+        if ($customFilters) {
+            $definitions = $wpdb->get_results("SELECT field_key, type FROM {$field_definitions_table}", OBJECT_K);
+            foreach ($customFilters as $filterKey => $criteria) {
+                $fieldKey = substr($filterKey, 7);
+                $definition = $definitions[$fieldKey] ?? null;
+                if (!$definition || !is_array($criteria) || count($criteria) !== 1 || !is_array($criteria[0] ?? null)) {
+                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter.', 'mailerpress'), ['status' => 400]);
+                }
+
+                $criterion = $criteria[0];
+                $operator = $criterion['operator'] ?? '';
+                $value = $criterion['value'] ?? '';
+                $allowedOperators = ['equals', 'not_equals', 'is_empty', 'is_not_empty'];
+                if ($definition->type === 'text') {
+                    $allowedOperators[] = 'contains';
+                }
+                if (in_array($definition->type, ['number', 'date'], true)) {
+                    $allowedOperators = array_merge($allowedOperators, ['greater_than', 'less_than']);
+                }
+                if (!in_array($operator, $allowedOperators, true) || !is_scalar($value)) {
+                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter.', 'mailerpress'), ['status' => 400]);
+                }
+
+                $value = sanitize_text_field((string) $value);
+                $needsValue = !in_array($operator, ['is_empty', 'is_not_empty'], true);
+                if ($needsValue && ($value === ''
+                    || ($definition->type === 'number' && !is_numeric($value))
+                    || ($definition->type === 'checkbox' && !in_array($value, ['0', '1'], true))
+                    || ($definition->type === 'date' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)
+                        || !checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4)))))) {
+                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter value.', 'mailerpress'), ['status' => 400]);
+                }
+
+                $params[] = $fieldKey;
+                $comparison = "cf_filter.field_value IS NOT NULL AND cf_filter.field_value <> ''";
+                if ($needsValue) {
+                    $column = $definition->type === 'number'
+                        ? 'CAST(cf_filter.field_value AS DECIMAL(65, 20))'
+                        : 'cf_filter.field_value';
+                    $sqlOperator = match ($operator) {
+                        'contains' => 'LIKE',
+                        'greater_than' => '>',
+                        'less_than' => '<',
+                        default => '=',
+                    };
+                    $comparison .= " AND {$column} {$sqlOperator} %s";
+                    $params[] = $operator === 'contains' ? '%' . $wpdb->esc_like($value) . '%' : $value;
+                }
+                // Missing values are empty and do not equal a non-empty value.
+                $exists = in_array($operator, ['not_equals', 'is_empty'], true) ? 'NOT EXISTS' : 'EXISTS';
+                $where .= " AND {$exists} (
+                    SELECT 1 FROM {$custom_fields_table} cf_filter
+                    WHERE cf_filter.contact_id = c.contact_id
+                    AND cf_filter.field_key = %s AND {$comparison}
+                )";
+            }
+        }
+
+        // Resolve a filtered bulk selection without loading every contact's details.
+        if ($request->get_param('idsOnly')) {
+            $after_id = max(0, (int) $request->get_param('afterId'));
+            $id_query = "SELECT c.contact_id FROM {$contact_table} c WHERE {$where} AND c.contact_id > %d ORDER BY c.contact_id ASC LIMIT 1000";
+            $ids = $wpdb->get_col($wpdb->prepare($id_query, [...$params, $after_id]));
+
+            return new \WP_REST_Response(['ids' => array_map('intval', $ids)], 200);
+        }
+
         // Order - Use whitelist to prevent SQL injection
         $allowed_orderby = ['contact_id', 'email', 'first_name', 'last_name', 'created_at', 'updated_at', 'subscription_status', 'opt_in_source'];
+        foreach (['last_engagement_at', 'last_sending_at', 'last_open_at', 'last_click_at', 'last_subscribed_at', 'email_count', 'inactivated_at'] as $orderableEngagementColumn) {
+            if ($this->contactHasColumns([$orderableEngagementColumn])) {
+                $allowed_orderby[] = $orderableEngagementColumn;
+            }
+        }
         $allowed_order = ['ASC', 'DESC'];
         $orderby_param = $request->get_param('orderby');
         $order_param = strtoupper($request->get_param('order') ?? 'DESC');
@@ -696,16 +840,13 @@ class Contacts
             $orderBy = sprintf( 'c.%s %s', esc_sql( $orderby ), esc_sql( $order ) );
         }
 
-        $hasJoins = !empty($listIds) || !empty($tagIds) || $custom_field_sort;
-
-        // Run COUNT query first — use COUNT(*) when no JOINs (faster than COUNT(DISTINCT))
-        $countSelect = $hasJoins ? 'COUNT(DISTINCT c.contact_id)' : 'COUNT(*)';
-        $total_count = (int) $wpdb->get_var($wpdb->prepare("
-        SELECT {$countSelect}
+        // Count matching contacts without joining custom fields used only for sorting.
+        $countQuery = "
+        SELECT COUNT(*)
         FROM {$contact_table} c
-        {$joins}
         WHERE {$where}
-    ", $params));
+    ";
+        $total_count = (int) $wpdb->get_var($params ? $wpdb->prepare($countQuery, $params) : $countQuery);
 
         $total_pages = ceil($total_count / $per_page);
 
@@ -719,10 +860,10 @@ class Contacts
         }
 
         // Fetch contacts — only select needed columns, skip large TEXT fields
-        $selectDistinct = $hasJoins ? 'DISTINCT' : '';
+        $selectDistinct = $custom_field_sort ? 'DISTINCT' : '';
         $contacts = $wpdb->get_results($wpdb->prepare("
         SELECT {$selectDistinct} c.contact_id, c.contact_id as id, c.email, c.first_name, c.last_name,
-               c.subscription_status, c.opt_in_source, c.created_at, c.updated_at, c.unsubscribe_token
+               c.subscription_status, c.opt_in_source, c.created_at, c.updated_at, c.unsubscribe_token{$engagementSelect}
         FROM {$contact_table} c
         {$joins}
         WHERE {$where}
@@ -774,6 +915,21 @@ class Contacts
             ];
         }
 
+        $stats_results = $wpdb->get_results($wpdb->prepare("
+        SELECT contact_id, COALESCE(SUM(opened), 0) AS total_opened, COALESCE(SUM(click_count), 0) AS total_clicked
+        FROM {$contact_stats_table}
+        WHERE contact_id IN ({$placeholders})
+        GROUP BY contact_id
+    ", ...$contact_ids));
+
+        $stats_by_contact = [];
+        foreach ($stats_results as $stats) {
+            $stats_by_contact[$stats->contact_id] = [
+                'total_opened' => (int) $stats->total_opened,
+                'total_clicked' => (int) $stats->total_clicked,
+            ];
+        }
+
         $field_definitions = $wpdb->get_results(
             "SELECT field_key, label, type, required, options FROM {$field_definitions_table}"
         ) ?: [];
@@ -801,6 +957,8 @@ class Contacts
         foreach ($contacts as &$contact) {
             $contact->tags = $tags_by_contact[$contact->contact_id] ?? [];
             $contact->contact_lists = $lists_by_contact[$contact->contact_id] ?? [];
+            $contact->total_opened = $stats_by_contact[$contact->contact_id]['total_opened'] ?? 0;
+            $contact->total_clicked = $stats_by_contact[$contact->contact_id]['total_clicked'] ?? 0;
 
             $contact->custom_fields = [];
             foreach ($field_definitions as $def) {
@@ -863,8 +1021,8 @@ class Contacts
         }
 
         return new \WP_Error(
-            'rest_forbidden',
-            __('Authentication required. Please refresh the page and try again.', 'mailerpress'),
+            'invalid_nonce',
+            __('Security check failed. Please try again.', 'mailerpress'),
             ['status' => 401]
         );
     }
@@ -934,11 +1092,11 @@ class Contacts
         $lang = sanitize_text_field($request->get_param('lang') ?? '');
 
         $isTrustedSubmission = !empty($GLOBALS['mailerpress_internal_php_call'])
-            || !empty($request->get_param('_api_key_id'))
-            || (is_user_logged_in() && current_user_can('edit_posts'));
+            || ApiAuthentication::isApiKeyRequest($request)
+            || (is_user_logged_in() && current_user_can(Capabilities::MANAGE_CONTACTS));
 
         $subscription_status = '';
-        $allowedSubscriptionStatuses = ['subscribed', 'pending', 'unsubscribed'];
+        $allowedSubscriptionStatuses = ['subscribed', 'pending', 'unsubscribed', InactiveContactManager::STATUS_INACTIVE];
         if ($isTrustedSubmission && in_array($requested_subscription_status, $allowedSubscriptionStatuses, true)) {
             $subscription_status = $requested_subscription_status;
         }
@@ -990,6 +1148,7 @@ class Contacts
             'lang' => $lang,
             'update_existing' => true,
             'update_contact_fields' => $isTrustedSubmission,
+            'allow_resubscribe' => true,
             'assign_default_list' => true,
             'auto_map_custom_fields' => true,
         ]);
@@ -1038,7 +1197,7 @@ class Contacts
 
             // Only allow updating contact fields (name, etc.) if the request is authenticated
             // Unauthenticated requests (optin forms) can only add to lists/tags, not modify contact data
-            if (is_user_logged_in() && current_user_can('edit_posts')) {
+            if (is_user_logged_in() && current_user_can(Capabilities::MANAGE_CONTACTS)) {
                 $wpdb->update(
                     $table_name,
                     [
@@ -1300,8 +1459,10 @@ class Contacts
             $params = [];
 
             if (!empty($newStatus)) {
+                $newStatus = sanitize_text_field((string) $newStatus);
                 $updateClauses[] = 'subscription_status = %s';
                 $params[] = esc_html($newStatus);
+                $updateClauses = array_merge($updateClauses, $this->lifecycleSetClausesForStatus($newStatus, $params));
             }
             if (!empty($firstName)) {
                 $updateClauses[] = 'first_name = %s';
@@ -1357,12 +1518,14 @@ class Contacts
                 // Get current status before update to detect status change
                 $previousStatus = '';
                 if (!empty($newStatus)) {
+                    $newStatus = sanitize_text_field((string) $newStatus);
                     $previousStatus = $wpdb->get_var($wpdb->prepare(
                         "SELECT subscription_status FROM {$table_name} WHERE contact_id = %d",
                         $id
                     ));
                     $updateData['subscription_status'] = esc_html($newStatus);
                     $updateFormat[] = '%s';
+                    $this->appendLifecycleUpdateData($updateData, $updateFormat, $newStatus);
                 }
                 if ($firstName !== null) {
                     $updateData['first_name'] = sanitize_text_field($firstName);
@@ -1545,6 +1708,14 @@ class Contacts
         }
 
         $contactUpdated = false;
+        $previousStatus = '';
+        if (!empty($newStatus)) {
+            $newStatus = sanitize_text_field((string) $newStatus);
+            $previousStatus = (string) $wpdb->get_var($wpdb->prepare(
+                "SELECT subscription_status FROM {$table_name} WHERE contact_id = %d",
+                $id
+            ));
+        }
 
         // Préparer les données à mettre à jour dans le contact principal
         $updateData = ['updated_at' => current_time('mysql')];
@@ -1553,6 +1724,7 @@ class Contacts
         if (!empty($newStatus)) {
             $updateData['subscription_status'] = esc_html($newStatus);
             $updateFormat[] = '%s';
+            $this->appendLifecycleUpdateData($updateData, $updateFormat, $newStatus);
             $contactUpdated = true;
         }
 
@@ -1862,7 +2034,7 @@ class Contacts
     #[Endpoint(
         '/contact/tag/(?P<id>\d+)',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canManageLists'],
+        permissionCallback: [Permissions::class, 'canManageAudience'],
     )]
     public function deleteContactTag(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2413,7 +2585,9 @@ class Contacts
         $table_name = Tables::get(Tables::MAILERPRESS_CONTACT);
         $contact_ids = $request->get_param('contact_ids');
         $email = sanitize_email($request->get_param('email'));
-        $export_id = uniqid(); // utilisé pour stocker les fichiers temporairement
+        // Random, unguessable identifier: it names the export files under uploads/ and is part
+        // of the download URL, so it must never be derived from the clock (uniqid()).
+        $export_id = bin2hex(random_bytes(16));
         $batch_size = 200;
         $i = 0;
 
@@ -2447,7 +2621,7 @@ class Contacts
                 ], 200);
             }
 
-            $statuses = ['subscribed', 'unsubscribed'];
+            $statuses = ['subscribed', 'unsubscribed', InactiveContactManager::STATUS_INACTIVE];
             $total_batches = 0;
 
             foreach ($statuses as $status) {
@@ -2917,6 +3091,7 @@ class Contacts
                 'opt_in_source' => 'batch_import_file',
                 'access_token' => bin2hex(random_bytes(32))
             ];
+            $contact_data = array_merge($contact_data, $this->lifecycleFieldsForStatus((string) $status));
 
             $result = $wpdb->insert($contactTable, $contact_data);
 
@@ -3234,9 +3409,9 @@ class Contacts
 
         // Replace dynamic variables
         $placeholders = [
-            '[contact:email]' => $contact['email'],
-            '[contact:firstName]' => $contact['first_name'],
-            '[contact:lastName]' => $contact['last_name'],
+            '[contact:email]' => esc_html((string) $contact['email']),
+            '[contact:firstName]' => esc_html((string) $contact['first_name']),
+            '[contact:lastName]' => esc_html((string) $contact['last_name']),
             '[site:title]' => $site['title'],
             '[activation_link]' => '<a href="' . $contact['activation_link'] . '">',
             '[/activation_link]' => '</a>',
@@ -3245,7 +3420,7 @@ class Contacts
 
         $body = str_replace(array_keys($placeholders), array_values($placeholders), $content);
         $body = nl2br($body);
-        $subject = str_replace(array_keys($placeholders), array_values($placeholders), $subject);
+        $subject = wp_strip_all_tags(html_entity_decode(str_replace(array_keys($placeholders), array_values($placeholders), $subject), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
         // Get email service
         $mailer = Kernel::getContainer()->get(\MailerPress\Core\EmailManager\EmailServiceManager::class)->getActiveService();
@@ -3356,6 +3531,136 @@ class Contacts
             'success' => true,
             'message' => __('Contact confirmed successfully.', 'mailerpress'),
         ], 200);
+    }
+
+    private function lifecycleSetClausesForStatus(string $status, array &$params): array
+    {
+        if (!$this->contactHasLifecycleColumns()) {
+            return [];
+        }
+
+        if ($status === 'subscribed') {
+            $params[] = current_time('mysql');
+            return [
+                'last_subscribed_at = %s',
+                'inactivated_at = NULL',
+                'inactivation_reason = NULL',
+            ];
+        }
+
+        if ($status === InactiveContactManager::STATUS_INACTIVE) {
+            $params[] = current_time('mysql');
+            $params[] = 'manual';
+            return [
+                'inactivated_at = %s',
+                'inactivation_reason = %s',
+            ];
+        }
+
+        if ($status !== '') {
+            return [
+                'inactivated_at = NULL',
+                'inactivation_reason = NULL',
+            ];
+        }
+
+        return [];
+    }
+
+    private function appendLifecycleUpdateData(array &$updateData, array &$updateFormat, string $status): void
+    {
+        foreach ($this->lifecycleFieldsForStatus($status) as $column => $value) {
+            $updateData[$column] = $value;
+            $updateFormat[] = $column === 'email_count' ? '%d' : '%s';
+        }
+    }
+
+    private function lifecycleFieldsForStatus(string $status): array
+    {
+        if (!$this->contactHasLifecycleColumns()) {
+            return [];
+        }
+
+        if ($status === 'subscribed') {
+            return [
+                'last_subscribed_at' => current_time('mysql'),
+                'inactivated_at' => null,
+                'inactivation_reason' => null,
+            ];
+        }
+
+        if ($status === InactiveContactManager::STATUS_INACTIVE) {
+            return [
+                'inactivated_at' => current_time('mysql'),
+                'inactivation_reason' => 'manual',
+            ];
+        }
+
+        if ($status !== '') {
+            return [
+                'inactivated_at' => null,
+                'inactivation_reason' => null,
+            ];
+        }
+
+        return [];
+    }
+
+    private function contactHasLifecycleColumns(): bool
+    {
+        return $this->contactHasColumns(['last_subscribed_at', 'inactivated_at', 'inactivation_reason']);
+    }
+
+    private function contactEngagementScoreSql(): string
+    {
+        $emailCount = $this->contactHasColumns(['email_count'])
+            ? 'COALESCE(c.email_count, 0)'
+            : '0';
+        $totalOpened = 'COALESCE(total_opened, 0)';
+        $totalClicked = 'COALESCE(total_clicked, 0)';
+        $baseScore = "(CASE WHEN {$emailCount} <= 0 THEN 0 ELSE ROUND(({$totalOpened} / {$emailCount}) * 55 + ({$totalClicked} / {$emailCount}) * 45) END)";
+
+        return "(
+            CASE
+                WHEN c.subscription_status IN ('unsubscribed', 'bounced') THEN 0
+                WHEN c.subscription_status = 'inactive' THEN 20
+                ELSE LEAST(100,
+                    CASE
+                        WHEN {$totalClicked} > 0 THEN GREATEST({$baseScore}, 65)
+                        WHEN {$totalOpened} > 0 THEN GREATEST({$baseScore}, 45)
+                        WHEN {$emailCount} > 0 THEN GREATEST({$baseScore}, 10)
+                        ELSE {$baseScore}
+                    END
+                )
+            END
+        )";
+    }
+
+    private function contactSelectColumns(array $columns): string
+    {
+        $select = [];
+        foreach ($columns as $column) {
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+                continue;
+            }
+
+            $select[] = $this->contactHasColumns([$column])
+                ? "c.{$column}"
+                : "NULL AS {$column}";
+        }
+
+        return empty($select) ? '' : ', ' . implode(', ', $select);
+    }
+
+    private function contactHasColumns(array $required): bool
+    {
+        static $columns = null;
+        if ($columns === null) {
+            global $wpdb;
+            $columns = $wpdb->get_col('SHOW COLUMNS FROM ' . Tables::get(Tables::MAILERPRESS_CONTACT), 0) ?: [];
+        }
+
+        return count(array_intersect($required, $columns)) === count($required);
     }
 
     /**

@@ -15,6 +15,7 @@ use MailerPress\Actions\Workflows\MailerPress\Triggers\CustomTrigger;
 use MailerPress\Actions\Workflows\WooCommerce\OrderStatusChanged;
 use MailerPress\Actions\Workflows\WooCommerce\ProductPurchased;
 use MailerPress\Actions\Workflows\WooCommerce\CustomerFirstOrder;
+use MailerPress\Actions\Workflows\WooCommerce\CustomerInactiveTrigger;
 use MailerPress\Actions\Workflows\WooCommerce\AbandonedCartTrigger;
 use MailerPress\Actions\Workflows\WooCommerce\SubscriptionStatusChanged;
 use MailerPress\Actions\Workflows\WooCommerce\SubscriptionStarted;
@@ -73,6 +74,7 @@ class RegisterCustomTriggers
             OrderStatusChanged::register($manager);
             ProductPurchased::register($manager);
             CustomerFirstOrder::register($manager);
+            CustomerInactiveTrigger::register($manager);
             AbandonedCartTrigger::register($manager);
         }
 

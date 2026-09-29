@@ -17,6 +17,7 @@ class WorkflowManager
     private WorkflowExecutor $executor;
     private TriggerManager $triggerManager;
     private ActionSchedulerManager $schedulerManager;
+    private GoalManager $goalManager;
 
     public function __construct(
         ?AutomationRepository $automationRepo = null,
@@ -30,6 +31,10 @@ class WorkflowManager
         $this->executor = $executor ?? new WorkflowExecutor($this->automationRepo, $this->stepRepo, $this->jobRepo);
         $this->triggerManager = new TriggerManager($this->executor, $this->automationRepo, $this->stepRepo, $this->jobRepo);
         $this->schedulerManager = new ActionSchedulerManager($this->executor);
+        $this->goalManager = new GoalManager($this->executor, $this->automationRepo, $this->stepRepo, $this->jobRepo);
+
+        // Step handlers resolve the goal manager through this shared instance.
+        GoalManager::setInstance($this->goalManager);
     }
 
     public function getAutomation(int $id): ?Automation
@@ -58,6 +63,18 @@ class WorkflowManager
         // Get contact_id from context if available (for MailerPress contacts)
         $contactId = $context['contact_id'] ?? null;
 
+        if ($automation->isRunOncePerSubscriber()) {
+            $existingRun = $this->jobRepo->findAnyByAutomationAndUser($automationId, $userId);
+
+            if (!$existingRun && $contactId) {
+                $existingRun = $this->jobRepo->findAnyByAutomationAndContact($automationId, (int) $contactId);
+            }
+
+            if ($existingRun) {
+                return null;
+            }
+        }
+
         // Check for active jobs - check both user_id and contact_id to cover all cases:
         // 1. WordPress user only (no MailerPress contact) - check by user_id
         // 2. MailerPress contact without WordPress account - check by contact_id (which is also user_id)
@@ -75,24 +92,6 @@ class WorkflowManager
 
         if ($existingJob) {
             return $existingJob;
-        }
-
-        // If run_once_per_subscriber is enabled, check for completed jobs
-        if ($automation->isRunOncePerSubscriber()) {
-            $completedJob = null;
-
-            // Check by user_id first (for WordPress users)
-            $completedJob = $this->jobRepo->findCompletedByAutomationAndUser($automationId, $userId);
-
-            // Also check by contact_id if available (for MailerPress contacts)
-            // This will also check if the contact has a WordPress account and find jobs by that user_id
-            if (!$completedJob && $contactId) {
-                $completedJob = $this->jobRepo->findCompletedByAutomationAndContact($automationId, $contactId);
-            }
-
-            if ($completedJob) {
-                return null;
-            }
         }
 
         $steps = $this->stepRepo->findByAutomationId($automationId);
@@ -185,6 +184,22 @@ class WorkflowManager
     public function getTriggerManager(): TriggerManager
     {
         return $this->triggerManager;
+    }
+
+    public function getGoalManager(): GoalManager
+    {
+        return $this->goalManager;
+    }
+
+    /**
+     * Build the goal catalogue and bind its hooks.
+     *
+     * Must be called after triggers have been registered, since goals promote
+     * trigger definitions.
+     */
+    public function bootGoals(): void
+    {
+        $this->goalManager->boot($this->triggerManager);
     }
 
     public function getExecutor(): WorkflowExecutor

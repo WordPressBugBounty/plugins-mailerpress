@@ -451,11 +451,18 @@ class DynamicPostRenderer
         return $posts;
     }
 
-    protected function renderPostTemplate(WP_Post $post, string $template): string
+    /** Render an automation template for its triggering post, without running a query. */
+	public function renderPublishedPost(WP_Post $post): string
+	{
+		$template = str_replace( [ '<!-- START post -->', '<!-- END post -->' ], '', $this->html );
+		return $this->renderPostTemplate( $post, $template, true );
+	}
+
+    protected function renderPostTemplate(WP_Post $post, string $template, bool $preserveImageStyle = false): string
     {
         return preg_replace_callback(
             '/<!-- START ([^>]+) -->(.*?)<!-- END ([a-zA-Z0-9-_ ]+) -->/is',
-            function ($blockMatches) use ($post) {
+            function ($blockMatches) use ($post, $preserveImageStyle) {
                 $blockNameWithKey = trim($blockMatches[1]);
                 $blockContent = $blockMatches[2];
 
@@ -515,7 +522,27 @@ class DynamicPostRenderer
                     case 'post title':
                         $node = $xpath->query('.//div', $wrapper)->item(0);
                         if ($node) {
-                            $node->nodeValue = wp_strip_all_tags($post->post_title);
+                            $node->textContent = wp_strip_all_tags($post->post_title);
+                        }
+                        break;
+
+                    case 'post categories':
+                        $node = $xpath->query('.//div', $wrapper)->item(0);
+                        if ($node) {
+                            $node->textContent = implode(', ', \MailerPress\Helpers\getPostCategoryNames($post));
+                        }
+                        break;
+
+                    case 'post date':
+                    case 'post modified date':
+                        $node = $xpath->query('.//div', $wrapper)->item(0);
+                        if ( $node ) {
+                            $format = ! empty( $blockParams ) ? rawurldecode( $blockParams ) : '';
+                            $date = 'post modified date' === $blockName
+                                ? get_the_modified_date( $format, $post )
+                                : get_the_date( $format, $post );
+
+                            $node->textContent = false === $date ? '' : (string) $date;
                         }
                         break;
 
@@ -523,10 +550,15 @@ class DynamicPostRenderer
                         $wordCount = ! empty( $blockParams ) ? (int) $blockParams : 30;
                         $node = $xpath->query('.//div', $wrapper)->item(0);
                         if ( $node ) {
+                            $excerpt = ! empty( $post->post_excerpt )
+                                ? $post->post_excerpt
+                                : $post->post_content;
+                            $excerpt = wp_strip_all_tags( $excerpt );
+
                             if ( $wordCount <= 0 ) {
-                                $node->nodeValue = wp_strip_all_tags( $post->post_content );
+                                $node->textContent = $excerpt;
                             } else {
-                                $node->nodeValue = wp_trim_words( strip_tags( $post->post_content ), $wordCount );
+                                $node->textContent = wp_trim_words( $excerpt, $wordCount );
                             }
                         }
                         break;
@@ -553,8 +585,10 @@ class DynamicPostRenderer
 
                         $img->setAttribute( 'src', $thumbnailUrl );
                         $img->setAttribute( 'alt', get_the_title( $post ) );
-                        $img->setAttribute( 'width', '100%' );
-                        $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
+						if ( ! $preserveImageStyle ) {
+                            $img->setAttribute( 'width', '100%' );
+                            $img->setAttribute( 'style', 'width:100%;max-width:100%;height:auto;display:block;' );
+						}
 
                         $a = $xpath->query('.//a', $wrapper)->item(0);
                         if ( $a ) {
@@ -629,7 +663,7 @@ class DynamicPostRenderer
                                         $displayValue = (string) $fieldValue;
                                     }
 
-                                    $node->nodeValue = $displayValue;
+                                    $node->textContent = $displayValue;
                                 }
                             }
                         }

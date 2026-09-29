@@ -34,8 +34,74 @@ class TriggerConditionChecker
             'surecart_order_created' => $this->checkSurecartOrderCreated($settings, $context),
             'woocommerce_product_purchased' => $this->checkWoocommerceProductPurchased($settings, $context),
             'optin_form_submitted', 'optin_lead_magnet_delivered' => $this->checkOptinFormTrigger($settings, $context),
+            // Goal-only events
+            'mp_goal_email_opened' => $this->checkGoalEmailOpened($settings, $context),
+            'mp_goal_email_clicked' => $this->checkGoalEmailClicked($settings, $context),
+            'mp_goal_tag_removed' => $this->checkTagAdded($settings, $context),
+            'mp_goal_list_removed' => $this->checkListAdded($settings, $context),
+            'mp_goal_automation_completed' => $this->checkGoalAutomationCompleted($settings, $context),
             default => true,
         };
+    }
+
+    private function checkGoalEmailOpened(array $settings, array $context): bool
+    {
+        return $this->checkCampaignFilter($settings, $context);
+    }
+
+    private function checkGoalEmailClicked(array $settings, array $context): bool
+    {
+        if (!$this->checkCampaignFilter($settings, $context)) {
+            return false;
+        }
+
+        $requiredUrl = trim((string) ($settings['link_url'] ?? ''));
+
+        if ('' === $requiredUrl) {
+            return true;
+        }
+
+        $clickedUrl = (string) ($context['link_url'] ?? '');
+
+        if ('' === $clickedUrl) {
+            return false;
+        }
+
+        return false !== stripos($clickedUrl, $requiredUrl);
+    }
+
+    private function checkGoalAutomationCompleted(array $settings, array $context): bool
+    {
+        $requiredAutomationId = $settings['completed_automation_id'] ?? null;
+
+        if (is_array($requiredAutomationId)) {
+            $requiredAutomationId = reset($requiredAutomationId);
+        }
+
+        if (null === $requiredAutomationId || '' === $requiredAutomationId) {
+            return true;
+        }
+
+        return (int) ($context['completed_automation_id'] ?? 0) === (int) $requiredAutomationId;
+    }
+
+    /**
+     * Shared campaign filter for the email goals. An empty setting accepts any
+     * campaign.
+     */
+    private function checkCampaignFilter(array $settings, array $context): bool
+    {
+        $requiredCampaignId = $settings['campaign_id'] ?? null;
+
+        if (is_array($requiredCampaignId)) {
+            $requiredCampaignId = reset($requiredCampaignId);
+        }
+
+        if (null === $requiredCampaignId || '' === $requiredCampaignId || 0 === (int) $requiredCampaignId) {
+            return true;
+        }
+
+        return (int) ($context['campaign_id'] ?? 0) === (int) $requiredCampaignId;
     }
 
     private function checkOptinFormTrigger(array $settings, array $context): bool

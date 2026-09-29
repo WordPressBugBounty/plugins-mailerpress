@@ -7,6 +7,7 @@ namespace MailerPress\Actions\Frontend;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
+use MailerPress\Services\InactiveContactManager;
 use MailerPress\Core\Workflows\Repositories\CartTrackingRepository;
 
 class Frontend
@@ -261,6 +262,7 @@ class Frontend
         }
 
         if (!$isAnonymousTracking && $contact_id > 0) {
+            Kernel::getContainer()->get(InactiveContactManager::class)->markOpened($contact_id, $openedAt);
             do_action('mailerpress_email_opened', $contact_id, $campaign_id, $batch_id);
         }
     }
@@ -577,6 +579,7 @@ class Frontend
         $campaignId = (int)($data['cmp'] ?? 0);
         $originalUrl = esc_url_raw($data['url']);
         $anonymousKey = isset($data['ank']) ? sanitize_text_field($data['ank']) : null;
+        $linkId = isset($data['lid']) ? sanitize_key((string) $data['lid']) : '';
 
         // Validate that we have required IDs
         if ($campaignId <= 0) {
@@ -607,14 +610,26 @@ class Frontend
         // For anonymous tracking, check if click already exists for this anonymous_key and campaign
         $shouldInsert = true;
         if ($isAnonymousTracking && !empty($anonymousKey)) {
-            $existingClick = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT id FROM {$clickTable} WHERE campaign_id = %d AND anonymous_key = %s AND url = %s LIMIT 1",
-                    $campaignId,
-                    $anonymousKey,
-                    $originalUrl
-                )
-            );
+            if ($linkId !== '') {
+                $existingClick = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT id FROM {$clickTable} WHERE campaign_id = %d AND anonymous_key = %s AND link_id = %s LIMIT 1",
+                        $campaignId,
+                        $anonymousKey,
+                        $linkId
+                    )
+                );
+            } else {
+                $existingClick = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT id FROM {$clickTable} WHERE campaign_id = %d AND anonymous_key = %s AND url = %s LIMIT 1",
+                        $campaignId,
+                        $anonymousKey,
+                        $originalUrl
+                    )
+                );
+            }
+
             if ($existingClick) {
                 $shouldInsert = false; // Click already tracked for this anonymous user
             }
@@ -630,6 +645,11 @@ class Frontend
                 'created_at' => $now,
             ];
             $insertFormat = ['%d', '%d', '%s', '%s', '%s', '%s'];
+
+            if ($linkId !== '') {
+                $insertData['link_id'] = $linkId;
+                $insertFormat[] = '%s';
+            }
 
             // Add anonymous_key for anonymous tracking
             if ($isAnonymousTracking && !empty($anonymousKey)) {
@@ -808,6 +828,7 @@ class Frontend
 
         // 6️⃣ Fire webhook for email clicked (non-anonymous only)
         if (!$isAnonymousTracking && $contactId > 0) {
+            Kernel::getContainer()->get(InactiveContactManager::class)->markClicked($contactId, $now);
             do_action('mailerpress_email_clicked', $contactId, $campaignId, $originalUrl);
         }
 

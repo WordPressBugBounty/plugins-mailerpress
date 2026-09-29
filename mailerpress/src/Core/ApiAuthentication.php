@@ -19,6 +19,129 @@ use MailerPress\Core\Enums\Tables;
 class ApiAuthentication
 {
     /**
+     * Request parameters that carry the authenticated API key context.
+     *
+     * They are populated by authenticate() ONLY after a successful key/secret
+     * verification. They must never be trusted when supplied by the client, so
+     * authenticate() strips them from every incoming request before doing
+     * anything else.
+     */
+    public const PARAM_KEY_ID = '_api_key_id';
+    public const PARAM_KEY_NAME = '_api_key_name';
+
+    /**
+     * Server-side record of requests authenticated with an API key.
+     *
+     * Keyed by the WP_REST_Request instance itself (WeakMap), so the state can
+     * only be set by this class and never by request parameters.
+     *
+     * @var \WeakMap<\WP_REST_Request, array{key_id:int,name:string}>|null
+     */
+    private static ?\WeakMap $authenticatedRequests = null;
+
+    /**
+     * Whether the request was authenticated with a valid MailerPress API key.
+     *
+     * This is the ONLY reliable way to know that a request comes from an API
+     * key: it reads server-side state set by authenticate(), never a request
+     * parameter.
+     */
+    public static function isApiKeyRequest($request): bool
+    {
+        return self::getApiKeyId($request) !== null;
+    }
+
+    /**
+     * Return the key_id of the API key that authenticated the request, or null.
+     */
+    public static function getApiKeyId($request): ?int
+    {
+        if (!($request instanceof \WP_REST_Request) || self::$authenticatedRequests === null) {
+            return null;
+        }
+
+        if (!self::$authenticatedRequests->offsetExists($request)) {
+            return null;
+        }
+
+        return (int) self::$authenticatedRequests[$request]['key_id'];
+    }
+
+    /**
+     * Return the name of the API key that authenticated the request, or null.
+     */
+    public static function getApiKeyName($request): ?string
+    {
+        if (!($request instanceof \WP_REST_Request) || self::$authenticatedRequests === null) {
+            return null;
+        }
+
+        if (!self::$authenticatedRequests->offsetExists($request)) {
+            return null;
+        }
+
+        return (string) self::$authenticatedRequests[$request]['name'];
+    }
+
+    /**
+     * Remove the reserved authentication parameters from every parameter group
+     * (query string, body, JSON, URL, defaults) so a client can never inject them.
+     */
+    private static function stripReservedParams($request): void
+    {
+        if (!($request instanceof \WP_REST_Request)) {
+            return;
+        }
+
+        $reserved = [self::PARAM_KEY_ID, self::PARAM_KEY_NAME];
+
+        // WP_REST_Request::offsetUnset() only touches the groups that are readable for the
+        // current HTTP method (and it is the only way to reach the parsed JSON group), so
+        // call it first and then clean every group explicitly for full coverage.
+        foreach ($reserved as $param) {
+            unset($request[$param]);
+        }
+
+        $groups = [
+            [$request->get_url_params(), 'set_url_params'],
+            [$request->get_query_params(), 'set_query_params'],
+            [$request->get_body_params(), 'set_body_params'],
+            [$request->get_file_params(), 'set_file_params'],
+            [$request->get_default_params(), 'set_default_params'],
+        ];
+
+        foreach ($groups as [$params, $setter]) {
+            if (!\is_array($params)) {
+                continue;
+            }
+
+            $cleaned = array_diff_key($params, array_flip($reserved));
+            if (\count($cleaned) !== \count($params)) {
+                $request->{$setter}($cleaned);
+            }
+        }
+    }
+
+    /**
+     * Record a successful API key authentication for this request.
+     */
+    private static function rememberAuthenticatedRequest($request, object $key_record): void
+    {
+        if (!($request instanceof \WP_REST_Request)) {
+            return;
+        }
+
+        if (self::$authenticatedRequests === null) {
+            self::$authenticatedRequests = new \WeakMap();
+        }
+
+        self::$authenticatedRequests[$request] = [
+            'key_id' => (int) $key_record->key_id,
+            'name'   => (string) $key_record->name,
+        ];
+    }
+
+    /**
      * Authenticate API request using custom API keys
      *
      * @param \WP_REST_Request $request
@@ -26,6 +149,10 @@ class ApiAuthentication
      */
     public static function authenticate($request)
     {
+        // Never trust client-supplied authentication context: strip the reserved
+        // parameters from every group BEFORE any logic, whatever the return path.
+        self::stripReservedParams($request);
+
         // Check for custom API key headers
         $api_key = $request->get_header('X-MailerPress-API-Key');
         $api_secret = $request->get_header('X-MailerPress-API-Secret');
@@ -121,9 +248,11 @@ class ApiAuthentication
         // Set WordPress user context for permission checks
         wp_set_current_user($key_record->user_id);
 
-        // Store key info in request for later use (e.g., logging)
-        $request->set_param('_api_key_id', $key_record->key_id);
-        $request->set_param('_api_key_name', $key_record->name);
+        // Record the authentication server-side (the only trusted source of truth),
+        // and mirror it into the request params for logging / backward compatibility.
+        self::rememberAuthenticatedRequest($request, $key_record);
+        $request->set_param(self::PARAM_KEY_ID, (int) $key_record->key_id);
+        $request->set_param(self::PARAM_KEY_NAME, (string) $key_record->name);
 
         return true;
     }
@@ -297,10 +426,10 @@ class ApiAuthentication
      */
     public static function hasPermission($request, string $required_scope): bool
     {
-        $api_key_id = $request->get_param('_api_key_id');
+        $api_key_id = self::getApiKeyId($request);
 
         // If not using API key auth, skip scope check
-        if (!$api_key_id) {
+        if ($api_key_id === null) {
             return true;
         }
 

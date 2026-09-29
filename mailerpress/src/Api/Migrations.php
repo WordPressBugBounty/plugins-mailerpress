@@ -20,10 +20,6 @@ class Migrations
     #[Endpoint('migrations/status', 'GET', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function getStatus(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
         $manager = new Manager(
             Kernel::$config['root'] . '/src/Core/Migrations/migrations',
             []
@@ -40,10 +36,6 @@ class Migrations
     #[Endpoint('migrations/reset-failed', 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function resetFailed(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
         $manager = new Manager(
             Kernel::$config['root'] . '/src/Core/Migrations/migrations',
             []
@@ -71,10 +63,6 @@ class Migrations
     #[Endpoint('migrations/force-run', 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function forceRun(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
         $manager = new Manager(
             Kernel::$config['root'] . '/src/Core/Migrations/migrations',
             []
@@ -101,10 +89,6 @@ class Migrations
     #[Endpoint('migrations/unlock', 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function unlock(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
         $manager = new Manager(
             Kernel::$config['root'] . '/src/Core/Migrations/migrations',
             []
@@ -131,11 +115,6 @@ class Migrations
     #[Endpoint('database/diagnostic', 'GET', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function getDiagnostic(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
-
         try {
             $diagnostic = new DatabaseDiagnostic();
             $result = $diagnostic->diagnose();
@@ -156,11 +135,6 @@ class Migrations
     #[Endpoint('database/repair', 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function repairDatabase(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
-
         try {
             // Initialiser le logger avant tout
             DatabaseRepairLogger::init();
@@ -207,11 +181,6 @@ class Migrations
     #[Endpoint('database/export-logs', 'GET', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function exportLogs(WP_REST_Request $request): WP_REST_Response
     {
-        if (!current_user_can('manage_options')) {
-            return new WP_REST_Response(['error' => __('Unauthorized', 'mailerpress')], 403);
-        }
-
-
         try {
             $format = $request->get_param('format') ?: 'json';
 

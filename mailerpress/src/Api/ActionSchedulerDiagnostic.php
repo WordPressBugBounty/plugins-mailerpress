@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MailerPress\Api;
 
 use MailerPress\Actions\ActionScheduler\Processors\ChunkWorker;
+use MailerPress\Actions\ActionScheduler\Processors\MailerPressEmailBatch;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 
@@ -18,7 +19,7 @@ class ActionSchedulerDiagnostic
     #[Endpoint(
         'diagnostic/action-scheduler',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManage'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function getDiagnostics(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -58,7 +59,7 @@ class ActionSchedulerDiagnostic
     #[Endpoint(
         'diagnostic/action-scheduler/run',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManage'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function forceRunActions(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -74,8 +75,7 @@ class ActionSchedulerDiagnostic
         $errors = [];
 
         // Get pending MailerPress actions
-        $actions = as_get_scheduled_actions([
-            'group' => 'mailerpress',
+        $actions = $this->getMailerPressActions([
             'status' => \ActionScheduler_Store::STATUS_PENDING,
             'per_page' => 50,
             'date' => as_get_datetime_object(), // Actions scheduled before now
@@ -120,7 +120,7 @@ class ActionSchedulerDiagnostic
     #[Endpoint(
         'diagnostic/batch/cancel',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function cancelBatch(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -183,6 +183,10 @@ class ActionSchedulerDiagnostic
                 ['%d']
             );
 
+            $actions_cancelled = MailerPressEmailBatch::cancelScheduledActions(
+                (int) $batch->campaign_id
+            );
+
             $message = $batch->sent_emails > 0
                 ? sprintf(
                     __('Batch sending has been stopped. %d emails were sent and will remain in statistics.', 'mailerpress'),
@@ -197,6 +201,7 @@ class ActionSchedulerDiagnostic
                 'chunks_deleted' => $chunks_deleted,
                 'new_status' => 'sent',
                 'sent_emails' => $batch->sent_emails,
+                'actions_cancelled' => $actions_cancelled,
             ], 200);
         } catch (\Exception $e) {
             return new \WP_Error(
@@ -213,7 +218,7 @@ class ActionSchedulerDiagnostic
     #[Endpoint(
         'diagnostic/campaign/reset',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function resetCampaign(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -322,35 +327,9 @@ class ActionSchedulerDiagnostic
                     }
                 }
 
-                // IMPORTANT: Cancel mailerpress_batch_email action for this campaign
-                // This is the action that creates the batch and chunks for scheduled campaigns
-                // Search in PENDING (future scheduled actions are PENDING until execution time)
-                $batch_email_actions = as_get_scheduled_actions([
-                    'hook' => 'mailerpress_batch_email',
-                    'status' => \ActionScheduler_Store::STATUS_PENDING,
-                    'per_page' => 500, // Increased to catch more actions
-                    'group' => 'mailerpress',
-                ]);
-
-                foreach ($batch_email_actions as $action_id => $action) {
-                    $args = $action->get_args();
-                    // args[1] contains the campaign_id ($post parameter from createBatchV2)
-                    if (!empty($args[1]) && (int)$args[1] === $campaign_id) {
-                        try {
-                            // Cancel first to prevent execution
-                            $store->cancel_action($action_id);
-                            // Then delete to clean database
-                            $store->delete_action($action_id);
-                            $actions_cancelled++;
-                        } catch (\Exception $e) {
-                            error_log(sprintf(
-                                '[Cancel Sending] Failed to cancel action #%d: %s',
-                                $action_id,
-                                $e->getMessage()
-                            ));
-                        }
-                    }
-                }
+                $actions_cancelled += MailerPressEmailBatch::cancelScheduledActions(
+                    $campaign_id
+                );
             }
 
             // Determine final status based on current campaign status
@@ -497,8 +476,7 @@ class ActionSchedulerDiagnostic
         }
 
         // Get pending actions
-        $pending_actions = as_get_scheduled_actions([
-            'group' => 'mailerpress',
+        $pending_actions = $this->getMailerPressActions([
             'status' => \ActionScheduler_Store::STATUS_PENDING,
             'per_page' => 50,
         ]);
@@ -524,8 +502,7 @@ class ActionSchedulerDiagnostic
         }
 
         // Get failed actions
-        $failed_actions = as_get_scheduled_actions([
-            'group' => 'mailerpress',
+        $failed_actions = $this->getMailerPressActions([
             'status' => \ActionScheduler_Store::STATUS_FAILED,
             'per_page' => 20,
         ]);
@@ -539,6 +516,22 @@ class ActionSchedulerDiagnostic
         }
 
         return $result;
+    }
+
+    private function getMailerPressActions(array $query): array
+    {
+        $legacyActions = as_get_scheduled_actions(array_merge(
+            $query,
+            ['group' => 'mailerpress']
+        ));
+
+        $batchQuery = $query;
+        unset($batchQuery['group']);
+        $batchQuery['hook'] = 'mailerpress_batch_email';
+
+        $campaignBatchActions = as_get_scheduled_actions($batchQuery);
+
+        return $legacyActions + $campaignBatchActions;
     }
 
     private function getWpCronStatus(): array

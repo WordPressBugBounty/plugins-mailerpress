@@ -59,6 +59,7 @@ final class PatternsCategories
         $result = [];
         foreach ($categories as $category) {
             $result[$category['slug']] = [
+                'id' => (int)$category['category_id'],
                 'label' => $category['label'],
             ];
         }

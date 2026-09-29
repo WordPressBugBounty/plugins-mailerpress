@@ -7,6 +7,7 @@ namespace MailerPress\Actions\Campaigns;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Attributes\Action;
+use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\Enums\Tables;
 
 class Campaigns
@@ -62,7 +63,7 @@ class Campaigns
                             $batchTable,
                             [
                                 'error_message' => sprintf(
-                                    __('All %d emails failed to send. Check the batch log files in wp-content/mailerpress-logs/ for details.', 'mailerpress'),
+                                    __('All %d emails failed to send. Enable WP_DEBUG_LOG to get per-batch log files with details.', 'mailerpress'),
                                     $total_emails
                                 ),
                             ],
@@ -130,16 +131,8 @@ class Campaigns
      */
     private function log(string $message, array $context = []): void
     {
-        $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-        if (!is_dir($logDir)) {
-            wp_mkdir_p($logDir);
-        }
-
-        $logFile = $logDir . '/queue-debug.log';
-        $timestamp = current_time('mysql');
-        $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
-        $logEntry = sprintf("[%s] %s%s\n", $timestamp, $message, $contextStr);
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
+        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     /**

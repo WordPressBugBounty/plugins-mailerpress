@@ -12,10 +12,9 @@ class CapabilitiesManager
 {
     public const SCHEMA_VERSION = '2026_06_10_ai_usage_capability';
 
-    public static function addCapabilities(): void
+    public static function getDefaultCapabilityMapping(): array
     {
-        // Map MailerPress capabilities to the minimum WordPress capability a role must already have.
-        $mapping = [
+        return [
             Capabilities::MANAGE_SETTINGS => 'manage_options',
             Capabilities::MANAGE_CAMPAIGNS => 'edit_posts',
             Capabilities::EDIT_OTHERS_CAMPAIGNS => 'edit_others_posts',
@@ -32,6 +31,11 @@ class CapabilitiesManager
             Capabilities::MANAGE_CONTACT_SEGMENTATION => 'edit_others_posts',
             Capabilities::USE_AI => 'manage_options',
         ];
+    }
+
+    public static function addCapabilities(): void
+    {
+        $mapping = self::getDefaultCapabilityMapping();
 
         // Get all roles
         global $wp_roles;
@@ -42,7 +46,16 @@ class CapabilitiesManager
             }
 
             foreach ($mapping as $custom_cap => $base_cap) {
-                if ($role->has_cap($base_cap)) {
+                $default_enabled = $role->has_cap($base_cap);
+                $enabled = (bool) apply_filters(
+                    'mailerpress_role_capability_enabled',
+                    $default_enabled,
+                    $role_name,
+                    $custom_cap,
+                    $base_cap
+                );
+
+                if ($enabled) {
                     $role->add_cap($custom_cap);
                 } else {
                     $role->remove_cap($custom_cap);

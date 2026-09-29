@@ -13,10 +13,215 @@ use MailerPress\Core\Kernel;
 use MailerPress\Models\Campaigns;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\ClassicContactFetcher;
+use MailerPress\Services\ContactIdsFetcher;
 use MailerPress\Services\SegmentContactFetcher;
 
 class MailerPressEmailBatch
 {
+    private const ACTION_HOOK = 'mailerpress_batch_email';
+    private const ACTION_GROUP_PREFIX = 'mailerpress_campaign_';
+    private const ACTION_QUERY_PAGE_SIZE = 100;
+
+    public static function scheduleAction(
+        int $timestamp,
+        int $campaignId,
+        array $args
+    ): int {
+        if ($campaignId <= 0 || !function_exists('as_schedule_single_action')) {
+            return 0;
+        }
+
+        $requestedBatchId = (int) ($args[10] ?? 0);
+
+        if ($requestedBatchId > 0) {
+            $olderBlockingBatchId = self::isAutomatedCampaign($campaignId)
+                ? self::getActiveBatchId($campaignId, $requestedBatchId)
+                : self::getBlockingBatchId($campaignId, $requestedBatchId);
+
+            if (
+                $olderBlockingBatchId > 0
+                && $olderBlockingBatchId < $requestedBatchId
+            ) {
+                return 0;
+            }
+        }
+
+        if (
+            ($requestedBatchId <= 0 && self::getActiveBatchId($campaignId) > 0)
+            || self::hasScheduledAction($campaignId)
+        ) {
+            return 0;
+        }
+
+        return (int) as_schedule_single_action(
+            $timestamp,
+            self::ACTION_HOOK,
+            $args,
+            self::getActionGroup($campaignId),
+            true
+        );
+    }
+
+    public static function getBlockingBatchId(
+        int $campaignId,
+        ?int $excludedBatchId = null
+    ): int {
+        return self::getBatchIdByStatuses(
+            $campaignId,
+            ['scheduled', 'pending', 'in_progress', 'sent'],
+            $excludedBatchId
+        );
+    }
+
+    public static function getActiveBatchId(
+        int $campaignId,
+        ?int $excludedBatchId = null
+    ): int {
+        return self::getBatchIdByStatuses(
+            $campaignId,
+            ['scheduled', 'pending', 'in_progress'],
+            $excludedBatchId
+        );
+    }
+
+    private static function getBatchIdByStatuses(
+        int $campaignId,
+        array $statuses,
+        ?int $excludedBatchId = null
+    ): int {
+        if ($campaignId <= 0) {
+            return 0;
+        }
+
+        global $wpdb;
+
+        $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $statusPlaceholders = implode(', ', array_fill(0, count($statuses), '%s'));
+        $query = "SELECT id FROM {$batchTable}
+                  WHERE campaign_id = %d
+                  AND status IN ({$statusPlaceholders})";
+        $params = array_merge([$campaignId], $statuses);
+
+        if ($excludedBatchId !== null && $excludedBatchId > 0) {
+            $query .= ' AND id != %d';
+            $params[] = $excludedBatchId;
+        }
+
+        $query .= ' ORDER BY id ASC LIMIT 1';
+
+        return (int) $wpdb->get_var($wpdb->prepare($query, ...$params));
+    }
+
+    private static function isAutomatedCampaign(int $campaignId): bool
+    {
+        global $wpdb;
+
+        $campaignTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        return 'automated' === $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT campaign_type FROM {$campaignTable} WHERE campaign_id = %d",
+                $campaignId
+            )
+        );
+    }
+
+    public static function hasScheduledAction(int $campaignId): bool
+    {
+        if ($campaignId <= 0) {
+            return false;
+        }
+
+        if (
+            function_exists('as_has_scheduled_action')
+            && as_has_scheduled_action(
+                self::ACTION_HOOK,
+                null,
+                self::getActionGroup($campaignId)
+            )
+        ) {
+            return true;
+        }
+
+        return !empty(self::getScheduledActionsForCampaign($campaignId));
+    }
+
+    public static function getScheduledActionsForCampaign(
+        int $campaignId,
+        ?array $statuses = null
+    ): array {
+        if (
+            $campaignId <= 0
+            || !function_exists('as_get_scheduled_actions')
+            || !class_exists('\ActionScheduler_Store')
+        ) {
+            return [];
+        }
+
+        $statuses ??= [
+            \ActionScheduler_Store::STATUS_PENDING,
+            \ActionScheduler_Store::STATUS_RUNNING,
+        ];
+
+        $found = [];
+
+        foreach ($statuses as $status) {
+            $offset = 0;
+
+            do {
+                $actions = as_get_scheduled_actions([
+                    'hook' => self::ACTION_HOOK,
+                    'status' => $status,
+                    'per_page' => self::ACTION_QUERY_PAGE_SIZE,
+                    'offset' => $offset,
+                ]);
+
+                foreach ($actions as $actionId => $action) {
+                    $args = $action->get_args();
+
+                    if (isset($args[1]) && (int) $args[1] === $campaignId) {
+                        $found[$actionId] = $action;
+                    }
+                }
+
+                $offset += self::ACTION_QUERY_PAGE_SIZE;
+            } while (count($actions) === self::ACTION_QUERY_PAGE_SIZE);
+        }
+
+        return $found;
+    }
+
+    public static function cancelScheduledActions(int $campaignId): int
+    {
+        if ($campaignId <= 0 || !class_exists('\ActionScheduler_Store')) {
+            return 0;
+        }
+
+        $store = \ActionScheduler_Store::instance();
+        $actions = self::getScheduledActionsForCampaign(
+            $campaignId,
+            [\ActionScheduler_Store::STATUS_PENDING]
+        );
+        $cancelled = 0;
+
+        foreach ($actions as $actionId => $action) {
+            try {
+                $store->cancel_action($actionId);
+                $store->delete_action($actionId);
+                $cancelled++;
+            } catch (\Exception $e) {
+                // Continue so one stale action cannot prevent the others from being removed.
+            }
+        }
+
+        return $cancelled;
+    }
+
+    private static function getActionGroup(int $campaignId): string
+    {
+        return self::ACTION_GROUP_PREFIX . $campaignId;
+    }
+
     /**
      * @param $sendType
      * @param $post
@@ -28,9 +233,10 @@ class MailerPressEmailBatch
      * @param $segment
      * @param $openTracking
      * @param $clickTracking
+     * @param $requestedBatchId
      * @return void|\WP_REST_Response
      */
-    #[Action('mailerpress_batch_email', priority: 10, acceptedArgs: 10)]
+    #[Action('mailerpress_batch_email', priority: 10, acceptedArgs: 11)]
     public function process(
         $sendType = null,
         $post = null,
@@ -42,6 +248,7 @@ class MailerPressEmailBatch
         $segment = null,
         $openTracking = 'yes',
         $clickTracking = 'yes',
+        $requestedBatchId = null,
     ) {
         global $wpdb;
 
@@ -60,6 +267,7 @@ class MailerPressEmailBatch
                 $segment = $args[7] ?? [];
                 $openTracking = $args[8] ?? 'yes';
                 $clickTracking = $args[9] ?? 'yes';
+                $requestedBatchId = $args[10] ?? null;
             }
 
             // Ensure arrays are arrays
@@ -73,6 +281,11 @@ class MailerPressEmailBatch
             }
 
             $campaignModel = Kernel::getContainer()->get(Campaigns::class)->find($post);
+
+            // A claimed action can outlive the campaign's removal from the queue.
+            if (!$campaignModel || 'trash' === $campaignModel->status) {
+                return;
+            }
 
             if (
                 $campaignModel
@@ -141,15 +354,36 @@ class MailerPressEmailBatch
                 $subject = $campaign ? ($campaign->subject ?: $campaign->name) : '';
             }
 
-            // Check if a batch already exists for this campaign (created in createBatchV2)
-            $existing_batch = $wpdb->get_row(
-                $wpdb->prepare(
-                    "SELECT id FROM " . Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES) . "
-                 WHERE campaign_id = %d AND status IN ('scheduled', 'pending')
-                 ORDER BY id DESC LIMIT 1",
-                    $post
-                )
-            );
+            $requestedBatchId = (int) $requestedBatchId;
+
+            if ($requestedBatchId > 0) {
+                $existing_batch = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT id FROM " . Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES) . "
+                         WHERE id = %d
+                         AND campaign_id = %d
+                         AND status IN ('scheduled', 'pending')
+                         LIMIT 1",
+                        $requestedBatchId,
+                        $post
+                    )
+                );
+
+                // Never let an action fall back to another batch when it names a specific one.
+                if (!$existing_batch) {
+                    return;
+                }
+            } else {
+                // Backward compatibility for actions scheduled before batch IDs were included.
+                $existing_batch = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT id FROM " . Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES) . "
+                         WHERE campaign_id = %d AND status IN ('scheduled', 'pending')
+                         ORDER BY id DESC LIMIT 1",
+                        $post
+                    )
+                );
+            }
 
             if ($existing_batch) {
                 // Use existing batch
@@ -272,11 +506,12 @@ class MailerPressEmailBatch
 
 
                         $parser = Kernel::getContainer()->get(HtmlParser::class);
+
                         $payload = [
                             'wp_batch_id' => $batch_id,
                             'domain_id' => $servicesData['services']['mailerpress']['conf']['domain'],
                             'name' => $subject,
-                            'emails' => array_map(function ($c) use ($preprocessedHtml, $subject, $batch_id, $post, $parser, $openTracking, $clickTracking) {
+                            'emails' => array_map(function ($c) use ($preprocessedHtml, $htmlContent, $subject, $batch_id, $post, $parser, $openTracking, $clickTracking) {
                                 $contact = Kernel::getContainer()->get(Contacts::class)->get($c);
 
                                 $trackContactId = ('anonymously' === $openTracking) ? 0 : (int) $contact->contact_id;
@@ -310,11 +545,15 @@ class MailerPressEmailBatch
                                     );
                                 }
 
-                                $body = $parser->init( $preprocessedHtml, $contact_variables )->replaceVariables( $clickTracking );
+                                $contactHtml = apply_filters( 'mailerpress/email/per_contact_html', null, $htmlContent, (int) $contact->contact_id );
+                                $contactTemplate = null !== $contactHtml ? $contactHtml : $preprocessedHtml;
+                                $contactTemplate = null !== $contactHtml ? HtmlParser::preprocessBody( $contactTemplate ) : $contactTemplate;
+
+                                $body = $parser->init( $contactTemplate, $contact_variables )->replaceVariables( $clickTracking );
 
                                 return [
                                     'to'      => $contact->email,
-                                    'subject' => $subject,
+                                    'subject' => $parser->replaceSubjectVariables($subject, $contact_variables),
                                     'body'    => $body,
                                 ];
                             }, $sendingChunk),
@@ -575,6 +814,7 @@ class MailerPressEmailBatch
 
         return match ($type) {
             'classic' => new ClassicContactFetcher($lists, $tags),
+            'contact_ids' => new ContactIdsFetcher(is_array($segment) ? $segment : []),
             'segment' => new SegmentContactFetcher(is_array($segment) ? $segment[0] : $segment),
             default => new ClassicContactFetcher($lists, $tags) // Fallback to classic instead of null
         };

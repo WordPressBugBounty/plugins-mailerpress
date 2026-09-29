@@ -140,7 +140,6 @@ class MigrationValidator
 
         // Also check columns added via addColumn() / id() which populate $this->columns directly
         $columnsProperty = $reflection->getProperty('columns');
-        $columnsProperty->setAccessible(true);
         $simpleColumns = $columnsProperty->getValue($manager);
 
         foreach (array_keys($simpleColumns) as $columnName) {
@@ -153,7 +152,7 @@ class MigrationValidator
         $versionProperty = $reflection->getProperty('version');
         $expectedVersion = $versionProperty->getValue($manager);
 
-        if ($expectedVersion && $expectedVersion !== '2.0.7') {
+        if ($expectedVersion && $expectedVersion !== '2.1.0') {
             $versionOptionName = 'custom_table_' . sanitize_key(str_replace($wpdb->prefix, '', $tableName)) . '_version';
             $actualVersion = get_option($versionOptionName);
 
@@ -213,7 +212,6 @@ class MigrationValidator
 
         // Check columns added via addColumn() which populate $this->columns directly
         $columnsProperty = $reflection->getProperty('columns');
-        $columnsProperty->setAccessible(true);
         $simpleColumns = $columnsProperty->getValue($manager);
 
         if (!empty($simpleColumns)) {
@@ -288,6 +286,11 @@ class MigrationValidator
                     return true; // Foreign key exists and should be dropped
                 }
             }
+        }
+
+        // Match legacy unique indexes by columns, even when their names differ.
+        if (!empty($manager->getUniqueIndexNamesToDrop())) {
+            return true;
         }
 
         // Check indexes to drop

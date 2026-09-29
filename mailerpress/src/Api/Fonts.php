@@ -15,7 +15,7 @@ class Fonts
     #[Endpoint(
         'fonts',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageFonts'],
     )]
     public function addFont(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -38,7 +38,7 @@ class Fonts
     #[Endpoint(
         'fonts',
         methods: 'DELETE',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageFonts'],
     )]
     public function deleteFont(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -70,7 +70,7 @@ class Fonts
     }
 
 
-    #[Endpoint('google-fonts', permissionCallback: [Permissions::class, 'canEdit'])]
+    #[Endpoint('google-fonts', permissionCallback: [Permissions::class, 'canManageFonts'])]
     public function googleFonts(\WP_REST_Request $request): \WP_Error|\WP_REST_Response
     {
         $url = 'https://s.w.org/images/fonts/wp-6.7/collections/google-fonts-with-preview.json';
@@ -108,7 +108,7 @@ class Fonts
 
     private const MAX_FONT_SIZE = 2 * 1024 * 1024; // 2 MB
 
-    #[Endpoint('install-font', methods: 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
+    #[Endpoint('install-font', methods: 'POST', permissionCallback: [Permissions::class, 'canManageFonts'])]
     public function mailerpress_install_font(WP_REST_Request $request)
     {
         $olfFontOption = get_option('mailerpress_fonts');

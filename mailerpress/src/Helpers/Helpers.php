@@ -9,11 +9,25 @@ namespace MailerPress\Helpers;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
 
+function getPostCategoryNames(\WP_Post $post): array
+{
+    $terms = get_the_terms($post, 'category');
+    if (is_wp_error($terms) || empty($terms)) {
+        return [];
+    }
+
+    return array_map(
+        static fn($term) => wp_specialchars_decode(wp_strip_all_tags($term->name), ENT_QUOTES),
+        array_values(wp_list_sort($terms, 'name', 'ASC'))
+    );
+}
+
 function formatPostForApi(array $posts)
 {
     return array_reduce($posts, static function ($acc, \WP_Post $post) {
         $acc[] = [
             'id' => $post->ID,
+            'category_names' => getPostCategoryNames($post),
             'title' => [
                 'rendered' => get_the_title($post),
             ],

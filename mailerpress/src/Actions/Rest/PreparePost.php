@@ -74,6 +74,7 @@ class PreparePost
         $data = (array) $response->get_data();
         $data['featured_image_src'] = $image_sizes ?: null;
         $data['subType'] = get_post_type($post);
+        $data['category_names'] = \MailerPress\Helpers\getPostCategoryNames($post);
 
         if ($post->post_type === 'product' && function_exists('wc_get_product')) {
             $product = wc_get_product($post->ID);

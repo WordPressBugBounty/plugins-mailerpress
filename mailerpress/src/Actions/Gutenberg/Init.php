@@ -63,7 +63,7 @@ class Init
 
 
     /**
-     * Inject a WP REST nonce for the mailerpress-form block view script.
+     * Inject the REST endpoint and nonce for the mailerpress-form block view script.
      * Runs before footer scripts so window.mailerpressFormConfig is available to view.js.
      */
     #[Action('wp_print_footer_scripts', priority: 0)]
@@ -74,7 +74,11 @@ class Init
         }
 
         echo '<script>window.mailerpressFormConfig=' . wp_json_encode(
-            ['nonce' => wp_create_nonce('wp_rest')],
+            [
+                'apiUrl' => rest_url('mailerpress/v1/contact'),
+                'nonce' => wp_create_nonce('wp_rest'),
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+            ],
             JSON_HEX_TAG | JSON_HEX_AMP
         ) . ';</script>' . "\n";
     }

@@ -13,7 +13,7 @@ class Notifications
     #[Endpoint(
         'notifications/messages',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canViewNotifications'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function getNotificationMessages(\WP_REST_Request $request)
     {
@@ -25,7 +25,6 @@ class Notifications
         
         $reflectionClass = new \ReflectionClass(NotificationMessageFactory::class);
         $messagesProperty = $reflectionClass->getProperty('messages');
-        $messagesProperty->setAccessible(true);
         $registeredMessages = $messagesProperty->getValue(null);
         
         foreach ($registeredMessages as $id => $class) {
@@ -66,7 +65,7 @@ class Notifications
     #[Endpoint(
         'notifications/dismiss',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canViewNotifications'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function dismissNotification(\WP_REST_Request $request)
     {
@@ -92,13 +91,12 @@ class Notifications
     #[Endpoint(
         'notifications/dismiss-all',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canViewNotifications'],
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
     )]
     public function dismissAllNotifications(\WP_REST_Request $request)
     {
         $reflectionClass = new \ReflectionClass(NotificationMessageFactory::class);
         $messagesProperty = $reflectionClass->getProperty('messages');
-        $messagesProperty->setAccessible(true);
         $registeredMessages = $messagesProperty->getValue(null);
         
         // Dismiss all dismissible notifications (including persistent ones)

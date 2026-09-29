@@ -40,11 +40,11 @@ class Manager
      * Run all pending migrations with error handling
      * Automatically detects changed files via file_hash comparison
      */
-    public function run(): void
+    public function run(): bool
     {
         // Prevent concurrent execution
         if ($this->isLocked()) {
-            return;
+            return false;
         }
 
         try {
@@ -145,8 +145,6 @@ class Manager
                     // Déclencher le hook après la migration pour permettre la synchronisation des données
                     do_action('mailerpress_migration_completed');
 
-                    // Reset schema for next migration
-                    $this->schema = new SchemaBuilder();
                 } catch (\Throwable $e) {
                     $errorMessage = sprintf(
                         "Migration failed: %s in %s:%d - %s",
@@ -165,8 +163,12 @@ class Manager
                     // Continue with next migration instead of stopping everything
                     // This allows partial success
                     continue;
+                } finally {
+                    $this->schema = new SchemaBuilder();
                 }
             }
+
+            return $failedCount === 0 && $this->tracker->getRunningCount() === 0;
         } catch (\Throwable $e) {
             throw $e;
         } finally {

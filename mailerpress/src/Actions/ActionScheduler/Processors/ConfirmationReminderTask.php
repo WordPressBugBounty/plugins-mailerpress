@@ -148,9 +148,9 @@ class ConfirmationReminderTask
 
         // Old textarea format placeholders
         $placeholders = [
-            '[contact:email]' => $contactData['email'],
-            '[contact:firstName]' => $contactData['first_name'],
-            '[contact:lastName]' => $contactData['last_name'],
+            '[contact:email]' => esc_html((string) $contactData['email']),
+            '[contact:firstName]' => esc_html((string) $contactData['first_name']),
+            '[contact:lastName]' => esc_html((string) $contactData['last_name']),
             '[site:title]' => $site['title'],
             '[activation_link]' => '<a href="' . $contactData['activation_link'] . '">',
             '[/activation_link]' => '</a>',
@@ -159,9 +159,9 @@ class ConfirmationReminderTask
 
         // Editor merge tag format {{variable}}
         $editorPlaceholders = [
-            '{{contact_first_name}}' => $contactData['first_name'],
-            '{{contact_last_name}}' => $contactData['last_name'],
-            '{{contact_email}}' => $contactData['email'],
+            '{{contact_first_name}}' => esc_html((string) $contactData['first_name']),
+            '{{contact_last_name}}' => esc_html((string) $contactData['last_name']),
+            '{{contact_email}}' => esc_html((string) $contactData['email']),
             '{{site_title}}' => $site['title'],
             '{{site_url}}' => $site['home_url'],
             '{{activation_link}}' => $contactData['activation_link'],
@@ -222,7 +222,7 @@ class ConfirmationReminderTask
             $body = $replaceDynamicVariables($emailContent);
         }
 
-        $subject = $replaceDynamicVariables($emailSubject, false);
+        $subject = wp_strip_all_tags(html_entity_decode($replaceDynamicVariables($emailSubject, false), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
         // Send email
         $result = $mailer->sendEmail([

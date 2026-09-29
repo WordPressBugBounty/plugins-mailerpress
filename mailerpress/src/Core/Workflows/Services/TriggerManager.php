@@ -5,16 +5,17 @@ namespace MailerPress\Core\Workflows\Services;
 use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 use MailerPress\Core\Workflows\Repositories\StepRepository;
 use MailerPress\Core\Workflows\Repositories\AutomationJobRepository;
+use MailerPress\Core\Workflows\Models\Automation;
+use MailerPress\Core\Workflows\Models\AutomationJob;
 
 class TriggerManager
 {
-    private const GUEST_USER_ID_OFFSET = 2147483648;
-
     private AutomationRepository $automationRepo;
     private StepRepository $stepRepo;
     private AutomationJobRepository $jobRepo;
     private WorkflowExecutor $executor;
     private TriggerRateLimiter $rateLimiter;
+    private WorkflowUserResolver $userResolver;
     private array $registeredTriggers = [];
     private array $triggerDefinitions = [];
 
@@ -29,6 +30,7 @@ class TriggerManager
         $this->jobRepo = $jobRepo ?? new AutomationJobRepository();
         $this->executor = $executor ?? new WorkflowExecutor();
         $this->rateLimiter = new TriggerRateLimiter();
+        $this->userResolver = new WorkflowUserResolver();
     }
 
     /**
@@ -56,6 +58,11 @@ class TriggerManager
             ], $definition); // Put definition last to preserve icon, label, etc.
         }
 
+        // CustomTrigger registers only the configured, authorized hook for each workflow.
+        if ($key === 'custom_trigger') {
+            return;
+        }
+
         add_action($hookName, function (...$args) use ($key, $contextBuilder) {
             $this->handleTrigger($key, $args, $contextBuilder);
         }, 10, 10);
@@ -71,6 +78,13 @@ class TriggerManager
     public function registerAdditionalHook(string $key, string $hookName, ?callable $contextBuilder = null): void
     {
         $builder = $contextBuilder ?? ($this->registeredTriggers[$key]['context_builder'] ?? null);
+
+        // Recorded so goals promoted from this trigger inherit every hook, not
+        // just the primary one passed to registerTrigger().
+        $this->registeredTriggers[$key]['additional_hooks'][] = [
+            'hook' => $hookName,
+            'context_builder' => $builder,
+        ];
 
         add_action($hookName, function (...$args) use ($key, $builder) {
             $this->handleTrigger($key, $args, $builder);
@@ -100,9 +114,8 @@ class TriggerManager
 
     private function handleTrigger(string $triggerKey, array $args, ?callable $contextBuilder): void
     {
-        // Special handling for birthday_check trigger - it has its own logic in BirthdayCheckTrigger::checkBirthdays()
-        // We should NOT process it here to avoid bypassing the date validation
-        if ($triggerKey === 'birthday_check') {
+        // Scheduled scanner triggers build their own context and should not be processed by the generic hook handler.
+        if (in_array($triggerKey, ['birthday_check', 'woocommerce_customer_inactive'], true)) {
             return;
         }
 
@@ -162,81 +175,6 @@ class TriggerManager
                     continue;
                 }
 
-                // New cart detected - check if job already exists (shouldn't happen, but safety check)
-                $includeWaiting = true;
-                $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
-                    $automation->getId(),
-                    $userId,
-                    $includeWaiting
-                );
-
-                if ($existingJob) {
-                    // Job already exists - this shouldn't happen for a new cart, but skip anyway
-                    continue;
-                }
-            } else {
-                // For other triggers, use the standard job checking logic
-                $includeWaiting = false;
-                $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
-                    $automation->getId(),
-                    $userId,
-                    $includeWaiting
-                );
-
-                if ($existingJob) {
-                    // Check if the job is stuck (older than 10 minutes)
-                    $jobUpdatedAt = $existingJob->getUpdatedAt();
-                    if ($jobUpdatedAt) {
-                        $jobTime = new \DateTime($jobUpdatedAt);
-                        $now = new \DateTime();
-                        $diff = $now->diff($jobTime);
-                        $minutesOld = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
-
-                        if ($minutesOld > 10) {
-                            $existingJob->setStatus('FAILED');
-                            $this->jobRepo->update($existingJob);
-                            // Continue to create new job below
-                        } else {
-                            continue;
-                        }
-                    } else {
-                        // No updated_at, consider it stuck
-                        $existingJob->setStatus('FAILED');
-                        $this->jobRepo->update($existingJob);
-                        // Continue to create new job below
-                    }
-                }
-            }
-
-            // If run_once_per_subscriber is enabled, also check for completed jobs
-            // Check both user_id and contact_id to cover all cases:
-            // 1. WordPress user only (no MailerPress contact) - check by user_id
-            // 2. MailerPress contact without WordPress account - check by contact_id (which is also user_id)
-            // 3. MailerPress contact with WordPress account - check by both user_id and contact_id
-            if ($automation->isRunOncePerSubscriber()) {
-                $completedJob = null;
-
-                // Get contact_id from context if available (for MailerPress contacts)
-                $contactId = $context['contact_id'] ?? null;
-
-                // Check by user_id first (for WordPress users)
-                $completedJob = $this->jobRepo->findCompletedByAutomationAndUser(
-                    $automation->getId(),
-                    $userId
-                );
-
-                // Also check by contact_id if available (for MailerPress contacts)
-                // This will also check if the contact has a WordPress account and find jobs by that user_id
-                if (!$completedJob && $contactId) {
-                    $completedJob = $this->jobRepo->findCompletedByAutomationAndContact(
-                        $automation->getId(),
-                        $contactId
-                    );
-                }
-
-                if ($completedJob) {
-                    continue;
-                }
             }
 
             $conditionsPass = $this->checkTriggerConditions($trigger, $userId, $context);
@@ -246,13 +184,47 @@ class TriggerManager
                 continue;
             }
 
+            if ('post_published' !== $triggerKey && $this->hasSubscriberAlreadyEnteredAutomation($automation, $userId, $context)) {
+                continue;
+            }
+
+            if ($triggerKey === 'woocommerce_abandoned_cart') {
+                // New cart detected - check if job already exists (shouldn't happen, but safety check)
+                $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
+                    $automation->getId(),
+                    $userId,
+                    true
+                );
+
+                if ($existingJob) {
+                    // Job already exists - this shouldn't happen for a new cart, but skip anyway
+                    continue;
+                }
+            } elseif ('post_published' !== $triggerKey) {
+                // For other triggers, use the standard job checking logic.
+                $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
+                    $automation->getId(),
+                    $userId,
+                    false
+                );
+
+                if ($existingJob) {
+                    if ($this->isJobScheduledForFuture($existingJob) || !$this->isJobStale($existingJob)) {
+                        continue;
+                    }
+
+                    $existingJob->setStatus('FAILED');
+                    $this->jobRepo->update($existingJob);
+                }
+            }
+
             $nextStepId = $trigger->getNextStepId();
 
             if (empty($nextStepId)) {
                 continue;
             }
 
-            if (!$this->rateLimiter->isAllowed($triggerKey, $userId)) {
+            if ('post_published' !== $triggerKey && !$this->rateLimiter->isAllowed($triggerKey, $userId)) {
                 do_action('mailerpress_workflow_trigger_rate_limited', $triggerKey, $userId);
                 continue;
             }
@@ -301,55 +273,32 @@ class TriggerManager
             return;
         }
 
-        // Check for existing active jobs
-        $includeWaiting = false;
-        $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
-            $automationId,
-            $userId,
-            $includeWaiting
-        );
-
-        if ($existingJob) {
-            // Check if the job is stuck (older than 10 minutes)
-            $jobUpdatedAt = $existingJob->getUpdatedAt();
-            if ($jobUpdatedAt) {
-                $jobTime = new \DateTime($jobUpdatedAt);
-                $now = new \DateTime();
-                $diff = $now->diff($jobTime);
-                $minutesOld = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
-
-                if ($minutesOld > 10) {
-                    $existingJob->setStatus('FAILED');
-                    $this->jobRepo->update($existingJob);
-                } else {
-                    return;
-                }
-            } else {
-                $existingJob->setStatus('FAILED');
-                $this->jobRepo->update($existingJob);
-            }
-        }
-
-        // Check run_once_per_subscriber
-        if ($automation->isRunOncePerSubscriber()) {
-            $contactId = $context['contact_id'] ?? null;
-            $completedJob = $this->jobRepo->findCompletedByAutomationAndUser($automationId, $userId);
-
-            if (!$completedJob && $contactId) {
-                $completedJob = $this->jobRepo->findCompletedByAutomationAndContact($automationId, $contactId);
-            }
-
-            if ($completedJob) {
-                return;
-            }
-        }
-
         // Check trigger conditions
         $conditionsPass = $this->checkTriggerConditions($trigger, $userId, $context);
 
         if (!$conditionsPass) {
             do_action('mailerpress_workflow_trigger_skipped', $triggerKey, $automationId, $userId, $context);
             return;
+        }
+
+        if ($this->hasSubscriberAlreadyEnteredAutomation($automation, $userId, $context)) {
+            return;
+        }
+
+        // Check for existing active jobs.
+        $existingJob = $this->jobRepo->findActiveByAutomationAndUser(
+            $automationId,
+            $userId,
+            false
+        );
+
+        if ($existingJob) {
+            if ($this->isJobScheduledForFuture($existingJob) || !$this->isJobStale($existingJob)) {
+                return;
+            }
+
+            $existingJob->setStatus('FAILED');
+            $this->jobRepo->update($existingJob);
         }
 
         $nextStepId = $trigger->getNextStepId();
@@ -373,56 +322,12 @@ class TriggerManager
 
     private function resolveWorkflowUserId(array &$context): int
     {
-        $userId = (int) ($context['user_id'] ?? 0);
-        if ($userId > 0) {
-            $context['user_id'] = $userId;
-            return $userId;
-        }
-
-        $contactId = (int) ($context['contact_id'] ?? 0);
-        if ($contactId > 0) {
-            $context['user_id'] = $contactId;
-            return $contactId;
-        }
-
-        $email = $this->getContextEmail($context);
-        if ($email !== '') {
-            $contactsModel = new \MailerPress\Models\Contacts();
-            $contact = $contactsModel->getContactByEmail($email);
-
-            if ($contact) {
-                $contactId = (int) $contact->contact_id;
-                $context['contact_id'] = $contactId;
-                $context['user_id'] = $contactId;
-                return $contactId;
-            }
-
-            $guestUserId = self::GUEST_USER_ID_OFFSET + abs(crc32(strtolower($email)));
-
-            $context['user_id'] = $guestUserId;
-            return $guestUserId;
-        }
-
-        $currentUserId = (int) get_current_user_id();
-        if ($currentUserId > 0) {
-            $context['user_id'] = $currentUserId;
-            return $currentUserId;
-        }
-
-        return 0;
+        return $this->userResolver->resolve($context);
     }
 
     private function getContextEmail(array $context): string
     {
-        $email = $context['customer_email']
-            ?? $context['email']
-            ?? $context['user_email']
-            ?? $context['billing_email']
-            ?? ($context['billing_address']['email'] ?? '');
-
-        $email = sanitize_email((string) $email);
-
-        return is_email($email) ? $email : '';
+        return $this->userResolver->getContextEmail($context);
     }
 
     /**
@@ -612,6 +517,57 @@ class TriggerManager
 
             return '';
         }, $template);
+    }
+
+    private function hasSubscriberAlreadyEnteredAutomation(Automation $automation, int $userId, array $context): bool
+    {
+        if (!$automation->isRunOncePerSubscriber()) {
+            return false;
+        }
+
+        $automationId = (int) $automation->getId();
+        if (!$automationId) {
+            return false;
+        }
+
+        $existingJob = $this->jobRepo->findAnyByAutomationAndUser($automationId, $userId);
+        if ($existingJob) {
+            return true;
+        }
+
+        $contactId = absint($context['contact_id'] ?? 0);
+        if (!$contactId) {
+            return false;
+        }
+
+        return (bool) $this->jobRepo->findAnyByAutomationAndContact($automationId, $contactId);
+    }
+
+    private function isJobScheduledForFuture(AutomationJob $job): bool
+    {
+        $scheduledAt = $job->getScheduledAt();
+        if (!$scheduledAt) {
+            return false;
+        }
+
+        $scheduledTimestamp = strtotime($scheduledAt);
+
+        return $scheduledTimestamp !== false && $scheduledTimestamp > time();
+    }
+
+    private function isJobStale(AutomationJob $job): bool
+    {
+        $updatedAt = $job->getUpdatedAt();
+        if (!$updatedAt) {
+            return true;
+        }
+
+        $updatedTimestamp = strtotime($updatedAt);
+        if ($updatedTimestamp === false) {
+            return true;
+        }
+
+        return (time() - $updatedTimestamp) > (10 * MINUTE_IN_SECONDS);
     }
 
     private function checkTriggerConditions($trigger, int $userId, array $context): bool
@@ -865,14 +821,12 @@ class TriggerManager
             ]
         );
 
-        // Use transition_post_status instead of publish_post to avoid double-firing
-        // This hook only fires once when status transitions to 'publish'
-        \add_action('transition_post_status', function ($newStatus, $oldStatus, $post) {
-            // Only trigger when transitioning TO 'publish' status
-            // Skip if already was 'publish' (to avoid triggering on updates)
-            if ($newStatus !== 'publish' || $oldStatus === 'publish') {
-                return;
-            }
+		// Gutenberg saves featured media and terms after the status transition.
+		// Wait until all post data is saved, and ignore updates to published posts.
+		\add_action( 'wp_after_insert_post', function ( $postId, $post, $update, $postBefore ) {
+			if ( 'publish' !== $post->post_status || ( $postBefore && 'publish' === $postBefore->post_status ) ) {
+				return;
+			}
 
             // Skip auto-saves and revisions
             if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
@@ -925,6 +879,7 @@ class TriggerManager
                 'post_excerpt' => $excerpt,
                 'post_url' => $postUrl ?: '',
                 'post_thumbnail_url' => $thumbnailUrl ?: '',
+				'publication_newsletter' => true,
                 'post_categories' => $categories,
                 'post_meta' => $metaFlat,
             ];
@@ -933,12 +888,12 @@ class TriggerManager
             $this->handleTrigger('post_published', [$postId, $postObj], function () use ($context) {
                 return $context;
             });
-        }, 10, 3);
+		}, 10, 4 );
 
         // Also register the trigger definition for the UI
         $this->triggerDefinitions['post_published'] = [
             'key' => 'post_published',
-            'hook' => 'transition_post_status',
+            'hook' => 'wp_after_insert_post',
             'type' => 'TRIGGER',
             'label' => __('Post Published', 'mailerpress'),
             'description' => __('Triggered when a post or content is published on your site. Ideal for sending automatic newsletters or notifying subscribers about new content.', 'mailerpress'),

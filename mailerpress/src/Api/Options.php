@@ -9,6 +9,7 @@ namespace MailerPress\Api;
 use DI\DependencyException;
 use DI\NotFoundException;
 use MailerPress\Core\Attributes\Endpoint;
+use MailerPress\Core\Capabilities;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Kernel;
 use MailerPress\Services\RateLimitConfig;
@@ -41,7 +42,7 @@ class Options
     #[Endpoint(
         'get-active-provider',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageSettings'],
     )]
     public function activeProvider(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -238,7 +239,7 @@ class Options
     #[Endpoint(
         'save-theme',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function saveTheme(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -266,11 +267,13 @@ class Options
     }
 
     private const NATIVE_ARRAY_OPTIONS = [
+        'mailerpress_inactive_subscribers',
         'mailerpress_signup_confirmation',
         'woocommerce_mailerpress_settings',
         'woocommerce_my_account_settings',
         'pmpro_mailerpress_settings',
         'pmpro_my_account_settings',
+        'mailerpress_edd_settings',
         'surecart_mailerpress_settings',
         'fluentcart_mailerpress_settings',
         'fluentcart_my_account_settings',
@@ -312,6 +315,10 @@ class Options
         // string from the frontend means "leave existing key unchanged".
         if ('mailerpress_ai_model_settings' === $optionName) {
             $incoming = is_string($optionValue) ? json_decode($optionValue, true) : $optionValue;
+            if (is_array($incoming)) {
+                $incoming = \MailerPress\Services\DeepSeekConfig::normalizeSettings($incoming);
+                $optionValue = wp_json_encode($incoming);
+            }
             if (is_array($incoming) && isset($incoming['api_keys']) && is_array($incoming['api_keys'])) {
                 $existing_raw = get_option('mailerpress_ai_model_settings', '{}');
                 $existing     = is_string($existing_raw) ? json_decode($existing_raw, true) : $existing_raw;
@@ -397,11 +404,11 @@ class Options
     ];
 
     /**
-     * Strip provider credentials for non-admin response contexts.
+     * Strip provider credentials when the user cannot manage MailerPress settings.
      */
     public static function redactEmailServicesForResponse(mixed $services): mixed
     {
-        if (current_user_can('manage_options')) {
+        if (current_user_can(Capabilities::MANAGE_SETTINGS)) {
             return $services;
         }
 
@@ -468,6 +475,10 @@ class Options
         }
 
         if ('mailerpress_ai_model_settings' === $option_name) {
+            $settings = is_string($option_value) ? json_decode($option_value, true) : $option_value;
+            if (is_array($settings)) {
+                $option_value = wp_json_encode(\MailerPress\Services\DeepSeekConfig::normalizeSettings($settings));
+            }
             $option_value = self::maskAiModelSettings($option_value);
         }
 
@@ -508,7 +519,7 @@ class Options
     #[Endpoint(
         'user/setup-completed',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']  // You already have this in your code
+        permissionCallback: [Permissions::class, 'canViewMailerPress']
     )]
     public function markSetupCompleted(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -592,7 +603,7 @@ class Options
     #[Endpoint(
         'options/rate-limit',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function getRateLimitSettings(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -607,7 +618,7 @@ class Options
     #[Endpoint(
         'options/rate-limit',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function updateRateLimitSettings(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -659,6 +670,11 @@ class Options
             'sending_frequency' => [
                 'option_key' => 'mailerpress_frequency_sending',
                 'label' => __('Sending Frequency', 'mailerpress'),
+                'sensitive' => false,
+            ],
+            'inactive_contacts' => [
+                'option_key' => 'mailerpress_inactive_subscribers',
+                'label' => __('Inactive Contacts', 'mailerpress'),
                 'sensitive' => false,
             ],
             'bounce_management' => [

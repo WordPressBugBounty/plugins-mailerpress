@@ -9,10 +9,27 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Models\CustomFields;
+use MailerPress\Services\InactiveContactManager;
 use MailerPress\Services\Logger;
 
 class ProcessChunkImportContact
 {
+    private const STANDARD_CONTACT_FIELDS = [
+        'email',
+        'first_name',
+        'last_name',
+        'created_at',
+        'updated_at',
+        'last_engagement_at',
+        'last_open_at',
+        'last_click_at',
+        'last_sending_at',
+        'last_subscribed_at',
+        'email_count',
+        'inactivated_at',
+        'inactivation_reason',
+    ];
+
     #[Action('process_import_chunk', priority: 10, acceptedArgs: 2)]
     public function processImportChunk($chunk_id, $forceUpdate = false): void
     {
@@ -257,6 +274,7 @@ class ProcessChunkImportContact
                         'opt_in_source' => 'batch_import_file',
                         'access_token' => bin2hex(random_bytes(32))
                     ];
+                    $contact_data = array_merge($contact_data, $this->lifecycleFieldsForStatus((string) ($contact_status ?? 'pending'), $current_time));
 
                     $result = $wpdb->insert($contactTable, $contact_data);
 
@@ -290,10 +308,9 @@ class ProcessChunkImportContact
 
                         // Insert custom fields - skip standard fields that shouldn't be in custom_fields
                         if (!empty($contact['custom_fields']) && is_array($contact['custom_fields'])) {
-                            $standardFields = ['email', 'first_name', 'last_name', 'created_at', 'updated_at'];
                             foreach ($contact['custom_fields'] as $field_key => $field_value) {
                                 // Skip if this is a standard field (shouldn't be in custom_fields)
-                                if (in_array($field_key, $standardFields, true)) {
+                                if (in_array($field_key, self::STANDARD_CONTACT_FIELDS, true)) {
                                     continue;
                                 }
 
@@ -358,14 +375,19 @@ class ProcessChunkImportContact
                             $last_name = is_string($contact['last_name']) ? trim($contact['last_name'], ' "\'') : '';
                         }
 
-                        $result = $wpdb->update(
-                            $contactTable,
+                        $update_data = array_merge(
                             [
                                 'subscription_status' => $contact_status,
                                 'updated_at' => $current_time,
                                 'first_name' => sanitize_text_field($first_name),
                                 'last_name' => sanitize_text_field($last_name),
                             ],
+                            $this->lifecycleFieldsForStatus((string) $contact_status, $current_time)
+                        );
+
+                        $result = $wpdb->update(
+                            $contactTable,
+                            $update_data,
                             ['contact_id' => $contact_id]
                         );
 
@@ -398,10 +420,9 @@ class ProcessChunkImportContact
 
                             // Insert custom fields for existing contact (update if exists)
                             if (!empty($contact['custom_fields']) && is_array($contact['custom_fields'])) {
-                                $standardFields = ['email', 'first_name', 'last_name', 'created_at', 'updated_at'];
                                 foreach ($contact['custom_fields'] as $field_key => $field_value) {
                                     // Skip if this is a standard field (shouldn't be in custom_fields)
-                                    if (in_array($field_key, $standardFields, true)) {
+                                    if (in_array($field_key, self::STANDARD_CONTACT_FIELDS, true)) {
                                         continue;
                                     }
 
@@ -935,6 +956,53 @@ class ProcessChunkImportContact
         }
 
         return $offset;
+    }
+
+    private function lifecycleFieldsForStatus(string $status, string $now): array
+    {
+        if (!$this->contactHasLifecycleColumns()) {
+            return [];
+        }
+
+        if ($status === 'subscribed') {
+            return [
+                'last_subscribed_at' => $now,
+                'inactivated_at' => null,
+                'inactivation_reason' => null,
+            ];
+        }
+
+        if ($status === InactiveContactManager::STATUS_INACTIVE) {
+            return [
+                'inactivated_at' => $now,
+                'inactivation_reason' => 'manual',
+            ];
+        }
+
+        if ($status !== '') {
+            return [
+                'inactivated_at' => null,
+                'inactivation_reason' => null,
+            ];
+        }
+
+        return [];
+    }
+
+    private function contactHasLifecycleColumns(): bool
+    {
+        static $hasColumns = null;
+        if ($hasColumns !== null) {
+            return $hasColumns;
+        }
+
+        global $wpdb;
+        $columns = $wpdb->get_col('SHOW COLUMNS FROM ' . Tables::get(Tables::MAILERPRESS_CONTACT), 0) ?: [];
+        $required = ['last_subscribed_at', 'inactivated_at', 'inactivation_reason'];
+
+        $hasColumns = count(array_intersect($required, $columns)) === count($required);
+
+        return $hasColumns;
     }
 
     private function getRowLogContext(object $chunk, int $index, array $contact, int $chunk_contact_offset, array $extra = []): array

@@ -28,7 +28,7 @@ class ContactCreated
      * @throws NotFoundException
      * @throws \Exception
      */
-    #[Action('mailerpress_contact_created', priority: 10)]
+    #[Action(['mailerpress_contact_created', 'mailerpress_contact_confirmation_requested'], priority: 10)]
     public function handleContactCreated($contactId): void
     {
         // Convertir en int car Contacts::get() attend un int
@@ -116,7 +116,7 @@ class ContactCreated
                     $body = $this->replaceDynamicVariables($content, $contact, $site);
                 }
 
-                $subject = $this->replaceDynamicVariables($subject, $contact, $site, false);
+                $subject = wp_strip_all_tags($this->replaceDynamicVariables($subject, $contact, $site, false, false, false));
 
                 $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
                 $config = $mailer->getConfig();
@@ -271,7 +271,7 @@ class ContactCreated
         return $html;
     }
 
-    private function replaceDynamicVariables(string $content, array $contact, array $site, bool $applyNl2br = true, bool $stripActivationLink = false): string
+    private function replaceDynamicVariables(string $content, array $contact, array $site, bool $applyNl2br = true, bool $stripActivationLink = false, bool $escapeContactValues = true): string
     {
         // When using MJML template, strip activation_link shortcodes entirely
         // (the button block handles it via {{activation_link}})
@@ -284,9 +284,9 @@ class ContactCreated
 
         // Old textarea format placeholders
         $placeholders = [
-            '[contact:email]' => $contact['email'] ?? '',
-            '[contact:firstName]' => $contact['first_name'] ?? '',
-            '[contact:lastName]' => $contact['last_name'] ?? '',
+            '[contact:email]' => $escapeContactValues ? esc_html((string) ($contact['email'] ?? '')) : ($contact['email'] ?? ''),
+            '[contact:firstName]' => $escapeContactValues ? esc_html((string) ($contact['first_name'] ?? '')) : ($contact['first_name'] ?? ''),
+            '[contact:lastName]' => $escapeContactValues ? esc_html((string) ($contact['last_name'] ?? '')) : ($contact['last_name'] ?? ''),
             '[site:title]' => $site['title'] ?? '',
             '[activation_link]' => '<a href="' . ($contact['activation_link'] ?? '#') . '">',
             '[/activation_link]' => '</a>',
@@ -303,9 +303,9 @@ class ContactCreated
         );
 
         $editorPlaceholders = [
-            '{{contact_first_name}}' => $contact['first_name'] ?? '',
-            '{{contact_last_name}}' => $contact['last_name'] ?? '',
-            '{{contact_email}}' => $contact['email'] ?? '',
+            '{{contact_first_name}}' => $escapeContactValues ? esc_html((string) ($contact['first_name'] ?? '')) : ($contact['first_name'] ?? ''),
+            '{{contact_last_name}}' => $escapeContactValues ? esc_html((string) ($contact['last_name'] ?? '')) : ($contact['last_name'] ?? ''),
+            '{{contact_email}}' => $escapeContactValues ? esc_html((string) ($contact['email'] ?? '')) : ($contact['email'] ?? ''),
             '{{site_title}}' => $site['title'] ?? '',
             '{{site_url}}' => $site['home_url'] ?? '',
             '{{activation_link}}' => $contact['activation_link'] ?? '#',

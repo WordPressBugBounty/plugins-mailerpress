@@ -7,7 +7,6 @@ namespace MailerPress\Api;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Attributes\Endpoint;
-use MailerPress\Core\Capabilities;
 use MailerPress\Core\Enums\Tables;
 
 class Lists
@@ -15,7 +14,7 @@ class Lists
     #[Endpoint(
         'list',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadLists'],
     )]
     public function all(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -25,8 +24,8 @@ class Lists
         $contacts_table = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
 
         $search = $request->get_param('search');
-        $per_page = isset($_GET['perPages']) ? (int)(sanitize_key(wp_unslash($_GET['perPages']))) : 20;
-        $page = isset($_GET['paged']) ? (int)(sanitize_key(wp_unslash($_GET['paged']))) : 1;
+        $per_page = max(1, (int)($request->get_param('perPages') ?? 20));
+        $page = max(1, (int)($request->get_param('paged') ?? 1));
         $offset = ($page - 1) * $per_page;
 
         // Filters
@@ -52,22 +51,32 @@ class Lists
         }
 
         // Total count for pagination
-        $total_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} t WHERE {$where}", $params));
+        $countQuery = "SELECT COUNT(*) FROM {$table} t WHERE {$where}";
+        $total_count = $wpdb->get_var($params ? $wpdb->prepare($countQuery, $params) : $countQuery);
 
         $total_pages = ceil($total_count / $per_page);
 
-        // Fetch lists with contact counts
-        $response = [
-            'posts' => $wpdb->get_results($wpdb->prepare(
-                "SELECT t.*, t.list_id as id, COUNT(c.contact_id) as contact_count
+        if ($orderby === 'contact_count') {
+            $query = "SELECT t.*, t.list_id as id, COUNT(c.contact_id) as contact_count
             FROM {$table} t
             LEFT JOIN {$contacts_table} c ON c.list_id = t.list_id
             WHERE {$where}
             GROUP BY t.list_id
             ORDER BY {$orderBy}
-            LIMIT %d OFFSET %d",
-                [...$params, $per_page, $offset]
-            )),
+            LIMIT %d OFFSET %d";
+        } else {
+            // Count memberships only for lists on the requested page.
+            $query = "SELECT t.*, t.list_id as id,
+                (SELECT COUNT(c.contact_id) FROM {$contacts_table} c WHERE c.list_id = t.list_id) as contact_count
+            FROM (
+                SELECT t.* FROM {$table} t WHERE {$where}
+                ORDER BY {$orderBy} LIMIT %d OFFSET %d
+            ) t
+            ORDER BY {$orderBy}";
+        }
+
+        $response = [
+            'posts' => $wpdb->get_results($wpdb->prepare($query, [...$params, $per_page, $offset])),
             'pages' => $total_pages,
             'count' => $total_count,
         ];
@@ -81,7 +90,7 @@ class Lists
     #[Endpoint(
         'list/all',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView'],
+        permissionCallback: [Permissions::class, 'canReadLists'],
     )]
     public function getAll(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -101,7 +110,7 @@ class Lists
     #[Endpoint(
         'list',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageLists'],
     )]
     public function create(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -177,14 +186,6 @@ class Lists
     )]
     public function deleteList(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
-        if (!current_user_can(Capabilities::DELETE_LISTS)) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to do that.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         global $wpdb;
 
         $list_ids = $request->get_param('ids');
@@ -258,14 +259,14 @@ class Lists
 
         // Update contact_lists table: replace deleted list IDs with default list ID
         foreach ($list_ids as $list_id) {
-            // First, delete duplicates if they exist (contact already in default list)
+            // First, delete duplicates if they exist (contact already in default list).
+            // MySQL rejects a subquery on the table being deleted from, so use a self-join.
             $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$contact_lists_table}
-                WHERE contact_id IN (
-                    SELECT contact_id FROM {$contact_lists_table}
-                    WHERE list_id = %d
-                )
-                AND list_id = %d",
+                "DELETE defaults FROM {$contact_lists_table} defaults
+                INNER JOIN {$contact_lists_table} deleted
+                    ON deleted.contact_id = defaults.contact_id
+                    AND deleted.list_id = %d
+                WHERE defaults.list_id = %d",
                 $list_id,
                 $default_list_id
             ));
@@ -329,7 +330,7 @@ class Lists
     #[Endpoint(
         'list/(?P<id>\d+)/rename',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageLists'],
     )]
     public function rename(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -382,7 +383,7 @@ class Lists
     #[Endpoint(
         'list/(?P<id>\d+)/set-default',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canManageLists'],
     )]
     public function setDefault(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

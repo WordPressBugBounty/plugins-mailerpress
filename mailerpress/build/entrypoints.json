@@ -1,0 +1,22 @@
+{
+  "dist/js/editor-blocks": [
+    "dist/js/editor-blocks.js"
+  ],
+  "dist/js/mail-editor": [
+    "2161.js",
+    "8708.js",
+    "4025.js",
+    "mailerpress-mjml-browser.js",
+    "1295.js",
+    "dist/js/mail-editor.js"
+  ],
+  "dist/css/mail-editor": [
+    "dist/css/mail-editor.js"
+  ],
+  "dist/js/mailerpress-pro-workflow": [
+    "dist/js/mailerpress-pro-workflow.js"
+  ],
+  "dist/js/embed-widget": [
+    "dist/js/embed-widget.js"
+  ]
+}

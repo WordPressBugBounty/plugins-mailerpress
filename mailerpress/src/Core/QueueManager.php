@@ -7,6 +7,7 @@ namespace MailerPress\Core;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Enums\Tables;
+use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\Interfaces\JobInterface;
 
 class QueueManager
@@ -246,16 +247,8 @@ class QueueManager
      */
     private function log(string $message, array $context = []): void
     {
-        $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-        if (!is_dir($logDir)) {
-            wp_mkdir_p($logDir);
-        }
-
-        $logFile = $logDir . '/queue-debug.log';
-        $timestamp = current_time('mysql');
-        $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
-        $logEntry = sprintf("[%s] %s%s\n", $timestamp, $message, $contextStr);
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
+        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     /**

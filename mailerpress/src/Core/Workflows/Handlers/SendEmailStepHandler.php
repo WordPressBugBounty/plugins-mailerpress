@@ -86,6 +86,11 @@ class SendEmailStepHandler implements StepHandlerInterface
     {
         global $wpdb;
 
+		if ( ! empty( $context['post_id'] ) && ( ! empty( $context['publication_newsletter'] ) ||
+			( new \MailerPress\Core\Workflows\Repositories\StepRepository() )->findTriggerByKey( (int) $job->getAutomationId(), 'post_published' ) ) ) {
+			return ( new \MailerPress\Core\Workflows\Services\PostPublishedNewsletter() )->handle( $step, $job, $context );
+		}
+
         $settings = $step->getSettings();
         $templateId = $settings['template_id'] ?? null;
 
@@ -170,10 +175,13 @@ class SendEmailStepHandler implements StepHandlerInterface
             'automation_id' => $job->getAutomationId(),
             'email' => $contactResult->email,
             'user_id' => $job->getUserId(),
+            'contact_id' => $contactResult->isContact ? (int) $contactResult->contactId : 0,
         ]);
 
         // Render final HTML
         $parsedHtml = $this->emailContentRenderer->render($htmlContent, $variables, $contextWithJobInfo);
+        $subject = Kernel::getContainer()->get(\MailerPress\Core\HtmlParser::class)
+            ->replaceSubjectVariables($subject, $variables, $contextWithJobInfo);
 
         // Send email
         return $this->sendEmail($parsedHtml, $subject, $contactResult, $step, $job, $templateId);

@@ -120,6 +120,12 @@ class SmtpService extends AbstractEmailService
                 $email->replyTo(new Address($replyToAddress, $replyToName));
             }
 
+            if ( ! empty( $emailData['custom_headers'] ) && \is_array( $emailData['custom_headers'] ) ) {
+                foreach ( $emailData['custom_headers'] as $headerName => $headerValue ) {
+                    $email->getHeaders()->addTextHeader( $headerName, $headerValue );
+                }
+            }
+
             // Utiliser la configuration de bounce validée pour définir l'envelope sender
             $bounceConfig = BounceParser::getValidatedConfig();
             if ($bounceConfig !== null && !empty($bounceConfig['email'])) {

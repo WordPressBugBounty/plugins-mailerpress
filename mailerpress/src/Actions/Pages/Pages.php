@@ -13,15 +13,19 @@ use MailerPress\Core\Attributes\Filter;
 use MailerPress\Core\Kernel;
 use MailerPress\Core\TemplateRenderer;
 use MailerPress\Models\Contacts;
+use MailerPress\Services\InactiveContactManager;
 
 class Pages
 {
     public const ACTION_CONFIRM = 'confirm';
     public const ACTION_CONFIRM_UNSUBSCRIBE = 'confirm_unsubscribe';
     public const ACTION_MANAGE = 'manage';
+    public const ACTION_REENGAGEMENT_CONFIRM = 'reengagement_confirm';
     public const ACTION_UNSUBSCRIBE = 'unsubscribe';
 
     private Contacts $contacts;
+
+	private static array $reengagement_results = [];
 
     public function __construct(Contacts $contacts)
     {
@@ -149,6 +153,25 @@ class Pages
                             ),
                     ]);
                 }
+                break;
+
+            case self::ACTION_REENGAGEMENT_CONFIRM:
+                if ($is_preview) {
+                    $content = $renderer->render('double-option-confirmation', [
+                        'contact' => null,
+                        'title' => esc_html__('Your subscription has been confirmed.', 'mailerpress'),
+                    ]);
+                    break;
+                }
+
+                $contact = $this->getReengagementContact();
+
+                $content = $renderer->render('double-option-confirmation', [
+                    'contact' => $contact,
+                    'title' => null !== $contact
+                        ? esc_html__('Your subscription has been confirmed.', 'mailerpress')
+                        : esc_html__('This re-engagement link is invalid or has expired.', 'mailerpress'),
+                ]);
                 break;
 
             case self::ACTION_MANAGE:
@@ -358,6 +381,14 @@ class Pages
             return;
         }
 
+        if ( self::ACTION_MANAGE === $action ) {
+            if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+                define( 'DONOTCACHEPAGE', true );
+            }
+
+            nocache_headers();
+        }
+
         $atts = $this->getShortcodeAttributesFromContent( $post->post_content );
 
         switch ( $action ) {
@@ -537,6 +568,13 @@ class Pages
 
                     break;
 
+                case self::ACTION_REENGAGEMENT_CONFIRM:
+                    $pageTitle = $this->isBuilderPreview() || null !== $this->getReengagementContact()
+                        ? esc_html__('Your subscription has been confirmed.', 'mailerpress')
+                        : esc_html__('This re-engagement link is invalid or has expired.', 'mailerpress');
+
+                    break;
+
                 case self::ACTION_UNSUBSCRIBE:
                     $pageTitle = esc_html__('You have successfully unsubscribed.', 'mailerpress');
 
@@ -556,4 +594,24 @@ class Pages
 
         return $pageTitle;
     }
+
+	private function getReengagementContact(): ?object
+	{
+		if ( empty( $_GET['cid'] ) || empty( $_GET['token'] ) ) {
+			return null;
+		}
+
+		$cid   = sanitize_text_field( wp_unslash( $_GET['cid'] ) );
+		$token = sanitize_text_field( wp_unslash( $_GET['token'] ) );
+		$key   = hash( 'sha256', $cid . "\0" . $token );
+
+		if ( ! array_key_exists( $key, self::$reengagement_results ) ) {
+			self::$reengagement_results[ $key ] = ( new InactiveContactManager() )->confirmReengagement(
+				$cid,
+				$token
+			);
+		}
+
+		return self::$reengagement_results[ $key ];
+	}
 }

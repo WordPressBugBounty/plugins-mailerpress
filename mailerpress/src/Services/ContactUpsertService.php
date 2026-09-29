@@ -18,6 +18,14 @@ class ContactUpsertService
         'last_name',
         'created_at',
         'updated_at',
+        'last_engagement_at',
+        'last_open_at',
+        'last_click_at',
+        'last_sending_at',
+        'last_subscribed_at',
+        'email_count',
+        'inactivated_at',
+        'inactivation_reason',
     ];
 
     public function upsert(array $data): array
@@ -40,6 +48,9 @@ class ContactUpsertService
 
         $assignDefaultList = filter_var($data['assign_default_list'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         $assignDefaultList = $assignDefaultList ?? true;
+
+        $suppressContactHooks = filter_var($data['suppress_contact_hooks'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $suppressContactHooks = $suppressContactHooks ?? false;
 
         $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
         $contactsModel = new ContactsModel();
@@ -71,12 +82,16 @@ class ContactUpsertService
         );
         $optInSource = sanitize_text_field((string) ($data['opt_in_source'] ?? 'unknown'));
         $optInDetails = $data['optin_details'] ?? $data['opt_in_details'] ?? '';
+        $isResubscription = $existingContact
+            && $existingContact->subscription_status === 'unsubscribed'
+            && in_array($subscriptionStatus, ['pending', 'subscribed'], true)
+            && ($updateContactFields || filter_var($data['allow_resubscribe'] ?? false, FILTER_VALIDATE_BOOLEAN));
 
         if ($isNew) {
             $subscriptionStatus = $subscriptionStatus ?: 'subscribed';
+            $lifecycleFields = $this->prepareLifecycleFields($data, $subscriptionStatus, true);
 
-            $inserted = $wpdb->insert(
-                $contactTable,
+            $insertData = array_merge(
                 [
                     'email' => $email,
                     'first_name' => sanitize_text_field((string) ($firstName ?? '')),
@@ -89,7 +104,17 @@ class ContactUpsertService
                     'opt_in_details' => is_scalar($optInDetails) ? (string) $optInDetails : wp_json_encode($optInDetails),
                     'access_token' => bin2hex(random_bytes(32)),
                 ],
-                ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s']
+                $lifecycleFields
+            );
+            $insertFormat = array_merge(
+                ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'],
+                array_map(fn(string $column): string => $this->formatLifecycleField($column), array_keys($lifecycleFields))
+            );
+
+            $inserted = $wpdb->insert(
+                $contactTable,
+                $insertData,
+                $insertFormat
             );
 
             if ($inserted === false) {
@@ -101,16 +126,16 @@ class ContactUpsertService
 
             $contactId = (int) $wpdb->insert_id;
             $contactUpdated = true;
-        } elseif ($updateContactFields) {
+        } elseif ($updateContactFields || $isResubscription) {
             $updateData = ['updated_at' => current_time('mysql')];
             $updateFormat = ['%s'];
 
-            if ($firstName !== null) {
+            if ($updateContactFields && $firstName !== null) {
                 $updateData['first_name'] = sanitize_text_field((string) $firstName);
                 $updateFormat[] = '%s';
             }
 
-            if ($lastName !== null) {
+            if ($updateContactFields && $lastName !== null) {
                 $updateData['last_name'] = sanitize_text_field((string) $lastName);
                 $updateFormat[] = '%s';
             }
@@ -120,25 +145,43 @@ class ContactUpsertService
                 $updateFormat[] = '%s';
             }
 
+            foreach ($this->prepareLifecycleFields($updateContactFields ? $data : [], $subscriptionStatus, false) as $column => $value) {
+                $updateData[$column] = $value;
+                $updateFormat[] = $this->formatLifecycleField($column);
+            }
+
             if (isset($data['opt_in_source'])) {
                 $updateData['opt_in_source'] = $optInSource;
                 $updateFormat[] = '%s';
             }
 
-            if (array_key_exists('optin_details', $data) || array_key_exists('opt_in_details', $data)) {
+            if ($updateContactFields && (array_key_exists('optin_details', $data) || array_key_exists('opt_in_details', $data))) {
                 $updateData['opt_in_details'] = is_scalar($optInDetails) ? (string) $optInDetails : wp_json_encode($optInDetails);
                 $updateFormat[] = '%s';
             }
 
             if (count($updateData) > 1) {
-                $wpdb->update(
+                $where = ['contact_id' => $contactId];
+                $whereFormat = ['%d'];
+                if ($isResubscription) {
+                    $where['subscription_status'] = 'unsubscribed';
+                    $whereFormat[] = '%s';
+                }
+
+                $updated = $wpdb->update(
                     $contactTable,
                     $updateData,
-                    ['contact_id' => $contactId],
+                    $where,
                     $updateFormat,
-                    ['%d']
+                    $whereFormat
                 );
-                $contactUpdated = true;
+                if ($updated === false) {
+                    return [
+                        'success' => false,
+                        'error' => __('Failed to update contact in database.', 'mailerpress'),
+                    ];
+                }
+                $contactUpdated = $updated > 0;
             }
         }
 
@@ -165,10 +208,15 @@ class ContactUpsertService
         }
         $customFieldChanges = $this->syncCustomFields($contactId, $customFields);
 
-        if ($isNew) {
-            do_action('mailerpress_contact_created', $contactId);
-        } elseif ($contactUpdated || !empty($addedLists) || !empty($addedTags) || !empty($customFieldChanges['added']) || !empty($customFieldChanges['updated'])) {
-            do_action('mailerpress_contact_updated', $contactId);
+        if (!$suppressContactHooks) {
+            if ($isNew) {
+                do_action('mailerpress_contact_created', $contactId);
+            } elseif ($contactUpdated || !empty($addedLists) || !empty($addedTags) || !empty($customFieldChanges['added']) || !empty($customFieldChanges['updated'])) {
+                do_action('mailerpress_contact_updated', $contactId);
+            }
+            if ($isResubscription && $contactUpdated && $subscriptionStatus === 'pending') {
+                do_action('mailerpress_contact_confirmation_requested', $contactId);
+            }
         }
 
         return [
@@ -201,7 +249,71 @@ class ContactUpsertService
     private function normalizeStatus(mixed $status): string
     {
         $status = sanitize_text_field((string) ($status ?? ''));
-        return in_array($status, ['subscribed', 'pending', 'unsubscribed'], true) ? $status : '';
+        return in_array($status, ['subscribed', 'pending', 'unsubscribed', InactiveContactManager::STATUS_INACTIVE], true) ? $status : '';
+    }
+
+    private function prepareLifecycleFields(array $data, string $subscriptionStatus, bool $isNew): array
+    {
+        $manager = new InactiveContactManager();
+        $fields = [];
+
+        $dateFields = [
+            'last_engagement_at' => ['last_engagement_at', 'lastEngagementAt'],
+            'last_open_at' => ['last_open_at', 'lastOpenAt'],
+            'last_click_at' => ['last_click_at', 'lastClickAt'],
+            'last_sending_at' => ['last_sending_at', 'lastSendingAt'],
+            'last_subscribed_at' => ['last_subscribed_at', 'lastSubscribedAt'],
+            'inactivated_at' => ['inactivated_at', 'inactivatedAt'],
+        ];
+
+        foreach ($dateFields as $column => $keys) {
+            $value = $this->firstPresent($data, $keys);
+            $normalized = $manager->normalizeDateTime($value);
+            if ($normalized !== null) {
+                $fields[$column] = $normalized;
+            }
+        }
+
+        $emailCount = $this->firstPresent($data, ['email_count', 'emailCount']);
+        if ($emailCount !== null && $emailCount !== '') {
+            $fields['email_count'] = max(0, (int) $emailCount);
+        }
+
+        if ($subscriptionStatus === 'subscribed') {
+            $fields['last_subscribed_at'] = $fields['last_subscribed_at'] ?? current_time('mysql');
+            $fields['inactivated_at'] = null;
+            $fields['inactivation_reason'] = null;
+        } elseif ($subscriptionStatus === InactiveContactManager::STATUS_INACTIVE) {
+            $fields['inactivated_at'] = $fields['inactivated_at'] ?? current_time('mysql');
+            $fields['inactivation_reason'] = sanitize_text_field((string) ($data['inactivation_reason'] ?? 'manual'));
+        } elseif ($subscriptionStatus !== '') {
+            $fields['inactivated_at'] = null;
+            $fields['inactivation_reason'] = null;
+        } elseif ($isNew && !isset($fields['last_subscribed_at'])) {
+            $fields['last_subscribed_at'] = current_time('mysql');
+        }
+
+        return $this->filterExistingContactColumns($fields);
+    }
+
+    private function filterExistingContactColumns(array $fields): array
+    {
+        if (empty($fields)) {
+            return [];
+        }
+
+        static $columns = null;
+        if ($columns === null) {
+            global $wpdb;
+            $columns = $wpdb->get_col('SHOW COLUMNS FROM ' . Tables::get(Tables::MAILERPRESS_CONTACT), 0) ?: [];
+        }
+
+        return array_intersect_key($fields, array_flip($columns));
+    }
+
+    private function formatLifecycleField(string $column): string
+    {
+        return $column === 'email_count' ? '%d' : '%s';
     }
 
     private function collectListInput(array $data): array

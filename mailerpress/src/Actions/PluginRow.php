@@ -8,6 +8,23 @@ use MailerPress\Core\Capabilities;
 
 class PluginRow
 {
+    private function getAudienceCapability(): string
+    {
+        foreach ([
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_LISTS,
+            Capabilities::MANAGE_CONTACT_SEGMENTATION,
+            Capabilities::MANAGE_TAGS,
+            Capabilities::MANAGE_SETTINGS,
+        ] as $capability) {
+            if (current_user_can($capability)) {
+                return $capability;
+            }
+        }
+
+        return 'do_not_allow';
+    }
+
     private function is_user_pro(): bool
     {
         return file_exists(WP_PLUGIN_DIR . '/mailerpress-pro/mailerpress-pro.php');
@@ -29,12 +46,12 @@ class PluginRow
         $activeView = isset($_GET['activeView']) ? sanitize_text_field(wp_unslash($_GET['activeView'])) : '';
 
         $capability = match ($path) {
-            '/home/settings', '/home/integrations' => Capabilities::MANAGE_SETTINGS,
+            '/home/settings', '/home/tools', '/home/integrations', '/home/webhooks' => Capabilities::MANAGE_SETTINGS,
             '/home/contacts' => match ($activeView) {
-                'Segmentation' => Capabilities::MANAGE_CONTACT_SEGMENTATION,
-                'Contact Lists' => Capabilities::MANAGE_LISTS,
-                'Contact Tags' => Capabilities::MANAGE_TAGS,
-                default => Capabilities::MANAGE_CONTACTS,
+                'segmentation', 'Segmentation' => Capabilities::MANAGE_CONTACT_SEGMENTATION,
+                'contact-lists', 'Contact Lists' => Capabilities::MANAGE_LISTS,
+                'contact-tags', 'Contact Tags' => Capabilities::MANAGE_TAGS,
+                default => $this->getAudienceCapability(),
             },
             '/home/templates' => Capabilities::MANAGE_TEMPLATES,
             '/home/workflow' => Capabilities::MANAGE_AUTOMATIONS,

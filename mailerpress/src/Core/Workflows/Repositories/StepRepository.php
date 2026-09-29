@@ -52,6 +52,69 @@ class StepRepository
         return $result ? new Step($result) : null;
     }
 
+    /**
+     * Find every step of a given type and key across all automations.
+     *
+     * Used by the goal matcher: unlike triggers, several automations (and
+     * several steps of the same automation) may listen to the same goal event,
+     * so we resolve them in a single query instead of looping over automations.
+     *
+     * @param string $type Step type (e.g. 'GOAL')
+     * @param string $key  Step key (e.g. 'mailerpress_tag_applied')
+     * @param string|null $automationStatus Restrict to automations having this status
+     *
+     * @return Step[]
+     */
+    public function findStepsByTypeAndKey(string $type, string $key, ?string $automationStatus = null): array
+    {
+        $automationsTable = $this->wpdb->prefix . Tables::MAILERPRESS_AUTOMATIONS;
+
+        if ($automationStatus) {
+            $query = $this->wpdb->prepare(
+                "SELECT s.* FROM {$this->table} s
+                 INNER JOIN {$automationsTable} a ON a.id = s.automation_id
+                 WHERE s.type = %s
+                 AND s.`key` = %s
+                 AND a.status = %s",
+                $type,
+                $key,
+                $automationStatus
+            );
+        } else {
+            $query = $this->wpdb->prepare(
+                "SELECT * FROM {$this->table}
+                 WHERE type = %s
+                 AND `key` = %s",
+                $type,
+                $key
+            );
+        }
+
+        $results = $this->wpdb->get_results($query, ARRAY_A);
+
+        return array_map(fn($data) => new Step($data), $results);
+    }
+
+    /**
+     * Find the steps of a given type belonging to one automation.
+     *
+     * @return Step[]
+     */
+    public function findByAutomationIdAndType(int $automationId, string $type): array
+    {
+        $query = $this->wpdb->prepare(
+            "SELECT * FROM {$this->table}
+             WHERE automation_id = %d
+             AND type = %s",
+            $automationId,
+            $type
+        );
+
+        $results = $this->wpdb->get_results($query, ARRAY_A);
+
+        return array_map(fn($data) => new Step($data), $results);
+    }
+
     public function findBranchesByStepId(int $stepId): array
     {
         $query = $this->wpdb->prepare(

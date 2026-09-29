@@ -57,8 +57,10 @@ class Init
     public function addAdminBodyClass(string $classes): string
     {
         $user_id = get_current_user_id();
+        $is_editor = isset($_GET['page'])
+            && 'mailerpress/new' === sanitize_text_field(wp_unslash($_GET['page']));
 
-        if ($user_id) {
+        if ($user_id && $is_editor) {
             $is_fullscreen = get_user_meta($user_id, 'mailerpress_fullscreen', true);
 
             if ($is_fullscreen === '') {
@@ -66,6 +68,8 @@ class Init
             } else {
                 $classes .= ' mailerpress-ui-no-full-screen';
             }
+        } else {
+            $classes .= ' mailerpress-ui-full-screen';
         }
 
         return $classes;
@@ -79,52 +83,70 @@ class Init
             return;
         }
 
-        // Check basic capability first
-        if (!current_user_can(Capabilities::MANAGE_CAMPAIGNS)) {
-            wp_die(__('Sorry, you are not allowed to access this page.'));
+        $isTemplateRequest = isset($_GET['template_edit'])
+            || (
+                isset($_GET['template_mode'])
+                && sanitize_key(wp_unslash($_GET['template_mode'])) === 'new'
+            );
+        $requestedCampaignType = isset($_GET['campaign_type'])
+            ? sanitize_key(wp_unslash($_GET['campaign_type']))
+            : '';
+        $campaignId = isset($_GET['edit']) ? absint($_GET['edit']) : 0;
+        $campaign = $campaignId > 0
+            ? Kernel::getContainer()->get(Campaigns::class)->find($campaignId)
+            : null;
+        $campaignType = $campaign->campaign_type ?? $requestedCampaignType;
+        $isAutomationCampaign = $campaignType === 'automation';
+        $isSettingsEmail = in_array($campaignType, ['wp_email', 'wc_email', 'confirm_email'], true);
+        $requiredCapability = $isTemplateRequest
+            ? Capabilities::MANAGE_TEMPLATES
+            : (
+                $isAutomationCampaign
+                    ? Capabilities::MANAGE_AUTOMATIONS
+                    : ($isSettingsEmail ? Capabilities::MANAGE_SETTINGS : Capabilities::MANAGE_CAMPAIGNS)
+            );
+
+        if (!current_user_can($requiredCapability)) {
+            wp_die(__('Sorry, you are not allowed to access this page.', 'mailerpress'));
         }
 
-        // Check if it's an edit request
-        if (empty($_GET['edit'])) {
-            // No edit parameter means it's a new campaign, allow access
+        if ($campaignId === 0) {
             return;
         }
-
-        $campaign_id = (int)$_GET['edit'];
-        $campaign = Kernel::getContainer()->get(Campaigns::class)->find($campaign_id);
 
         if (!$campaign) {
             // Campaign not found - might be a race condition, allow access and let the editor handle it
             return;
         }
 
-        $campaign_type = $campaign->campaign_type ?? 'newsletter';
-        $is_site_template = $this->isSiteTemplateCampaign($campaign_id, $campaign_type);
+        $isSiteTemplate = $this->isSiteTemplateCampaign($campaignId, $campaignType);
 
-        if ($is_site_template && 'trash' !== $campaign->status) {
+        if ($isSiteTemplate && 'trash' !== $campaign->status) {
             return;
         }
 
         $current_user_id = get_current_user_id();
 
-        // Check if user owns the campaign or can edit others
+        // Check if the user owns the item or can edit other users' items.
         if ((int)$campaign->user_id === $current_user_id) {
-            $canEdit = current_user_can(Capabilities::MANAGE_CAMPAIGNS);
+            $canEdit = true;
+        } elseif ($isSettingsEmail) {
+            $canEdit = true;
+        } elseif ($isAutomationCampaign) {
+            $canEdit = current_user_can('edit_others_posts');
         } else {
             $canEdit = current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
         }
 
         if (!$canEdit) {
-            wp_die(__('Sorry, you are not allowed to edit this item.'));
+            wp_die(__('Sorry, you are not allowed to edit this item.', 'mailerpress'));
         }
 
         // Only block editing if campaign is in a non-editable status
         // Allow editing draft, scheduled, and error campaigns
         // Exception: Always allow editing automation campaigns (campaign_type = 'automation') regardless of status
-        $is_automation_campaign = $campaign_type === 'automation';
-
-        if (!$is_automation_campaign && in_array($campaign->status, ['sent', 'pending', 'trash', 'in_progress'], true)) {
-            wp_die(__('Sorry, you are not allowed to edit this item.'));
+        if (!$isAutomationCampaign && in_array($campaign->status, ['sent', 'pending', 'trash', 'in_progress'], true)) {
+            wp_die(__('Sorry, you are not allowed to edit this item.', 'mailerpress'));
         }
     }
 

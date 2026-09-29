@@ -10,8 +10,10 @@ use ActionScheduler_Store;
 use DateTime;
 use DI\DependencyException;
 use DI\NotFoundException;
+use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Actions\ActionScheduler\Processors\ChunkWorker;
+use MailerPress\Actions\ActionScheduler\Processors\MailerPressEmailBatch;
 use MailerPress\Core\Capabilities;
 use MailerPress\Core\EmailManager\EmailLogger;
 use MailerPress\Core\EmailManager\EmailServiceManager;
@@ -25,6 +27,8 @@ use MailerPress\Models\Batch;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\CampaignHtmlOptionStorage;
 use MailerPress\Services\ClassicContactFetcher;
+use MailerPress\Services\InactiveContactManager;
+use MailerPress\Services\ContactIdsFetcher;
 use MailerPress\Services\SegmentContactFetcher;
 use WP_Error;
 use WP_REST_Request;
@@ -34,9 +38,10 @@ class Campaigns
 {
     private const LISTING_MUTATION_CAMPAIGN_TYPES = ['newsletter', 'automated'];
 
-    private function restrictCampaignMutationToCurrentUser(\WP_REST_Request $request): bool
+    private function shouldRestrictCampaignsToCurrentUser(\WP_REST_Request $request): bool
     {
-        return empty($request->get_param('_api_key_id')) && !current_user_can('edit_others_posts');
+        return !ApiAuthentication::isApiKeyRequest($request)
+            && !current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
     }
 
     private function normalizeCampaignTypes($campaignTypesRaw): array
@@ -72,7 +77,7 @@ class Campaigns
 
     private function campaignOwnerWhere(\WP_REST_Request $request): array
     {
-        if (!$this->restrictCampaignMutationToCurrentUser($request)) {
+        if (!$this->shouldRestrictCampaignsToCurrentUser($request)) {
             return ['', []];
         }
 
@@ -151,7 +156,11 @@ class Campaigns
             t.clicks,
             c.email,
             c.first_name,
-            c.last_name
+            c.last_name,
+            c.subscription_status,
+            c.opt_in_source,
+            c.last_engagement_at,
+            c.email_count
         FROM {$tracking_table} AS t
         INNER JOIN {$contact_table} AS c ON t.contact_id = c.contact_id
         {$where}
@@ -163,7 +172,9 @@ class Campaigns
         $query_params[] = $per_page;
         $query_params[] = $offset;
 
-        $results = $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A);
+        $results = $this->enrichCampaignContactRows(
+            $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A)
+        );
 
         return new \WP_REST_Response([
             'posts' => $results,
@@ -266,6 +277,10 @@ class Campaigns
             c.email,
             c.first_name,
             c.last_name,
+            c.subscription_status,
+            c.opt_in_source,
+            c.last_engagement_at,
+            c.email_count,
             MAX(t.opened_at) AS opened_at
         FROM {$click_tracking_table} AS ct
         INNER JOIN {$contact_table} AS c ON ct.contact_id = c.contact_id
@@ -291,7 +306,9 @@ class Campaigns
         $query_params[] = $per_page;
         $query_params[] = $offset;
 
-        $results = $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A);
+        $results = $this->enrichCampaignContactRows(
+            $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A)
+        );
 
         return new \WP_REST_Response([
             'posts' => $results,
@@ -358,7 +375,11 @@ class Campaigns
             t.clicks,
             c.email,
             c.first_name,
-            c.last_name
+            c.last_name,
+            c.subscription_status,
+            c.opt_in_source,
+            c.last_engagement_at,
+            c.email_count
         FROM {$tracking_table} AS t
         INNER JOIN {$contact_table} AS c ON t.contact_id = c.contact_id
         {$where}
@@ -370,7 +391,9 @@ class Campaigns
         $query_params[] = $per_page;
         $query_params[] = $offset;
 
-        $results = $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A);
+        $results = $this->enrichCampaignContactRows(
+            $wpdb->get_results($wpdb->prepare($query_sql, ...$query_params), ARRAY_A)
+        );
 
         return new \WP_REST_Response([
             'posts' => $results,
@@ -380,10 +403,91 @@ class Campaigns
         ], 200);
     }
 
+    /**
+     * Add the contact metadata used by contact-style campaign statistics lists.
+     */
+    private function enrichCampaignContactRows(array $rows): array
+    {
+        global $wpdb;
+
+        $contact_ids = array_values(array_unique(array_filter(array_map(
+            static fn(array $row): int => absint($row['contact_id'] ?? 0),
+            $rows
+        ))));
+
+        if (empty($contact_ids)) {
+            return $rows;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($contact_ids), '%d'));
+        $contact_tags_table = Tables::get(Tables::CONTACT_TAGS);
+        $tags_table = Tables::get(Tables::MAILERPRESS_TAGS);
+        $contact_lists_table = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
+        $lists_table = Tables::get(Tables::MAILERPRESS_LIST);
+        $contact_stats_table = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
+
+        $tags_by_contact = [];
+        $tags = $wpdb->get_results($wpdb->prepare(
+            "SELECT ct.contact_id, t.tag_id, t.name AS tag_name
+             FROM {$contact_tags_table} ct
+             INNER JOIN {$tags_table} t ON t.tag_id = ct.tag_id
+             WHERE ct.contact_id IN ({$placeholders})",
+            ...$contact_ids
+        ), ARRAY_A);
+        foreach ($tags as $tag) {
+            $tags_by_contact[(int) $tag['contact_id']][] = [
+                'tag_id' => (int) $tag['tag_id'],
+                'tag_name' => $tag['tag_name'],
+            ];
+        }
+
+        $lists_by_contact = [];
+        $lists = $wpdb->get_results($wpdb->prepare(
+            "SELECT cl.contact_id, l.list_id, l.name AS list_name
+             FROM {$contact_lists_table} cl
+             INNER JOIN {$lists_table} l ON l.list_id = cl.list_id
+             WHERE cl.contact_id IN ({$placeholders})",
+            ...$contact_ids
+        ), ARRAY_A);
+        foreach ($lists as $list) {
+            $lists_by_contact[(int) $list['contact_id']][] = [
+                'list_id' => (int) $list['list_id'],
+                'list_name' => $list['list_name'],
+            ];
+        }
+
+        $stats_by_contact = [];
+        $stats = $wpdb->get_results($wpdb->prepare(
+            "SELECT contact_id, COALESCE(SUM(opened), 0) AS total_opened,
+                    COALESCE(SUM(click_count), 0) AS total_clicked
+             FROM {$contact_stats_table}
+             WHERE contact_id IN ({$placeholders})
+             GROUP BY contact_id",
+            ...$contact_ids
+        ), ARRAY_A);
+        foreach ($stats as $stat) {
+            $stats_by_contact[(int) $stat['contact_id']] = [
+                'total_opened' => (int) $stat['total_opened'],
+                'total_clicked' => (int) $stat['total_clicked'],
+            ];
+        }
+
+        foreach ($rows as &$row) {
+            $contact_id = (int) $row['contact_id'];
+            $row['tags'] = $tags_by_contact[$contact_id] ?? [];
+            $row['contact_lists'] = $lists_by_contact[$contact_id] ?? [];
+            $row['total_opened'] = $stats_by_contact[$contact_id]['total_opened'] ?? 0;
+            $row['total_clicked'] = $stats_by_contact[$contact_id]['total_clicked'] ?? 0;
+        }
+        unset($row);
+
+        return $rows;
+    }
+
     #[Endpoint(
         'campaign-status',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function campaignStatus(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -629,7 +733,7 @@ class Campaigns
     #[Endpoint(
         'campaign-status-lock',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function campaignStatusLock(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -697,7 +801,7 @@ class Campaigns
     #[Endpoint(
         'batch/(?P<batch_id>\d+)/chunks',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function getBatchChunks(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -760,7 +864,7 @@ class Campaigns
     #[Endpoint(
         'campaign/batches',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function getBatchesForCampaign(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -983,8 +1087,8 @@ class Campaigns
     {
         global $wpdb;
 
-        $paged = $request->get_param('paged') ?? 1;
-        $posts_per_page = $request->get_param('perPages') ?? 10;
+        $paged = max(1, (int)($request->get_param('paged') ?? 1));
+        $posts_per_page = max(1, (int)($request->get_param('perPages') ?? 10));
         $search = $request->get_param('search');
         $statusParam = $request->get_param('status');
 
@@ -1015,21 +1119,9 @@ class Campaigns
         // Initialize query params early
         $query_params = [];
 
-        // Base query - Include content_html and config to avoid N+1 queries
+        // Sort and paginate identifiers before loading large email content.
         $query = "
-        SELECT c.campaign_id AS id,
-               c.user_id,
-               c.name AS title,
-               c.subject,
-               c.status,
-               c.batch_id AS batch,
-               c.updated_at,
-               c.created_at,
-               c.campaign_type,
-                c.editing_user_id,
-               c.editing_started_at,
-               c.content_html,
-               c.config
+        SELECT c.campaign_id
         FROM {$table_name} AS c
         LEFT JOIN {$wpdb->prefix}mailerpress_email_batches AS b
             ON c.batch_id = b.id
@@ -1043,6 +1135,12 @@ class Campaigns
             ON c.batch_id = b.id
         WHERE 1=1
     ";
+
+        if ($this->shouldRestrictCampaignsToCurrentUser($request)) {
+            $query .= ' AND c.user_id = %d';
+            $countQuery .= ' AND c.user_id = %d';
+            $query_params[] = get_current_user_id();
+        }
 
         // Search filter
         if (!empty($search)) {
@@ -1102,27 +1200,74 @@ class Campaigns
             $query_params = array_merge($query_params, $campaignTypes);
         }
 
-        // Exclude automation, wp_email and wc_email campaigns
-        $query .= " AND c.campaign_type NOT IN ('automation', 'wp_email', 'wc_email', 'confirm_email')";
-        $countQuery .= " AND c.campaign_type NOT IN ('automation', 'wp_email', 'wc_email', 'confirm_email')";
+        // Exclude non-standard newsletter campaigns from the default campaign listing.
+        $excludedCampaignTypes = ['automation', 'wp_email', 'wc_email', 'confirm_email'];
+        if (empty($campaignTypes)) {
+            $excludedCampaignTypes[] = 'ab_test';
+        }
+
+        $excludedPlaceholders = implode(',', array_fill(0, count($excludedCampaignTypes), '%s'));
+        $query .= " AND c.campaign_type NOT IN ($excludedPlaceholders)";
+        $countQuery .= " AND c.campaign_type NOT IN ($excludedPlaceholders)";
+        $query_params = array_merge($query_params, $excludedCampaignTypes);
+
+        // Resolve every campaign matching the listing filters for bulk actions.
+        if ($request->get_param('idsOnly')) {
+            $after_id = max(0, (int) $request->get_param('afterId'));
+            $ids_query = $query . ' AND c.campaign_id > %d ORDER BY c.campaign_id ASC LIMIT 1000';
+            $ids = $wpdb->get_col($wpdb->prepare($ids_query, [...$query_params, $after_id]));
+
+            return new \WP_REST_Response(['ids' => array_map('intval', $ids)], 200);
+        }
 
         // Ordering - Use whitelist to prevent SQL injection
-        $allowed_orderby = ['id', 'name', 'status', 'created_at', 'updated_at', 'user_id', 'campaign_type'];
+        $allowed_orderby = ['id', 'name', 'status', 'created_at', 'updated_at', 'user_id', 'campaign_type', 'date'];
         $allowed_order = ['ASC', 'DESC'];
         $orderby_param = $request->get_param('orderby');
         $order_param = strtoupper($request->get_param('order') ?? 'DESC');
         $orderby = in_array($orderby_param, $allowed_orderby, true) ? $orderby_param : 'updated_at';
         $order = in_array($order_param, $allowed_order, true) ? $order_param : 'DESC';
-        $query .= sprintf(' ORDER BY c.%s %s', esc_sql($orderby), esc_sql($order));
+        $orderbySql = 'date' === $orderby
+            ? "CASE
+                WHEN c.status = 'scheduled' AND b.scheduled_at IS NOT NULL THEN b.scheduled_at
+                WHEN c.status = 'sent' THEN COALESCE(b.updated_at, c.updated_at)
+                ELSE COALESCE(c.updated_at, c.created_at)
+               END"
+            : sprintf('c.%s', esc_sql($orderby === 'id' ? 'campaign_id' : $orderby));
+        $query .= sprintf(' ORDER BY %s %s', $orderbySql, esc_sql($order));
 
         // Pagination - Use prepare to prevent SQL injection
+        $count_query_params = $query_params;
         $offset = ($paged - 1) * $posts_per_page;
         $query .= " LIMIT %d, %d";
         $query_params[] = $offset;
         $query_params[] = $posts_per_page;
 
         // Final execution
-        $results = $wpdb->get_results($wpdb->prepare($query, ...$query_params));
+        $page_ids = array_map('intval', $wpdb->get_col($wpdb->prepare($query, ...$query_params)));
+        $results = [];
+        if ($page_ids) {
+            $page_placeholders = implode(',', array_fill(0, count($page_ids), '%d'));
+            $results = $wpdb->get_results($wpdb->prepare(
+                "SELECT c.campaign_id AS id,
+                        c.user_id,
+                        c.name AS title,
+                        c.subject,
+                        c.status,
+                        c.batch_id AS batch,
+                        c.updated_at,
+                        c.created_at,
+                        c.campaign_type,
+                        c.editing_user_id,
+                        c.editing_started_at,
+                        c.content_html,
+                        c.config
+                 FROM {$table_name} AS c
+                 WHERE c.campaign_id IN ($page_placeholders)
+                 ORDER BY FIELD(c.campaign_id, $page_placeholders)",
+                [...$page_ids, ...$page_ids]
+            ));
+        }
 
         // ✅ Optimisation: Précharger toutes les données nécessaires en une seule fois
         $campaign_ids = array_map(fn($r) => (int)$r->id, $results);
@@ -1150,39 +1295,23 @@ class Campaigns
                 $batches_data[$batch['id']] = $batch;
             }
 
-            // Récupérer le prochain chunk pour chaque batch en cours
-            // Priority: 1) processing chunks, 2) pending chunks with earliest scheduled_at
+            // Seek the first active chunk for each displayed batch using its status index.
             $next_chunks = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT
-                        batch_id,
-                        scheduled_at as next_chunk_time,
-                        status as next_chunk_status,
-                        started_at as next_chunk_started_at
-                     FROM (
-                         SELECT
-                             batch_id,
-                             scheduled_at,
-                             status,
-                             started_at,
-                             CASE
-                                 WHEN status = 'processing' THEN 1
-                                 WHEN status = 'pending' THEN 2
-                                 ELSE 3
-                             END as priority,
-                             ROW_NUMBER() OVER (PARTITION BY batch_id ORDER BY
-                                 CASE
-                                     WHEN status = 'processing' THEN 1
-                                     WHEN status = 'pending' THEN 2
-                                     ELSE 3
-                                 END,
-                                 scheduled_at ASC
-                             ) as rn
-                         FROM {$chunks_table}
-                         WHERE batch_id IN ($batch_placeholders)
-                         AND status IN ('processing', 'pending')
-                     ) ranked
-                     WHERE rn = 1",
+                    "SELECT b.id AS batch_id,
+                            chunk.scheduled_at AS next_chunk_time,
+                            chunk.status AS next_chunk_status,
+                            chunk.started_at AS next_chunk_started_at
+                     FROM {$batches_table} b
+                     INNER JOIN {$chunks_table} chunk ON chunk.id = COALESCE(
+                         (SELECT processing.id FROM {$chunks_table} processing
+                          WHERE processing.batch_id = b.id AND processing.status = 'processing'
+                          ORDER BY processing.scheduled_at ASC, processing.id ASC LIMIT 1),
+                         (SELECT pending.id FROM {$chunks_table} pending
+                          WHERE pending.batch_id = b.id AND pending.status = 'pending'
+                          ORDER BY pending.scheduled_at ASC, pending.id ASC LIMIT 1)
+                     )
+                     WHERE b.id IN ($batch_placeholders)",
                     ...$batch_ids
                 ),
                 ARRAY_A
@@ -1204,18 +1333,10 @@ class Campaigns
             $campaignStatsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGN_STATS);
             $batch_placeholders = implode(',', array_fill(0, count($batch_ids), '%d'));
 
-            // Récupérer les campaign_ids pour chaque batch
-            $batches_table = $wpdb->prefix . 'mailerpress_email_batches';
-            $batch_campaigns = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT id, campaign_id FROM {$batches_table} WHERE id IN ($batch_placeholders)",
-                    ...$batch_ids
-                ),
-                ARRAY_A
-            );
+            // Batch data already contains the campaign identifiers.
             $batch_to_campaign = [];
             $campaign_ids_for_stats = [];
-            foreach ($batch_campaigns as $bc) {
+            foreach ($batches_data as $bc) {
                 $batch_to_campaign[$bc['id']] = (int)$bc['campaign_id'];
                 if ($bc['campaign_id']) {
                     $campaign_ids_for_stats[] = (int)$bc['campaign_id'];
@@ -1370,15 +1491,17 @@ class Campaigns
             }
 
             // ✅ Lock info
-            $canEdit = false;
-            if ((int)$result->user_id === get_current_user_id()) {
-                $canEdit = current_user_can(Capabilities::MANAGE_CAMPAIGNS);
-            } else {
-                $canEdit = current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
-            }
+            $canEdit = current_user_can(Capabilities::MANAGE_CAMPAIGNS)
+                && (
+                    (int)$result->user_id === get_current_user_id()
+                    || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+                );
             $result->canEdit = $canEdit;
-            $result->canDelete = current_user_can('edit_others_posts')
-                || ((int)$result->user_id === get_current_user_id() && current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS));
+            $result->canDelete = current_user_can(Capabilities::DELETE_EMAIL_CAMPAIGNS)
+                && (
+                    (int)$result->user_id === get_current_user_id()
+                    || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+                );
 
             $result->locked = !empty($result->editing_user_id) && (int)$result->editing_user_id !== get_current_user_id();
             if ($result->editing_user_id && (int)$result->editing_user_id !== get_current_user_id()) {
@@ -1395,7 +1518,7 @@ class Campaigns
             }
         }
 
-        $total_rows = $wpdb->get_var($wpdb->prepare($countQuery, ...$query_params));
+        $total_rows = $wpdb->get_var($wpdb->prepare($countQuery, ...$count_query_params));
         $total_pages = ceil($total_rows / $posts_per_page);
 
         return new \WP_REST_Response([
@@ -1409,7 +1532,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function getCampaignById(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -1440,6 +1563,12 @@ class Campaigns
             $campaign['content_html'] = $this->sanitizeEmailHtml( $campaign['content_html'] );
         }
         $campaign['config'] = !empty($campaign['config']) ? json_decode($campaign['config'], true) : null;
+        $editor_type = is_array($campaign['config'] ?? null)
+            ? ($campaign['config']['editorType'] ?? null)
+            : null;
+        if (!in_array($editor_type, ['visual', 'html'], true)) {
+            $editor_type = is_string($campaign['content_html']) ? 'html' : 'visual';
+        }
 
         // Récupérer les informations de l'automation si elle existe
         $automation_id = !empty($campaign['automation_id']) ? (int)$campaign['automation_id'] : null;
@@ -1468,10 +1597,14 @@ class Campaigns
                 'config' => $campaign['config'],
                 'type' => $campaign['campaign_type'],
                 'campaign_type' => $campaign['campaign_type'], // Also include campaign_type for compatibility
+                'email_type' => $campaign['email_type'],
+                'editor_type' => $editor_type,
                 'batch' => '',
                 'automation_id' => $automation_id,
                 'automation_name' => $automation_name,
                 'step_id' => $step_id, // Include step_id for automation emails
+				'publication_newsletter' => 'automation' === $campaign['campaign_type'] && $automation_id &&
+					( new \MailerPress\Core\Workflows\Repositories\StepRepository() )->findTriggerByKey( $automation_id, 'post_published' ) !== null,
             ],
             200
         );
@@ -1480,7 +1613,7 @@ class Campaigns
     #[Endpoint(
         'campaigns',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canCreateCampaign'],
     )]
     public function post(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -1507,7 +1640,7 @@ class Campaigns
         ];
 
         // Add campaign_type if provided
-        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'automated', 'automation', 'wp_email', 'wc_email', 'confirm_email'], true)) {
+        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'ab_test', 'automated', 'automation', 'wp_email', 'wc_email', 'confirm_email'], true)) {
             $data['campaign_type'] = $campaign_type;
         }
 
@@ -1791,11 +1924,11 @@ class Campaigns
             // Filter by search query
             $search = sanitize_text_field($request->get_param('search'));
             if (!empty($search)) {
-                $where_parts[] = 'post_title LIKE %s';
+                $where_parts[] = 'name LIKE %s';
                 $where_params[] = '%' . $wpdb->esc_like($search) . '%';
             }
 
-            if ($this->restrictCampaignMutationToCurrentUser($request)) {
+            if ($this->shouldRestrictCampaignsToCurrentUser($request)) {
                 $where_parts[] = 'user_id = %d';
                 $where_params[] = get_current_user_id();
             }
@@ -1976,7 +2109,7 @@ class Campaigns
             // Add search filter if provided
             $search = sanitize_text_field($request->get_param('search'));
             if (!empty($search)) {
-                $where_parts[] = 'post_title LIKE %s';
+                $where_parts[] = 'name LIKE %s';
                 $params_select[] = '%' . $wpdb->esc_like($search) . '%';
             }
 
@@ -2085,7 +2218,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/rename',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function rename(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2138,7 +2271,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
         args: [
             'id' => [
                 'required' => true,
@@ -2153,6 +2286,7 @@ class Campaigns
         $campaign_id = (int)$request->get_param('id');
         $name = sanitize_text_field($request->get_param('title'));
         $meta = $request->get_param('meta');
+        $meta = is_array($meta) ? $meta : [];
 
         // Vérifiez si la campagne existe
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
@@ -2165,14 +2299,31 @@ class Campaigns
         $current_user_id = get_current_user_id();
 
 
+        $email_config = !empty($meta['emailConfig']) && is_array($meta['emailConfig'])
+            ? $meta['emailConfig']
+            : [];
+        $config = null;
+
+        if (!empty($email_config)) {
+            $config = $email_config;
+
+            if ($campaign->campaign_type === 'automated') {
+                $existing_config = !empty($campaign->config)
+                    ? (array) json_decode($campaign->config, true)
+                    : [];
+                $config = array_merge($existing_config, $email_config);
+                $config = $this->syncAutomatedCampaignScheduleConfig($campaign_id, $config);
+            }
+        }
+
         // Préparer les données pour la mise à jour
         $data = [
             'name' => $name ?: $campaign->name, // Si "title" est vide, garder l'ancien
-            'subject' => !empty($meta['emailConfig']['campaignSubject']) ? $meta['emailConfig']['campaignSubject'] : $campaign->subject,
+            'subject' => !empty($email_config['campaignSubject']) ? $email_config['campaignSubject'] : $campaign->subject,
             'status' => !empty($meta['status']) ? esc_attr($meta['status']) : $campaign->status,
-            'email_type' => !empty($meta['emailConfig']['email_type']) ? esc_attr($meta['emailConfig']['email_type']) : $campaign->email_type,
+            'email_type' => !empty($email_config['email_type']) ? esc_attr($email_config['email_type']) : $campaign->email_type,
             'content_html' => !empty($meta['json']) ? wp_json_encode($meta['json']) : wp_json_encode($campaign->content_html),
-            'config' => !empty($meta['emailConfig']) ? wp_json_encode($meta['emailConfig']) : $campaign->config,
+            'config' => null !== $config ? wp_json_encode($config) : $campaign->config,
             'updated_at' => current_time('mysql'),
         ];
 
@@ -2186,6 +2337,21 @@ class Campaigns
 
         if (false === $updated) {
             return new \WP_Error('db_update_error', __('Failed to update campaign.', 'mailerpress'), ['status' => 500]);
+        }
+
+        if (null !== $config && $campaign->campaign_type === 'automated' && $campaign->status === 'active') {
+            $schedule = $this->buildAutomatedCampaignSchedulePayload($campaign_id, $config);
+
+            mailerpress_schedule_automated_campaign(
+                $campaign_id,
+                $schedule['sendType'],
+                $schedule['config'],
+                $schedule['scheduledAt'],
+                $schedule['recipientTargeting'],
+                $schedule['lists'],
+                $schedule['tags'],
+                $schedule['segment'],
+            );
         }
 
         // Retourner une réponse de succès
@@ -2203,7 +2369,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/settings',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
         args: [
             'id' => [
                 'required' => true,
@@ -2228,12 +2394,17 @@ class Campaigns
         }
 
         $email_config = $request->get_param('emailConfig');
+        $email_config = is_array($email_config) ? $email_config : [];
 
         $existing_config = !empty($campaign->config)
             ? (array) json_decode($campaign->config, true)
             : [];
 
-        $merged_config = array_merge($existing_config, (array) $email_config);
+        $merged_config = array_merge($existing_config, $email_config);
+
+        if ($campaign->campaign_type === 'automated') {
+            $merged_config = $this->syncAutomatedCampaignScheduleConfig($campaign_id, $merged_config);
+        }
 
         $data = [
             'subject'             => !empty($email_config['campaignSubject']) ? sanitize_text_field($email_config['campaignSubject']) : $campaign->subject,
@@ -2249,13 +2420,28 @@ class Campaigns
             return new \WP_Error('db_update_error', __('Failed to update campaign settings.', 'mailerpress'), ['status' => 500]);
         }
 
+        if ($campaign->campaign_type === 'automated' && $campaign->status === 'active') {
+            $schedule = $this->buildAutomatedCampaignSchedulePayload($campaign_id, $merged_config);
+
+            mailerpress_schedule_automated_campaign(
+                $campaign_id,
+                $schedule['sendType'],
+                $schedule['config'],
+                $schedule['scheduledAt'],
+                $schedule['recipientTargeting'],
+                $schedule['lists'],
+                $schedule['tags'],
+                $schedule['segment'],
+            );
+        }
+
         return new \WP_REST_Response(['success' => true, 'campaign_id' => $campaign_id], 200);
     }
 
     #[Endpoint(
         'campaign/save-content/(?P<id>\d+)',
         methods: 'PUT',
-        permissionCallback: [Permissions::class, 'canEdit'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
         args: [
             'id' => [
                 'required' => true,
@@ -2345,7 +2531,7 @@ class Campaigns
     #[Endpoint(
         'campaign/html',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canUseEditorContent'],
     )]
     public function formatHTML(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2368,7 +2554,7 @@ class Campaigns
     #[Endpoint(
         'campaign/contact/preview/',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canPreviewEditorContact'],
     )]
     public function previewEmailByContact(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2384,27 +2570,10 @@ class Campaigns
                 'TRACK_CLICK' => home_url('/'), // your redirect endpoint
                 'CONTACT_ID'  => (int) $contactEntity->contact_id,
                 'CAMPAIGN_ID' => 297,
-                'UNSUB_LINK' => wp_unslash(
-                    \sprintf(
-                        '%s&data=%s&cid=%s&batchId=%s',
-                        mailerpress_get_page('unsub_page'),
-                        esc_attr($contactEntity->unsubscribe_token),
-                        esc_attr($contactEntity->access_token),
-                        ''
-                    )
-                ),
-                'MANAGE_SUB_LINK' => wp_unslash(
-                    \sprintf(
-                        '%s&cid=%s',
-                        mailerpress_get_page('manage_page'),
-                        esc_attr($contactEntity->access_token)
-                    )
-                ),
+                'UNSUB_LINK' => add_query_arg('mp_preview', '1', mailerpress_get_page('unsub_page')),
+                'MANAGE_SUB_LINK' => add_query_arg('mp_preview', '1', mailerpress_get_page('manage_page')),
                 'CONTACT_NAME' => esc_html($contactEntity->first_name) . ' ' . esc_html($contactEntity->last_name),
-                'TRACK_OPEN' => \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
-                    (int) $contactId,
-                    0
-                ),
+                'TRACK_OPEN' => '',
                 'contact_name' => \sprintf(
                     '%s %s',
                     esc_html($contactEntity->first_name),
@@ -2430,11 +2599,12 @@ class Campaigns
                 }
             }
 
-            // Générer l'HTML personnalisé pour ce contact
+            $html = apply_filters( 'mailerpress/email/per_contact_html', $html, $html, (int) $contactEntity->contact_id );
+
             $parsed_html = Kernel::getContainer()->get(HtmlParser::class)->init(
                 $html,
                 $variables
-            )->replaceVariables();
+            )->replaceVariables('no');
 
             return new \WP_REST_Response($parsed_html);
         }
@@ -2443,6 +2613,21 @@ class Campaigns
             'error',
             400
         );
+    }
+
+    #[Endpoint(
+        'contact/conditional-data/(?P<id>\d+)',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canPreviewEditorContact'],
+    )]
+    public function getContactConditionalData( \WP_REST_Request $request ): \WP_REST_Response {
+        $contactId = absint( $request->get_param( 'id' ) );
+        if ( 0 === $contactId ) {
+            return new \WP_REST_Response( [ 'error' => 'Invalid contact ID' ], 400 );
+        }
+
+        $data = apply_filters( 'mailerpress/contact/conditional_data', [], $contactId );
+        return new \WP_REST_Response( $data );
     }
 
     #[Endpoint(
@@ -2462,7 +2647,7 @@ class Campaigns
         $scheduledAt = $request->get_param('scheduledAt');
 
         if (function_exists('mailerpress_resolve_sender_config')) {
-            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : []);
+            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : [], true);
         }
 
         $status = ('future' === $sendType) ? 'scheduled' : 'pending';
@@ -2590,29 +2775,81 @@ class Campaigns
     {
         global $wpdb;
 
-        if (!current_user_can(Capabilities::PUBLISH_CAMPAIGNS)) {
-            return new WP_Error(
-                'mailerpress_no_permission',
-                __('You do not have permission to create a campaign batch.', 'mailerpress'),
-                ['status' => 403]
-            );
-        }
-
         $sendType = $request->get_param('sendType');
-        $post = $request->get_param('postEdit');
+        $post = (int) $request->get_param('postEdit');
         $html = $request->get_param('html');
         $config = $request->get_param('config');
         $scheduledAt = $request->get_param('scheduledAt');
 
         if (function_exists('mailerpress_resolve_sender_config')) {
-            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : []);
+            $config = mailerpress_resolve_sender_config(is_array($config) ? $config : [], true);
         }
+
         $recipientTargeting = $request->get_param('recipientTargeting') ?? null;
         $lists = $request->get_param('lists') ?? [];
         $tags = $request->get_param('tags') ?? [];
         $segment = $request->get_param('segment') ?? [];
         $openTracking = $request->get_param('openTracking') ?? 'yes';
         $clickTracking = $request->get_param('clickTracking') ?? 'yes';
+
+        if ($post <= 0) {
+            return new WP_Error(
+                'mailerpress_campaign_required',
+                __('A valid campaign is required to create a batch.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $campaignTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $campaignState = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT campaign_type, status, automation_id FROM {$campaignTable} WHERE campaign_id = %d",
+                $post
+            ),
+            ARRAY_A
+        );
+
+        if (!$campaignState) {
+            return new WP_Error(
+                'mailerpress_campaign_not_found',
+                __('Campaign not found.', 'mailerpress'),
+                ['status' => 404]
+            );
+        }
+
+		if ( 'automation' === ( $campaignState['campaign_type'] ?? '' ) && ! empty( $campaignState['automation_id'] ) &&
+			( new \MailerPress\Core\Workflows\Repositories\StepRepository() )->findTriggerByKey( (int) $campaignState['automation_id'], 'post_published' ) ) {
+			return new WP_Error( 'mailerpress_publication_template', __( 'Save the newsletter setup. A separate campaign will be created when a post is published.', 'mailerpress' ), [ 'status' => 409 ] );
+		}
+
+        $isAutomatedCampaign = 'automated' === ($campaignState['campaign_type'] ?? '');
+
+        if (!$isAutomatedCampaign && 'sent' === ($campaignState['status'] ?? '')) {
+            return new WP_Error(
+                'mailerpress_campaign_already_sent',
+                __('This campaign has already been sent and cannot be scheduled again.', 'mailerpress'),
+                ['status' => 409]
+            );
+        }
+
+        $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $existingBatchId = $isAutomatedCampaign
+            ? MailerPressEmailBatch::getActiveBatchId($post)
+            : MailerPressEmailBatch::getBlockingBatchId($post);
+
+        if (
+            $existingBatchId > 0
+            || MailerPressEmailBatch::hasScheduledAction((int) $post)
+        ) {
+            return new WP_Error(
+                'mailerpress_campaign_batch_already_scheduled',
+                __('A batch is already scheduled or being processed for this campaign.', 'mailerpress'),
+                [
+                    'status' => 409,
+                    'batch_id' => $existingBatchId ?: null,
+                ]
+            );
+        }
 
         $htmlStorage = CampaignHtmlOptionStorage::store(
             (int) $post,
@@ -2677,8 +2914,57 @@ class Campaigns
                 $utcScheduledAt = gmdate('Y-m-d H:i:s', $dtForStorage->getTimestamp());
             }
         }
+
+        // Calculate and validate the action time before creating a database batch.
+        $scheduled_time = time() + 5;
+        if ('future' === $sendType && !empty($scheduledAt)) {
+            $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone(wp_timezone_string());
+            try {
+                if (is_string($scheduledAt)) {
+                    $dt = \DateTime::createFromFormat(\DateTime::ISO8601, $scheduledAt);
+                    if (!$dt) {
+                        $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $scheduledAt, $tz);
+                    }
+                    if (!$dt) {
+                        $dt = new \DateTime($scheduledAt, $tz);
+                    }
+                } else {
+                    $dt = new \DateTime($scheduledAt, $tz);
+                }
+
+                if ($dt) {
+                    $scheduled_timestamp = $dt->getTimestamp();
+                    if ($scheduled_timestamp <= time()) {
+                        return new \WP_Error(
+                            'mailerpress_scheduled_date_past',
+                            __('The scheduled date is in the past. Please select a future date and time.', 'mailerpress'),
+                            ['status' => 422]
+                        );
+                    }
+
+                    $scheduled_time = $scheduled_timestamp;
+                }
+            } catch (\Exception $e) {
+                \MailerPress\Services\Logger::error('Failed to parse scheduledAt', [
+                    'message' => $e->getMessage(),
+                    'scheduledAt' => $scheduledAt,
+                ]);
+                return new \WP_Error(
+                    'mailerpress_scheduled_date_invalid',
+                    __('Invalid scheduled date format.', 'mailerpress'),
+                    ['status' => 422]
+                );
+            }
+        }
+
+        // The date picker keeps a default future value even for immediate sends.
+        // Store the actual action time instead of that unused value.
+        if ('future' !== $sendType) {
+            $utcScheduledAt = gmdate('Y-m-d H:i:s', $scheduled_time);
+        }
+
         $wpdb->insert(
-            Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES),
+            $batchTable,
             [
                 'status' => $status,
                 'total_emails' => $total_emails,
@@ -2700,74 +2986,55 @@ class Campaigns
             );
         }
 
-        // Calculate the scheduled time for the action
-        $scheduled_time = time() + 5; // Default: 5 seconds from now for immediate sending
-        if ('future' === $sendType && !empty($scheduledAt)) {
-            // Convert scheduledAt to timestamp
-            $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone(wp_timezone_string());
-            try {
-                // Handle different date formats
-                // If it's an ISO string with timezone, parse it directly
-                // If it's a date string without timezone, assume it's in WordPress timezone
-                if (is_string($scheduledAt)) {
-                    // Try to parse as ISO 8601 first
-                    $dt = \DateTime::createFromFormat(\DateTime::ISO8601, $scheduledAt);
-                    if (!$dt) {
-                        // Try WordPress date format (Y-m-d H:i:s)
-                        $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $scheduledAt, $tz);
-                    }
-                    if (!$dt) {
-                        // Try parsing with DateTime constructor (will use provided timezone)
-                        $dt = new \DateTime($scheduledAt, $tz);
-                    }
-                } else {
-                    // If it's not a string, try to convert it
-                    $dt = new \DateTime($scheduledAt, $tz);
-                }
+        $actionArgs = [
+            $sendType,
+            $post,
+            $config,
+            $utcScheduledAt ?? $scheduledAt,
+            $recipientTargeting,
+            $lists,
+            $tags,
+            $segment,
+            $openTracking,
+            $clickTracking,
+            $batch_id,
+        ];
 
-                if ($dt) {
-                    $scheduled_timestamp = $dt->getTimestamp();
-                    if ($scheduled_timestamp > time()) {
-                        $scheduled_time = $scheduled_timestamp;
-                    } else {
-                        // Scheduled date is in the past — reject the request
-                        return new \WP_Error(
-                            'mailerpress_scheduled_date_past',
-                            __('The scheduled date is in the past. Please select a future date and time.', 'mailerpress'),
-                            ['status' => 422]
-                        );
-                    }
-                }
-            } catch (\Exception $e) {
-                \MailerPress\Services\Logger::error('Failed to parse scheduledAt', [
-                    'message' => $e->getMessage(),
-                    'scheduledAt' => $scheduledAt,
-                ]);
-                return new \WP_Error(
-                    'mailerpress_scheduled_date_invalid',
-                    __('Invalid scheduled date format.', 'mailerpress'),
-                    ['status' => 422]
-                );
-            }
+        try {
+            $actionId = MailerPressEmailBatch::scheduleAction(
+                $scheduled_time,
+                (int) $post,
+                $actionArgs
+            );
+        } catch (\Throwable $e) {
+            $wpdb->delete($batchTable, ['id' => $batch_id], ['%d']);
+
+            return new WP_Error(
+                'mailerpress_batch_action_failed',
+                __('The campaign batch could not be scheduled.', 'mailerpress'),
+                ['status' => 500]
+            );
         }
 
-        as_schedule_single_action(
-            $scheduled_time,
-            'mailerpress_batch_email',
-            [
-                $sendType,
-                $post,
-                $config,
-                $utcScheduledAt ?? $scheduledAt, // Pass UTC so timezone changes after scheduling don't affect execution
-                $recipientTargeting,
-                $lists,
-                $tags,
-                $segment,
-                $openTracking,
-                $clickTracking,
-            ],
-            'mailerpress'
-        );
+        if ($actionId <= 0) {
+            $wpdb->delete($batchTable, ['id' => $batch_id], ['%d']);
+
+            $blockingBatchId = $isAutomatedCampaign
+                ? MailerPressEmailBatch::getActiveBatchId($post)
+                : MailerPressEmailBatch::getBlockingBatchId($post);
+            $duplicate = MailerPressEmailBatch::hasScheduledAction($post)
+                || $blockingBatchId > 0;
+
+            return new WP_Error(
+                $duplicate
+                    ? 'mailerpress_campaign_batch_already_scheduled'
+                    : 'mailerpress_batch_action_failed',
+                $duplicate
+                    ? __('A batch is already scheduled or being processed for this campaign.', 'mailerpress')
+                    : __('The campaign batch could not be scheduled.', 'mailerpress'),
+                ['status' => $duplicate ? 409 : 500]
+            );
+        }
 
         $table_name = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
 
@@ -2775,7 +3042,7 @@ class Campaigns
         // Si sendType est 'future', la campagne est programmée, sinon elle est en attente
         $campaign_status = ('future' === $sendType) ? 'scheduled' : 'pending';
 
-        $wpdb->update(
+        $campaignUpdated = $wpdb->update(
             $table_name,
             [
                 'status' => $campaign_status,
@@ -2786,6 +3053,17 @@ class Campaigns
             ['%s', '%d', '%s'], // Data format: string for status, integer for batch_id, string for timestamp
             ['%d']        // Where condition format: integer for campaign_id
         );
+
+        if (false === $campaignUpdated) {
+            MailerPressEmailBatch::cancelScheduledActions((int) $post);
+            $wpdb->delete($batchTable, ['id' => $batch_id], ['%d']);
+
+            return new WP_Error(
+                'mailerpress_campaign_batch_update_failed',
+                __('The campaign could not be linked to its scheduled batch.', 'mailerpress'),
+                ['status' => 500]
+            );
+        }
 
         $wpdb->update(
             $table_name,
@@ -2815,7 +3093,7 @@ class Campaigns
     #[Endpoint(
         'campaign/update_automated_campaign',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function updateAutomatedCampaign(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2909,7 +3187,7 @@ class Campaigns
     #[Endpoint(
         'campaign/create_automated_campaign',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function createAutomatedCampaign(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -3019,13 +3297,12 @@ class Campaigns
         $contacts = $request->get_param('contacts');
         $body = $request->get_param('htmlContent');
         $subject = sanitize_text_field($request->get_param('subject'));
+        $sender_config = $request->get_param('config');
+        $sender_config = is_array($sender_config) ? $sender_config : [];
 
-        // 🔧 Sanitize HTML to remove/replace merge tags for test emails
-        // This prevents ESP parsing errors when merge tags like {{variable}} remain in the HTML
-        // Test emails don't have contact context, so merge tags are replaced with:
-        // - Their default values (if specified as {{var default="value"}})
-        // - Empty strings (if no default)
+        // Keep recipient-independent replacements outside the loop.
         $body = $this->replaceCartRecoveryMergeTag($body, $this->buildPreviewCartRecoveryUrl());
+        $body = $this->replaceTestSubscriptionLinks($body);
         $body = \MailerPress\Core\HtmlParser::sanitizeTestEmail($body);
 
         $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
@@ -3057,6 +3334,17 @@ class Campaigns
             }
         }
 
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $sender_config = mailerpress_resolve_sender_config($sender_config, true);
+        }
+
+        $sender_name = !empty($sender_config['fromName'])
+            ? sanitize_text_field((string)$sender_config['fromName'])
+            : ($config['conf']['default_name'] ?? '');
+        $sender_to = !empty($sender_config['fromTo'])
+            ? sanitize_email((string)$sender_config['fromTo'])
+            : ($config['conf']['default_email'] ?? '');
+
         $success = [];
         $errors = [];
 
@@ -3070,8 +3358,8 @@ class Campaigns
                         '[MailerPress TEST] - %s',
                         'mailerpress'
                     ), $subject),
-                    'sender_name' => $config['conf']['default_name'],
-                    'sender_to' => $config['conf']['default_email'],
+                    'sender_name' => $sender_name,
+                    'sender_to' => $sender_to,
                     'apiKey' => $config['conf']['api_key'] ?? '',
                 ]);
                 $success[] = $contact;
@@ -3088,6 +3376,59 @@ class Campaigns
             'sent' => $success,
             'errors' => $errors,
         ], empty($errors) ? 200 : 207); // 207: Multi-Status (partial success)
+    }
+
+    private function replaceTestSubscriptionLinks(string $html): string
+    {
+        $unsubscribeUrl = add_query_arg('mp_preview', '1', mailerpress_get_page('unsub_page'));
+        $manageSubscriptionUrl = add_query_arg('mp_preview', '1', mailerpress_get_page('manage_page'));
+
+        $html = str_ireplace(
+            ['%UNSUB_LINK%', '%MANAGE_SUB_LINK%'],
+            [esc_url($unsubscribeUrl), esc_url($manageSubscriptionUrl)],
+            $html
+        );
+
+        return preg_replace_callback(
+            '#(<a\b[^>]*\bhref\s*=\s*)(["\'])(.*?)\2#is',
+            static function (array $matches) use ($unsubscribeUrl, $manageSubscriptionUrl): string {
+                $href = html_entity_decode($matches[3], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $query = wp_parse_url($href, PHP_URL_QUERY);
+                $action = '';
+
+                if (is_string($query)) {
+                    parse_str($query, $queryArgs);
+                    $action = sanitize_key((string) ($queryArgs['action'] ?? ''));
+                }
+
+                if ('' === $action) {
+                    $path = wp_parse_url($href, PHP_URL_PATH);
+                    if (is_string($path) && preg_match('#/tracking-link/([^/]+)/?$#', $path, $tokenMatch)) {
+                        $trackingData = HtmlParser::decodeTrackingToken(rawurldecode($tokenMatch[1]));
+                        $destination = is_array($trackingData) ? ($trackingData['url'] ?? '') : '';
+                        $destinationQuery = is_string($destination)
+                            ? wp_parse_url(html_entity_decode($destination, ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_QUERY)
+                            : null;
+
+                        if (is_string($destinationQuery)) {
+                            parse_str($destinationQuery, $destinationArgs);
+                            $action = sanitize_key((string) ($destinationArgs['action'] ?? ''));
+                        }
+                    }
+                }
+
+                if (in_array($action, ['confirm_unsubscribe', 'unsubscribe'], true)) {
+                    $href = esc_url($unsubscribeUrl);
+                } elseif ('manage' === $action) {
+                    $href = esc_url($manageSubscriptionUrl);
+                } else {
+                    return $matches[0];
+                }
+
+                return $matches[1] . $matches[2] . $href . $matches[2];
+            },
+            $html
+        ) ?? $html;
     }
 
     private function replaceCartRecoveryMergeTag(string $html, string $url): string
@@ -3124,7 +3465,7 @@ class Campaigns
     #[Endpoint(
         'campaign/pause_batch',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function mailerpress_cancel_batch_actions(\WP_REST_Request $request)
     {
@@ -3163,57 +3504,18 @@ class Campaigns
             }
         }
 
-        // NEW: Delete chunks from mailerpress_email_chunks table
-        $chunks_deleted = 0;
-        if ($batch_id) {
-            $chunks_table = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
-
-            // Count chunks before deletion
-            $chunks_count = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$chunks_table} WHERE batch_id = %d",
-                $batch_id
-            ));
-
-            // Delete all chunks for this batch
-            $wpdb->delete(
-                $chunks_table,
-                ['batch_id' => $batch_id],
-                ['%d']
-            );
-
-            $chunks_deleted = (int) $chunks_count;
-        }
+        // Delete the batch's chunks, their cached payloads and the batch record.
+        $chunks_deleted = $this->deleteBatchData($batch_id);
 
         if (!ChunkWorker::hasPendingChunks()) {
             ChunkWorker::markNoPendingChunks();
             ChunkWorker::unregisterRecurringWorker();
         }
 
-        // CRITICAL: Cancel mailerpress_batch_email action for scheduled campaigns
-        // This prevents the campaign from executing at its scheduled time
-        $actions_cancelled = 0;
-        if ($campaign_id && function_exists('as_get_scheduled_actions')) {
-            $batch_email_actions = as_get_scheduled_actions([
-                'hook' => 'mailerpress_batch_email',
-                'status' => \ActionScheduler_Store::STATUS_PENDING,
-                'per_page' => 500,
-                'group' => 'mailerpress',
-            ]);
-
-            foreach ($batch_email_actions as $action_id => $action) {
-                $args = $action->get_args();
-                // args[1] contains the campaign_id
-                if (!empty($args[1]) && (int)$args[1] === $campaign_id) {
-                    try {
-                        $store->cancel_action($action_id);
-                        $store->delete_action($action_id);
-                        $actions_cancelled++;
-
-                    } catch (\Exception $e) {
-                    }
-                }
-            }
-        }
+        // Cancel both legacy and campaign-scoped batch actions.
+        $actions_cancelled = $campaign_id
+            ? MailerPressEmailBatch::cancelScheduledActions($campaign_id)
+            : 0;
 
         // Set campaign as draft and remove the batch_id
         if ($campaign_id) {
@@ -3228,14 +3530,6 @@ class Campaigns
                 ['%d']
             );
         }
-
-        // Delete the batch record
-        $wpdb->delete(
-            Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES),
-            ['id' => $batch_id],
-            ['%d']
-        );
-
 
         return new \WP_REST_Response([
             'batchId' => $batch_id,
@@ -3256,7 +3550,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/deactivate',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function mailerpress_deactivate_automated_campaign(\WP_REST_Request $request)
     {
@@ -3332,7 +3626,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/activate',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function mailerpress_activate_automated_campaign(\WP_REST_Request $request)
     {
@@ -3406,18 +3700,67 @@ class Campaigns
 
     private function cleanupScheduledCampaignActions(array $campaignIds): int
     {
-        if (!function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')) {
-            return 0;
-        }
-
         $cancelled = 0;
         $campaignIds = array_unique(array_filter(array_map('intval', $campaignIds)));
 
+        global $wpdb;
+        $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $deletedBatches = false;
+
         foreach ($campaignIds as $campaignId) {
-            $cancelled += mailerpress_cancel_scheduled_automated_campaign_actions($campaignId);
+            $cancelled += MailerPressEmailBatch::cancelScheduledActions($campaignId);
+            if (function_exists('mailerpress_cancel_scheduled_automated_campaign_actions')) {
+                $cancelled += mailerpress_cancel_scheduled_automated_campaign_actions($campaignId);
+            }
+
+            // Without their actions these batches would never run, yet they would
+            // still block scheduling the campaign again once it is restored.
+            $openBatchIds = $wpdb->get_col($wpdb->prepare(
+                "SELECT id FROM {$batchesTable} WHERE campaign_id = %d AND status IN ('scheduled', 'pending')",
+                $campaignId
+            ));
+            foreach ($openBatchIds as $batchId) {
+                $this->deleteBatchData((int) $batchId);
+                $deletedBatches = true;
+            }
+        }
+
+        if ($deletedBatches && !ChunkWorker::hasPendingChunks()) {
+            ChunkWorker::markNoPendingChunks();
+            ChunkWorker::unregisterRecurringWorker();
         }
 
         return $cancelled;
+    }
+
+    /**
+     * Delete a batch with its chunks and cached chunk payloads.
+     *
+     * @return int Number of chunks deleted.
+     */
+    private function deleteBatchData(int $batchId): int
+    {
+        global $wpdb;
+
+        if ($batchId <= 0) {
+            return 0;
+        }
+
+        $chunksTable = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
+        $chunkIndexes = $wpdb->get_col($wpdb->prepare(
+            "SELECT chunk_index FROM {$chunksTable} WHERE batch_id = %d",
+            $batchId
+        ));
+
+        foreach ($chunkIndexes as $chunkIndex) {
+            delete_transient('mailerpress_chunk_' . $batchId . '_' . $chunkIndex);
+        }
+        delete_transient('mailerpress_batch_' . $batchId . '_html_processed');
+
+        $wpdb->delete($chunksTable, ['batch_id' => $batchId], ['%d']);
+        $wpdb->delete(Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES), ['id' => $batchId], ['%d']);
+
+        return count($chunkIndexes);
     }
 
 
@@ -3485,6 +3828,65 @@ class Campaigns
         }
 
         return $restored;
+    }
+
+
+    private function syncAutomatedCampaignScheduleConfig(int $campaign_id, array $config): array
+    {
+        $schedule = is_array($config['automatedCampaignSchedule'] ?? null)
+            ? $config['automatedCampaignSchedule']
+            : [];
+        $senderConfig = is_array($schedule['config'] ?? null) ? $schedule['config'] : [];
+
+        if (array_key_exists('sendChoice', $config)) {
+            $schedule['sendType'] = $config['sendChoice'];
+        }
+
+        $scheduleConfigKeys = [
+            'sendAt' => 'scheduledAt',
+            'recipientTargeting' => 'recipientTargeting',
+            'lists' => 'lists',
+            'tags' => 'tags',
+            'segment' => 'segment',
+        ];
+
+        foreach ($scheduleConfigKeys as $configKey => $scheduleKey) {
+            if (array_key_exists($configKey, $config)) {
+                $schedule[$scheduleKey] = $config[$configKey];
+            }
+        }
+
+        foreach (['senderId', 'fromName', 'fromTo', 'previewText'] as $key) {
+            if (array_key_exists($key, $config)) {
+                $senderConfig[$key] = $config[$key];
+            }
+        }
+
+        if (array_key_exists('subject', $config)) {
+            $senderConfig['subject'] = $config['subject'];
+        } elseif (array_key_exists('campaignSubject', $config)) {
+            $senderConfig['subject'] = $config['campaignSubject'];
+        }
+
+        if (empty($senderConfig)) {
+            $senderConfig = [
+                'fromName' => $config['fromName'] ?? '',
+                'fromTo' => $config['fromTo'] ?? '',
+                'subject' => $config['campaignSubject'] ?? $config['subject'] ?? get_the_title($campaign_id),
+                'previewText' => $config['previewText'] ?? '',
+            ];
+        }
+
+        if (function_exists('mailerpress_resolve_sender_config')) {
+            $senderConfig = mailerpress_resolve_sender_config($senderConfig, true);
+        }
+
+        $config['automatedCampaignSchedule'] = array_merge(
+            $schedule,
+            ['config' => $senderConfig]
+        );
+
+        return $config;
     }
 
 
@@ -3629,7 +4031,7 @@ class Campaigns
     #[Endpoint(
         'campaign/resume_batch',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function resumeBatch(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4037,6 +4439,7 @@ class Campaigns
 
         // Fire webhook for email opened (non-anonymous only)
         if (!$isAnonymousTracking && $contact_id > 0) {
+            Kernel::getContainer()->get(InactiveContactManager::class)->markOpened($contact_id);
             do_action('mailerpress_email_opened', $contact_id, $campaign_id, $batch_id);
         }
 
@@ -4057,7 +4460,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/lock',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canEditCampaign'],
     )]
     public function mailerpress_lock_campaign(WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4098,7 +4501,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/unlock-requests',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function mailerpress_unlock_requests_campaign(
         WP_REST_Request $request
@@ -4111,7 +4514,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/add-unlock-request',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function mailerpress_add_unlock_request_campaign(
         WP_REST_Request $request
@@ -4125,7 +4528,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/deny-unlock-request',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function mailerpress_deny_unlock_request_campaign(
         WP_REST_Request $request
@@ -4140,7 +4543,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/unlock',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function mailerpress_unlock_campaign(WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4182,7 +4585,7 @@ class Campaigns
     #[Endpoint(
         'campaign/(?P<id>\d+)/refresh-lock',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function mailerpress_refresh_lock(WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4202,7 +4605,7 @@ class Campaigns
 
     #[Endpoint(
         'campaign/(?P<id>\d+)/status',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canReadCampaign']
     )]
     public function campaingStatusLock(WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4232,7 +4635,7 @@ class Campaigns
     #[Endpoint(
         'video-preview',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign'],
+        permissionCallback: [Permissions::class, 'canUseEditorContent'],
     )]
     public function generateVideoPreview(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -4810,6 +5213,7 @@ class Campaigns
 
         return match ($type) {
             'classic' => new ClassicContactFetcher($lists, $tags),
+            'contact_ids' => new ContactIdsFetcher(is_array($segment) ? $segment : []),
             'segment' => new SegmentContactFetcher(is_array($segment) ? $segment[0] : $segment),
             default => null
         };
@@ -4834,7 +5238,9 @@ class Campaigns
         $total = 0;
         try {
             $fetcher = $this->getContactFetcher($recipientTargeting, $lists, $tags, $segment);
-            if ($fetcher) {
+            if ($fetcher instanceof \Countable) {
+                $total = count($fetcher);
+            } elseif ($fetcher) {
                 $chunk_size = 1000;
                 $offset     = 0;
                 do {
@@ -5019,6 +5425,51 @@ class Campaigns
         }
 
         return $result . substr( $html, $offset );
+    }
+
+    /**
+     * Preserve MailerPress conditional-display control blocks while sanitizing
+     * their rendered HTML branches.
+     */
+    private function protectMailerPressConditionalBlocks( string $html, array &$protected_conditionals ): string {
+        if ( false === strpos( $html, '%%MP_COND_START%%' ) ) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '/%%MP_COND_START%%(.+?)%%MP_COND_START%%(.*?)%%MP_COND_END%%/s',
+            function ( array $matches ) use ( &$protected_conditionals ) {
+                $meta = $this->sanitizeMailerPressConditionalMeta( $matches[1] );
+                $inner_html = $matches[2];
+
+                $protected_comments = [];
+                $inner_html = $this->protectEmailConditionalComments( $inner_html, $protected_comments );
+                $inner_html = $this->sanitizeEmailHtmlFragment( $inner_html, $this->getEmailAllowedHtml() );
+                $inner_html = strtr( $inner_html, $protected_comments );
+
+                $block = '%%MP_COND_START%%' . $meta . '%%MP_COND_START%%' . $inner_html . '%%MP_COND_END%%';
+                $token = 'MAILERPRESS_CONDITIONAL_BLOCK_' . count( $protected_conditionals ) . '_' . md5( $block );
+                $protected_conditionals[ $token ] = $block;
+
+                return $token;
+            },
+            $html
+        ) ?? $html;
+    }
+
+    /**
+     * Normalize conditional metadata to encoded JSON so restored markers cannot
+     * inject HTML outside the allowlist path.
+     */
+    private function sanitizeMailerPressConditionalMeta( string $encoded_meta ): string {
+        $decoded_meta = rawurldecode( $encoded_meta );
+        $variants = json_decode( $decoded_meta, true );
+
+        if ( ! is_array( $variants ) ) {
+            return rawurlencode( wp_strip_all_tags( $decoded_meta ) );
+        }
+
+        return rawurlencode( wp_json_encode( $variants ) );
     }
 
     /**

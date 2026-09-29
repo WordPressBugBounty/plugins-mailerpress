@@ -7,6 +7,7 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 \defined('ABSPATH') || exit;
 
 use DI\DependencyException;
+use MailerPress\Services\DebugFileLogger;
 use DI\NotFoundException;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\EmailManager\EmailServiceManager;
@@ -16,6 +17,7 @@ use MailerPress\Core\Kernel;
 use MailerPress\Core\QueueManager;
 use MailerPress\Jobs\SendEmailJob;
 use MailerPress\Models\Contacts;
+use MailerPress\Services\InactiveContactManager;
 use MailerPress\Services\Logger;
 
 class ContactEmailChunk
@@ -230,7 +232,21 @@ class ContactEmailChunk
     {
         global $wpdb;
 
-        $chunkData = $this->refreshAutomatedSenderData($chunkData);
+        $originalContactCount = count(array_values(array_unique(array_filter(array_map('intval', $contact_chunk), static fn($id) => $id > 0))));
+        $contact_chunk = $this->filterSubscribedContactIds($contact_chunk);
+        $skippedContactCount = max(0, $originalContactCount - count($contact_chunk));
+        if ($skippedContactCount > 0) {
+            $this->adjustBatchTotalForSkippedContacts($batch_id, $skippedContactCount);
+        }
+        $chunkData['contacts'] = $contact_chunk;
+
+        if (empty($contact_chunk)) {
+            Logger::info('Chunk skipped because it has no subscribed contacts', [
+                'chunk_id' => $chunk_id,
+                'batch_id' => $batch_id,
+            ]);
+            return;
+        }
 
         $sendingService = Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations();
 
@@ -241,6 +257,34 @@ class ContactEmailChunk
                     $chunkData,
                     $batch_id
                 );
+
+                $acceptedContactIds = array_values(array_unique(array_filter(array_map('intval', $contact_chunk), static fn($id) => $id > 0)));
+                $campaignId = (int) ($chunkData['campaignId'] ?? 0);
+
+                if (!empty($acceptedContactIds) && $campaignId > 0) {
+                    $contactStatsTable = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
+                    $now = current_time('mysql');
+                    $placeholders = [];
+                    $values = [];
+
+                    foreach ($acceptedContactIds as $contactId) {
+                        $placeholders[] = '(%d, %d, 0, 0, 0, NULL, 0, %s, %s, %s)';
+                        $values[] = $contactId;
+                        $values[] = $campaignId;
+                        $values[] = 'neutral';
+                        $values[] = $now;
+                        $values[] = $now;
+                    }
+
+                    $wpdb->query($wpdb->prepare(
+                        "INSERT IGNORE INTO {$contactStatsTable}
+                         (contact_id, campaign_id, opened, clicked, click_count, last_click_at, revenue, status, created_at, updated_at)
+                         VALUES " . implode(', ', $placeholders),
+                        ...$values
+                    ));
+
+                    Kernel::getContainer()->get(InactiveContactManager::class)->markEmailsSent($acceptedContactIds, $now);
+                }
             }
         } else {
             // Optimize database queries by fetching all contacts and custom fields in batch
@@ -285,6 +329,8 @@ class ContactEmailChunk
                 }
                 $custom_fields_by_contact[$contact_id][$customField->field_key] = $customField->field_value;
             }
+
+            do_action( 'mailerpress/email/before_chunk_process', $contact_ids, $html, (int) ( $chunkData['campaignId'] ?? 0 ) );
 
             // Build the 'to' array using the pre-fetched data
             $to_array = [];
@@ -360,12 +406,19 @@ class ContactEmailChunk
                     }
                 }
 
-                $to_array[] = [
+                $perContactBody = apply_filters( 'mailerpress/email/per_contact_html', null, $html, (int) $contactEntity->contact_id );
+
+                $entry = [
                     'email' => $contactEntity->email,
                     'id' => (int) $contactEntity->contact_id,
                     'campaign_id' => (int) $chunkData['campaignId'],
                     'variables' => $contact_variables,
+                    'unsubscribe_token' => $contactEntity->unsubscribe_token ?? '',
                 ];
+                if ( null !== $perContactBody ) {
+                    $entry['body'] = $perContactBody;
+                }
+                $to_array[] = $entry;
             }
 
             /** @var JobInterface $process */
@@ -409,6 +462,81 @@ class ContactEmailChunk
         }
     }
 
+    private function filterSubscribedContactIds(array $contactIds): array
+    {
+        global $wpdb;
+
+        $contactIds = array_values(array_unique(array_filter(array_map('intval', $contactIds), static fn($id) => $id > 0)));
+        if (empty($contactIds)) {
+            return [];
+        }
+
+        $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
+        $placeholders = implode(',', array_fill(0, count($contactIds), '%d'));
+
+        $subscribedIds = $wpdb->get_col($wpdb->prepare(
+            "SELECT contact_id
+             FROM {$contactTable}
+             WHERE subscription_status = 'subscribed'
+               AND contact_id IN ({$placeholders})",
+            ...$contactIds
+        ));
+
+        $subscribedSet = array_flip(array_map('intval', $subscribedIds ?: []));
+
+        return array_values(array_filter($contactIds, static fn(int $id): bool => isset($subscribedSet[$id])));
+    }
+
+    private function adjustBatchTotalForSkippedContacts(int $batchId, int $skippedCount): void
+    {
+        global $wpdb;
+
+        if ($skippedCount <= 0) {
+            return;
+        }
+
+        $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$batchTable}
+             SET total_emails = GREATEST(
+                    COALESCE(total_emails, 0) - %d,
+                    COALESCE(sent_emails, 0) + COALESCE(error_emails, 0)
+                 ),
+                 updated_at = %s
+             WHERE id = %d",
+            $skippedCount,
+            current_time('mysql'),
+            $batchId
+        ));
+
+        $batch = $wpdb->get_row($wpdb->prepare(
+            "SELECT total_emails, sent_emails, error_emails, status, campaign_id
+             FROM {$batchTable}
+             WHERE id = %d",
+            $batchId
+        ), ARRAY_A);
+
+        if (!$batch || $batch['status'] === 'sent') {
+            return;
+        }
+
+        $totalEmails = (int) ($batch['total_emails'] ?? 0);
+        $processedEmails = (int) ($batch['sent_emails'] ?? 0) + (int) ($batch['error_emails'] ?? 0);
+        $campaignId = (int) ($batch['campaign_id'] ?? 0);
+
+        if ($totalEmails >= 0 && $processedEmails >= $totalEmails) {
+            $wpdb->update(
+                $batchTable,
+                ['status' => 'sent', 'updated_at' => current_time('mysql')],
+                ['id' => $batchId],
+                ['%s', '%s'],
+                ['%d']
+            );
+
+            do_action('mailerpress_batch_event', 'sent', $campaignId, $batchId);
+        }
+    }
+
     /**
      * Extract batch_id from job data for logging
      */
@@ -434,16 +562,8 @@ class ContactEmailChunk
      */
     private function log(string $message, array $context = []): void
     {
-        $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-        if (!is_dir($logDir)) {
-            wp_mkdir_p($logDir);
-        }
-
-        $logFile = $logDir . '/queue-debug.log';
-        $timestamp = current_time('mysql');
-        $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
-        $logEntry = sprintf("[%s] %s%s\n", $timestamp, $message, $contextStr);
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
+        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     /**

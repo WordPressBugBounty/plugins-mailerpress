@@ -8,7 +8,7 @@ use MailerPress\Core\Interfaces\ContactFetcherInterface;
 use MailerPress\Models\Contacts;
 use MailerPress\Core\Kernel;
 
-class ClassicContactFetcher implements ContactFetcherInterface
+class ClassicContactFetcher implements ContactFetcherInterface, \Countable
 {
     private array $lists;
     private array $tags;
@@ -37,6 +37,14 @@ class ClassicContactFetcher implements ContactFetcherInterface
             true,
             $limit,
             $offset
+        );
+    }
+
+    public function count(): int
+    {
+        return $this->contactsModel->countContactsWithTagsAndLists(
+            $this->normalizeIds($this->lists, 'list_id'),
+            $this->normalizeIds($this->tags, 'tag_id')
         );
     }
 

@@ -10,6 +10,8 @@ final class HtmlParser
 {
     private string $htmlContent = '';
     private array $variables = [];
+    private array $mergeTagContext = [];
+    private const MERGE_TAG_PATTERN = '/{{\s*([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)(?:\s+default=["\']([^"\']*)["\'])?\s*}}/';
     private ?string $anonymousKey = null;
     private static array $productUrlCache = [];
 
@@ -50,10 +52,11 @@ final class HtmlParser
     /**
      * Initialize parser with HTML and variables.
      */
-    public function init(string $htmlContent, array $variables): static
+    public function init(string $htmlContent, array $variables, array $mergeTagContext = []): static
     {
         $this->htmlContent = self::normalizeWordPressEmojiImages($htmlContent);
         $this->variables = $variables;
+        $this->mergeTagContext = $mergeTagContext;
         
         // Use anonymous key from variables if provided, or generate one if this is an anonymous email (contact_id = 0)
         // This key will be used consistently across all tracking tokens for this email
@@ -198,23 +201,7 @@ final class HtmlParser
             $replacedContent
         );
 
-        // 2️⃣ Replace {{VAR}} and {{VAR default="value"}}
-        // Use a more permissive pattern that matches merge tags even in attributes
-        $pattern = '/{{\s*([a-zA-Z0-9_]+)(?:\s+default=["\']([^"\']*)["\'])?\s*}}/';
-        $content = preg_replace_callback($pattern, function ($matches) {
-            $key = $matches[1];
-            $default = $matches[2] ?? '';
-            $value = $this->variables[$key] ?? ($default ?: '');
-            $value = (string) $value; // cast to string
-
-            return $value === '' ? '§EMPTY_VAR§' : $value;
-        }, $replacedContent);
-
-        // 3️⃣ Replace %VAR%
-        foreach ($this->variables as $key => $value) {
-            $pattern = sprintf('/%%%s%%/', preg_quote($key, '/'));
-            $content = preg_replace($pattern, (string) ($value === '' ? '§EMPTY_VAR§' : $value), $content);
-        }
+        $content = $this->replaceMergeTags($replacedContent, $this->variables, $this->mergeTagContext);
 
         // 4️⃣ Clean up empty markers
         $content = preg_replace('/(&nbsp;|\s)+§EMPTY_VAR§/', '§EMPTY_VAR§', $content);
@@ -239,6 +226,38 @@ final class HtmlParser
         return trim($content);
     }
 
+    /** Personalize a subject without HTML markup or tracking pixels. */
+    public function replaceSubjectVariables(string $subject, array $variables, array $context = []): string
+    {
+        $subject = $this->replaceMergeTags($subject, $variables, $context, true);
+        return trim(str_replace('§EMPTY_VAR§', '', preg_replace('/[\r\n]+/', ' ', $subject)));
+    }
+
+    private function replaceMergeTags(string $content, array $variables, array $context, bool $plainText = false): string
+    {
+        $variables = Kernel::getContainer()->get(MergeTags::class)->getVariables($content, $variables, $context);
+        $format = static function (string $value) use ($plainText): string {
+            if ($plainText) {
+                $value = html_entity_decode(wp_strip_all_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+            return $value === '' ? '§EMPTY_VAR§' : $value;
+        };
+
+        // Replace both syntaxes in one pass so callback values are never parsed as tags.
+        $percentKeys = array_map(static fn($key) => preg_quote((string) $key, '/'), array_keys($variables));
+        $pattern = substr(self::MERGE_TAG_PATTERN, 0, -1)
+            . ($percentKeys ? '|%(' . implode('|', $percentKeys) . ')%' : '') . '/';
+        return preg_replace_callback($pattern, static function ($matches) use ($variables, $format) {
+            $key = $matches[1] !== '' ? $matches[1] : $matches[3];
+            $isPercentTag = $matches[1] === '';
+            $value = (string) ($variables[$key] ?? '');
+            if ($value === '' && !$isPercentTag) {
+                $value = esc_html($matches[2] ?? '');
+            }
+            return $format($value);
+        }, $content);
+    }
+
     /**
      * Append click tracking query params to all <a> links.
      */
@@ -257,6 +276,7 @@ final class HtmlParser
         $nodes = $xpath->query('//a[@href]');
 
         $trackedLinks = 0;
+        $linkIndex = 0;
 
         // Get optional jobId and stepId for automation emails
         $jobId = isset($this->variables['JOB_ID']) ? (int) $this->variables['JOB_ID'] : null;
@@ -277,6 +297,9 @@ final class HtmlParser
                 continue;
             }
 
+            $linkIndex++;
+            $linkId = $this->getClickTrackingLinkId($linkIndex);
+
             // Handle both internal and external links for A/B testing tracking
             // For external links, we still want to track clicks
             $host = parse_url($href, PHP_URL_HOST);
@@ -284,7 +307,7 @@ final class HtmlParser
 
             // Generate tracking token
             $anonymousKey = ($contactId === 0) ? $this->anonymousKey : null;
-            $token = $this->generateContactTrackingToken($contactId, $campaignId, $href, $jobId, $stepId, $anonymousKey);
+            $token = $this->generateContactTrackingToken($contactId, $campaignId, $href, $jobId, $stepId, $anonymousKey, $linkId);
 
             // Build tracking URL in format: %WP_DOMAIN/tracking-link/{token}
             // The token is already base64url encoded (safe for URLs), so we can use it directly
@@ -310,6 +333,11 @@ final class HtmlParser
         // Remove the xml encoding pseudo-attribute injected for UTF-8 handling, then return the
         // full serialised document so the <style> block in <head> is preserved intact.
         return str_replace('<?xml encoding="UTF-8">', '', $dom->saveHTML());
+    }
+
+    private function getClickTrackingLinkId(int $linkIndex): string
+    {
+        return 'mp-link-' . $linkIndex;
     }
 
     private function mailerpress_product_url_to_id($url)
@@ -365,7 +393,7 @@ final class HtmlParser
      * @param string|null $anonymousKey Optional anonymous key for anonymous tracking
      * @return string Base64url-encoded tracking token
      */
-    private function generateContactTrackingToken(int $contactId, int $campaignId, string $url, ?int $jobId = null, ?string $stepId = null, ?string $anonymousKey = null): string
+    private function generateContactTrackingToken(int $contactId, int $campaignId, string $url, ?int $jobId = null, ?string $stepId = null, ?string $anonymousKey = null, ?string $linkId = null): string
     {
         $payloadData = [
             'cid' => $contactId,
@@ -377,6 +405,10 @@ final class HtmlParser
         // Add anonymous key for anonymous tracking (contact_id = 0)
         if ($contactId === 0 && !empty($anonymousKey)) {
             $payloadData['ank'] = $anonymousKey;
+        }
+
+        if (!empty($linkId)) {
+            $payloadData['lid'] = $linkId;
         }
 
         // Add jobId and stepId for automation emails (workflow)
@@ -530,15 +562,15 @@ final class HtmlParser
 
         // 3️⃣ Replace {{VAR}} and {{VAR default="value"}} merge tags
         // Use default value if specified, otherwise replace with empty string
-        $pattern = '/{{\s*([a-zA-Z0-9_]+)(?:\s+default=["\']([^"\']*)["\'])?\s*}}/';
+        $pattern = self::MERGE_TAG_PATTERN;
         $content = preg_replace_callback($pattern, function ($matches) {
             $default = $matches[2] ?? '';
             // Return default value or empty string
-            return $default !== '' ? $default : '';
+            return esc_html($default);
         }, $content);
 
         // 4️⃣ Replace %VAR% merge tags with empty string
-        $content = preg_replace('/(%[a-zA-Z0-9_]+%)/', '', $content);
+        $content = preg_replace('/%[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*%/', '', $content);
 
         // 5️⃣ Clean up whitespace and formatting
         // Remove excessive spaces around empty variables

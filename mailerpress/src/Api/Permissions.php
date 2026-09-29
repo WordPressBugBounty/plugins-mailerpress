@@ -13,6 +13,16 @@ use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 
 class Permissions
 {
+    private const CAMPAIGN_TYPES = [
+        'newsletter',
+        'ab_test',
+        'automated',
+        'automation',
+        'wp_email',
+        'wc_email',
+        'confirm_email',
+    ];
+
     /**
      * Map a WordPress capability + HTTP method to an API key scope.
      */
@@ -96,6 +106,54 @@ class Permissions
         return true;
     }
 
+    /**
+     * Authorize against any of the provided MailerPress capabilities.
+     *
+     * API keys must have at least one matching scope. WordPress users must have
+     * at least one matching capability.
+     */
+    private static function checkAnyAuth(\WP_REST_Request $request, array $capabilities): bool|\WP_Error
+    {
+        $auth = self::checkAuth($request);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (ApiAuthentication::isApiKeyRequest($request)) {
+            $scopes = [];
+
+            foreach ($capabilities as $capability) {
+                $scope = self::capabilityToScope($capability, $request->get_method());
+                if ($scope === null) {
+                    continue;
+                }
+
+                $scopes[] = $scope;
+                if (ApiAuthentication::hasPermission($request, $scope)) {
+                    return true;
+                }
+            }
+
+            return new \WP_Error(
+                'rest_forbidden',
+                sprintf(
+                    __('API key missing required scope: one of %s', 'mailerpress'),
+                    implode(', ', array_unique($scopes))
+                ),
+                ['status' => 403]
+            );
+        }
+
+        foreach ($capabilities as $capability) {
+            if (current_user_can($capability)) {
+                return true;
+            }
+        }
+
+        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+    }
+
     private static function checkPrivilegedAuth(\WP_REST_Request $request, string $capability, string $requiredWpCapability = 'manage_options'): bool|\WP_Error
     {
         $auth = self::checkAuth($request, $capability);
@@ -104,7 +162,7 @@ class Permissions
             return $auth;
         }
 
-        if (!empty($request->get_param('_api_key_id'))) {
+        if (ApiAuthentication::isApiKeyRequest($request)) {
             return true;
         }
 
@@ -122,23 +180,7 @@ class Permissions
 
     public static function canViewMailerPress($request): bool|\WP_Error
     {
-        $auth = self::checkAuth($request);
-
-        if ($auth !== true) {
-            return $auth;
-        }
-
-        if (current_user_can('edit_posts')) {
-            return true;
-        }
-
-        foreach (Capabilities::get_capabilities() as $capability) {
-            if (current_user_can($capability)) {
-                return true;
-            }
-        }
-
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return self::checkAnyAuth($request, Capabilities::get_capabilities());
     }
 
     public static function canEdit($request): bool|\WP_Error
@@ -156,14 +198,174 @@ class Permissions
         return self::checkAuth($request, Capabilities::MANAGE_CAMPAIGNS);
     }
 
+    public static function canCreateCampaign($request): bool|\WP_Error
+    {
+        $campaignTypeParam = $request->get_param('campaign_type');
+
+        if ($campaignTypeParam === null || $campaignTypeParam === '') {
+            $campaignType = 'newsletter';
+        } elseif (!is_string($campaignTypeParam)) {
+            return new \WP_Error(
+                'rest_invalid_param',
+                __('campaign_type must be a string.', 'mailerpress'),
+                ['status' => 400]
+            );
+        } else {
+            $campaignType = sanitize_key($campaignTypeParam);
+        }
+
+        if (!in_array($campaignType, self::CAMPAIGN_TYPES, true)) {
+            return new \WP_Error(
+                'rest_invalid_param',
+                __('Invalid campaign_type.', 'mailerpress'),
+                ['status' => 400]
+            );
+        }
+
+        $capability = self::getCampaignTypeCapability($campaignType);
+        $auth = self::checkAuth($request, $capability);
+
+        if (
+            $auth !== true
+            || $campaignType !== 'automation'
+            || ApiAuthentication::isApiKeyRequest($request)
+        ) {
+            return $auth;
+        }
+
+        $automationId = absint($request->get_param('automation_id'));
+
+        return $automationId > 0
+            ? self::canAccessAutomationOwner($automationId)
+            : true;
+    }
+
+    public static function canReadCampaign($request): bool|\WP_Error
+    {
+        return self::canAccessCampaignRequest($request, false);
+    }
+
+    public static function canEditCampaign($request): bool|\WP_Error
+    {
+        return self::canAccessCampaignRequest($request, true);
+    }
+
+    private static function canAccessCampaignRequest(\WP_REST_Request $request, bool $isWrite): bool|\WP_Error
+    {
+        $auth = self::checkAuth($request);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        $campaignIds = self::getCampaignRequestIds($request);
+        if (empty($campaignIds)) {
+            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        }
+
+        $campaigns = self::getCampaignAccessRows($campaignIds);
+        if (is_wp_error($campaigns)) {
+            return $campaigns;
+        }
+
+        $scopeMethod = $isWrite ? 'POST' : 'GET';
+        $capabilities = [];
+
+        foreach ($campaigns as $campaign) {
+            $capabilities[] = self::getCampaignTypeCapability((string) $campaign['campaign_type']);
+        }
+
+        $isApiKey = ApiAuthentication::isApiKeyRequest($request);
+
+        foreach (array_unique($capabilities) as $capability) {
+            if ($isApiKey) {
+                $scope = self::capabilityToScope($capability, $scopeMethod);
+
+                if ($scope !== null && !ApiAuthentication::hasPermission($request, $scope)) {
+                    return new \WP_Error(
+                        'rest_forbidden',
+                        sprintf(__('API key missing required scope: %s', 'mailerpress'), $scope),
+                        ['status' => 403]
+                    );
+                }
+            } elseif (!current_user_can($capability)) {
+                return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            }
+        }
+
+        if ($isApiKey) {
+            return true;
+        }
+
+        $currentUserId = get_current_user_id();
+
+        foreach ($campaigns as $campaign) {
+            $campaignType = (string) $campaign['campaign_type'];
+
+            if (self::isSettingsEmailType($campaignType)) {
+                continue;
+            }
+
+            if ((int) $campaign['user_id'] === $currentUserId) {
+                continue;
+            }
+
+            $canEditOthers = $campaignType === 'automation'
+                ? current_user_can('edit_others_posts')
+                : current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
+
+            if (!$canEditOthers) {
+                return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            }
+        }
+
+        return true;
+    }
+
+    private static function getCampaignTypeCapability(string $campaignType): string
+    {
+        if ($campaignType === 'automation') {
+            return Capabilities::MANAGE_AUTOMATIONS;
+        }
+
+        if (self::isSettingsEmailType($campaignType)) {
+            return Capabilities::MANAGE_SETTINGS;
+        }
+
+        return Capabilities::MANAGE_CAMPAIGNS;
+    }
+
+    private static function isSettingsEmailType(string $campaignType): bool
+    {
+        return in_array($campaignType, ['wp_email', 'wc_email', 'confirm_email'], true);
+    }
+
     public static function canPublishCampaign($request): bool|\WP_Error
     {
-        return self::checkAuth($request, Capabilities::PUBLISH_CAMPAIGNS);
+        $auth = self::checkAuth($request, Capabilities::PUBLISH_CAMPAIGNS);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (
+            ApiAuthentication::isApiKeyRequest($request)
+            || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+        ) {
+            return true;
+        }
+
+        $campaignIds = self::getCampaignRequestIds($request);
+        if (empty($campaignIds)) {
+            return true;
+        }
+
+        return self::canAccessCampaignOwners($campaignIds);
     }
 
     public static function canManageSettings($request): bool|\WP_Error
     {
-        return self::checkPrivilegedAuth($request, Capabilities::MANAGE_SETTINGS);
+        return self::checkAuth($request, Capabilities::MANAGE_SETTINGS);
     }
 
     public static function canManageAudience($request): bool|\WP_Error
@@ -206,26 +408,25 @@ class Permissions
 
     public static function canReadContactImportStatus($request): bool|\WP_Error
     {
-        $auth = self::checkAuth($request);
-
-        if ($auth !== true) {
-            return $auth;
-        }
-
-        if (
-            !empty($request->get_param('_api_key_id'))
-            || current_user_can(Capabilities::MANAGE_CONTACTS)
-            || current_user_can(Capabilities::MANAGE_CAMPAIGNS)
-        ) {
-            return true;
-        }
-
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_CAMPAIGNS,
+        ]);
     }
 
     public static function canDeleteContacts($request): bool|\WP_Error
     {
-        return self::checkPrivilegedAuth($request, Capabilities::DELETE_CONTACTS);
+        return self::checkAuth($request, Capabilities::DELETE_CONTACTS);
+    }
+
+    public static function canReadLists($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_LISTS,
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
     }
 
     public static function canManageLists($request): bool|\WP_Error
@@ -238,9 +439,76 @@ class Permissions
         return self::checkAuth($request, Capabilities::MANAGE_TAGS);
     }
 
+    public static function canReadTags($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_TAGS,
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
+    }
+
     public static function canManageTemplates($request): bool|\WP_Error
     {
         return self::checkAuth($request, Capabilities::MANAGE_TEMPLATES);
+    }
+
+    public static function canReadTemplates($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_SETTINGS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
+    }
+
+    public static function canReadEditorMetadata($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_SETTINGS,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
+    }
+
+    public static function canUseEditorContent($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_SETTINGS,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
+    }
+
+    public static function canPreviewEditorContact($request): bool|\WP_Error
+    {
+        return self::canReadAudience($request);
+    }
+
+    public static function canReadCustomFields($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_SETTINGS,
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_CONTACT_SEGMENTATION,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
+    }
+
+    public static function canManageFonts($request): bool|\WP_Error
+    {
+        return self::checkAnyAuth($request, [
+            Capabilities::MANAGE_SETTINGS,
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_AUTOMATIONS,
+        ]);
     }
 
     public static function canDeleteLists($request): bool|\WP_Error
@@ -261,7 +529,10 @@ class Permissions
             return $auth;
         }
 
-        if (!empty($request->get_param('_api_key_id')) || current_user_can('edit_others_posts')) {
+        if (
+            ApiAuthentication::isApiKeyRequest($request)
+            || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+        ) {
             return true;
         }
 
@@ -291,7 +562,38 @@ class Permissions
             return self::canDeleteCampaigns($request);
         }
 
-        return self::canManageCampaign($request);
+        $auth = self::canManageCampaign($request);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (
+            ApiAuthentication::isApiKeyRequest($request)
+            || current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+        ) {
+            return true;
+        }
+
+        $ids = $request->get_param('ids');
+        if ($ids === null) {
+            $ids = $request->get_param('id');
+        }
+
+        if ($ids === 'all') {
+            return true;
+        }
+
+        if ($ids === null || $ids === '') {
+            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        }
+
+        $campaignIds = self::normalizeIds($ids);
+        if (empty($campaignIds)) {
+            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        }
+
+        return self::canAccessCampaignOwners($campaignIds);
     }
 
     private static function normalizeIds(mixed $ids): array
@@ -305,6 +607,87 @@ class Permissions
         }
 
         return array_values(array_unique(array_filter(array_map('absint', $ids))));
+    }
+
+    private static function getCampaignRequestIds(\WP_REST_Request $request): array
+    {
+        global $wpdb;
+
+        $ids = [];
+
+        foreach (['ids', 'id', 'campaignId', 'campaign_id', 'postEdit', 'post'] as $parameter) {
+            $value = $request->get_param($parameter);
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $ids = array_merge($ids, self::normalizeIds($value));
+        }
+
+        $batchIds = $request->get_param('batchId');
+        if ($batchIds === null) {
+            $batchIds = $request->get_param('batch_id');
+        }
+
+        $batchIds = self::normalizeIds($batchIds);
+
+        $chunkIds = $request->get_param('chunkId');
+        if ($chunkIds === null) {
+            $chunkIds = $request->get_param('chunk_id');
+        }
+
+        $chunkIds = self::normalizeIds($chunkIds);
+        if (!empty($chunkIds)) {
+            $placeholders = implode(',', array_fill(0, count($chunkIds), '%d'));
+            $table = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
+            $chunkBatchIds = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT batch_id FROM {$table} WHERE id IN ({$placeholders})",
+                    ...$chunkIds
+                )
+            );
+
+            $batchIds = array_values(array_unique(array_merge(
+                $batchIds,
+                self::normalizeIds($chunkBatchIds)
+            )));
+        }
+
+        if (!empty($batchIds)) {
+            $placeholders = implode(',', array_fill(0, count($batchIds), '%d'));
+            $table = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
+            $batchCampaignIds = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT campaign_id FROM {$table} WHERE id IN ({$placeholders})",
+                    ...$batchIds
+                )
+            );
+
+            $ids = array_merge($ids, self::normalizeIds($batchCampaignIds));
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private static function getCampaignAccessRows(array $campaignIds): array|\WP_Error
+    {
+        global $wpdb;
+
+        $placeholders = implode(',', array_fill(0, count($campaignIds), '%d'));
+        $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+        $campaigns = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT campaign_id, user_id, campaign_type FROM {$table} WHERE campaign_id IN ({$placeholders})",
+                ...$campaignIds
+            ),
+            ARRAY_A
+        );
+
+        if (count($campaigns) !== count($campaignIds)) {
+            return new \WP_Error('not_found', __('Campaign not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        return $campaigns;
     }
 
     private static function canAccessCampaignOwners(array $campaignIds): bool|\WP_Error
@@ -341,7 +724,7 @@ class Permissions
 
     public static function canViewNotifications($request): bool|\WP_Error
     {
-        return self::checkAuth($request, 'edit_posts');
+        return self::canViewMailerPress($request);
     }
 
     public static function canManageAutomations($request): bool|\WP_Error
@@ -375,10 +758,7 @@ class Permissions
             return $auth;
         }
 
-        if (
-            current_user_can(Capabilities::MANAGE_AUTOMATIONS)
-            || current_user_can('publish_posts')
-        ) {
+        if (current_user_can(Capabilities::MANAGE_AUTOMATIONS)) {
             return true;
         }
 
@@ -411,6 +791,33 @@ class Permissions
         return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
     }
 
+    private static function getAutomationRequestId(\WP_REST_Request $request): int
+    {
+        foreach (['id', 'automationId', 'automation_id'] as $parameter) {
+            $automationId = absint($request->get_param($parameter));
+            if ($automationId > 0) {
+                return $automationId;
+            }
+        }
+
+        return 0;
+    }
+
+    public static function canReadAutomation($request): bool|\WP_Error
+    {
+        $auth = self::checkAuth($request, Capabilities::MANAGE_AUTOMATIONS);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (ApiAuthentication::isApiKeyRequest($request)) {
+            return true;
+        }
+
+        return self::canAccessAutomationOwner(self::getAutomationRequestId($request));
+    }
+
     public static function canEditAutomation($request): bool|\WP_Error
     {
         $auth = self::checkAutomationWriteAuth($request);
@@ -419,11 +826,11 @@ class Permissions
             return $auth;
         }
 
-        if (!empty($request->get_param('_api_key_id'))) {
+        if (ApiAuthentication::isApiKeyRequest($request)) {
             return true;
         }
 
-        return self::canAccessAutomationOwner((int) $request->get_param('id'));
+        return self::canAccessAutomationOwner(self::getAutomationRequestId($request));
     }
 
     public static function canDeleteAutomation($request): bool|\WP_Error
@@ -436,6 +843,25 @@ class Permissions
         return self::checkPrivilegedAuth($request, Capabilities::MANAGE_AUTOMATIONS, 'edit_others_posts');
     }
 
+    public static function canUseAutomationAi($request): bool|\WP_Error
+    {
+        $auth = self::checkAuth($request, Capabilities::MANAGE_AUTOMATIONS);
+
+        if ($auth !== true) {
+            return $auth;
+        }
+
+        if (ApiAuthentication::isApiKeyRequest($request)) {
+            return true;
+        }
+
+        if (!current_user_can(Capabilities::USE_AI)) {
+            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        }
+
+        return true;
+    }
+
     public static function canUpdateAutomationStatus($request): bool|\WP_Error
     {
         $auth = self::checkAutomationWriteAuth($request);
@@ -444,7 +870,7 @@ class Permissions
             return $auth;
         }
 
-        if (!empty($request->get_param('_api_key_id')) || current_user_can('edit_others_posts')) {
+        if (ApiAuthentication::isApiKeyRequest($request) || current_user_can('edit_others_posts')) {
             return true;
         }
 

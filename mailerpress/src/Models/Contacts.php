@@ -7,6 +7,7 @@ namespace MailerPress\Models;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Enums\Tables;
+use MailerPress\Services\InactiveContactManager;
 
 class Contacts
 {
@@ -63,6 +64,43 @@ class Contacts
     ) {
         global $wpdb;
 
+        $select = $ids_only ? 'c.contact_id' : 'c.*';
+        $where = $this->tagsAndListsWhere($lists, $tags);
+        $query = "SELECT {$select} FROM {$wpdb->prefix}mailerpress_contact c WHERE {$where}";
+        $prepare_args = [];
+
+        // Pagination ---------------------------------------------
+        if ($limit !== null) {
+            $limit = max(0, (int)$limit);
+            $offset = max(0, (int)$offset);
+            $query .= " LIMIT %d OFFSET %d";
+            $prepare_args[] = $limit;
+            $prepare_args[] = $offset;
+        }
+
+        // Prepare & execute --------------------------------------
+        $sql = $prepare_args ? $wpdb->prepare($query, $prepare_args) : $query;
+
+        if ($ids_only) {
+            $ids = $wpdb->get_col($sql);
+            return array_values(array_unique(array_map('intval', $ids)));
+        }
+
+        return $wpdb->get_results($sql); // OBJECT rows
+    }
+
+    public function countContactsWithTagsAndLists(array|string $lists = [], array|string $tags = []): int
+    {
+        global $wpdb;
+
+        $where = $this->tagsAndListsWhere($lists, $tags);
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}mailerpress_contact c WHERE {$where}");
+    }
+
+    private function tagsAndListsWhere(array|string $lists, array|string $tags): string
+    {
+        global $wpdb;
+
         // Normalize & sanitize input -----------------------------
         $list_ids = is_array($lists) ? $lists : explode(',', (string)$lists);
         $tag_ids = is_array($tags) ? $tags : explode(',', (string)$tags);
@@ -70,21 +108,13 @@ class Contacts
         $list_ids = array_values(array_filter(array_map('intval', $list_ids), static fn($v) => $v > 0));
         $tag_ids = array_values(array_filter(array_map('intval', $tag_ids), static fn($v) => $v > 0));
 
-        // Dynamic SELECT -----------------------------------------
-        $select = $ids_only ? 'c.contact_id' : 'c.*';
-
-        // Base query & args --------------------------------------
-        $query = "
-        SELECT DISTINCT {$select}
-        FROM {$wpdb->prefix}mailerpress_contact c
-        WHERE c.subscription_status = %s
-    ";
+        $where = 'c.subscription_status = %s';
         $prepare_args = ['subscribed'];
 
         // Lists filter (ANY match) -------------------------------
         if (!empty($list_ids)) {
             $list_placeholders = implode(', ', array_fill(0, count($list_ids), '%d'));
-            $query .= "
+            $where .= "
             AND EXISTS (
                 SELECT 1
                 FROM {$wpdb->prefix}mailerpress_contact_lists cl
@@ -98,7 +128,7 @@ class Contacts
         // Tags filter (ANY match) --------------------------------
         if (!empty($tag_ids)) {
             $tag_placeholders = implode(', ', array_fill(0, count($tag_ids), '%d'));
-            $query .= "
+            $where .= "
             AND EXISTS (
                 SELECT 1
                 FROM {$wpdb->prefix}mailerpress_contact_tags ct
@@ -109,24 +139,7 @@ class Contacts
             $prepare_args = array_merge($prepare_args, $tag_ids);
         }
 
-        // Pagination ---------------------------------------------
-        if ($limit !== null) {
-            $limit = max(0, (int)$limit);
-            $offset = max(0, (int)$offset);
-            $query .= " LIMIT %d OFFSET %d";
-            $prepare_args[] = $limit;
-            $prepare_args[] = $offset;
-        }
-
-        // Prepare & execute --------------------------------------
-        $sql = $wpdb->prepare($query, $prepare_args);
-
-        if ($ids_only) {
-            $ids = $wpdb->get_col($sql);
-            return array_values(array_unique(array_map('intval', $ids)));
-        }
-
-        return $wpdb->get_results($sql); // OBJECT rows
+        return $wpdb->prepare($where, $prepare_args);
     }
 
     public function getByAccessToken(string $contactId)
@@ -298,6 +311,8 @@ class Contacts
         );
 
         if (false !== $updated) {
+            (new InactiveContactManager())->markSubscribed((int) $contactId);
+
             // Cancel scheduled reminder action if contact confirms before reminder is sent
             if (\function_exists('as_unschedule_action')) {
                 as_unschedule_action('mailerpress_send_confirmation_reminder', [(int) $contactId], 'mailerpress');

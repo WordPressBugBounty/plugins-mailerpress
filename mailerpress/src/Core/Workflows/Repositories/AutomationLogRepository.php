@@ -104,12 +104,12 @@ class AutomationLogRepository
                  WHERE automation_id = %d
                  AND user_id = %d
                  AND status = 'PROCESSING'
-                 AND data LIKE %s
+                 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$._job_id')) = %s
                  ORDER BY created_at ASC
                  LIMIT 1",
                 $automationId,
                 $userId,
-                '%' . $this->wpdb->esc_like('"_job_id":' . $jobId) . '%'
+                (string) $jobId
             );
 
             $result = $this->wpdb->get_var($query);

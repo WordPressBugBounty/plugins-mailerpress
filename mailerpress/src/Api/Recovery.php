@@ -6,7 +6,9 @@ namespace MailerPress\Api;
 
 \defined('ABSPATH') || exit;
 
+use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
+use MailerPress\Core\Capabilities;
 use MailerPress\Core\Enums\Tables;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -19,7 +21,7 @@ class Recovery
     #[Endpoint(
         'recovery/test-chunk-worker',
         methods: ['GET', 'POST'],
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function testChunkWorker(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -127,7 +129,7 @@ class Recovery
     #[Endpoint(
         'recovery/batch/(?P<batch_id>\d+)/retry',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function retryBatch(WP_REST_Request $request): WP_REST_Response
     {
@@ -191,7 +193,7 @@ class Recovery
     #[Endpoint(
         'recovery/chunk/(?P<chunk_id>\d+)/retry',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function retryChunk(WP_REST_Request $request): WP_REST_Response
     {
@@ -249,7 +251,7 @@ class Recovery
     #[Endpoint(
         'recovery/stuck-batches',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canManageCampaign']
     )]
     public function getStuckBatches(WP_REST_Request $request): WP_REST_Response
     {
@@ -260,6 +262,17 @@ class Recovery
 
         $batchTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $chunksTable = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
+        $campaignTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+
+        $ownerWhere = '';
+        $queryParams = [$threshold];
+        if (
+            !ApiAuthentication::isApiKeyRequest($request)
+            && !current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS)
+        ) {
+            $ownerWhere = ' AND c.user_id = %d';
+            $queryParams[] = get_current_user_id();
+        }
 
         $stuck_batches = $wpdb->get_results($wpdb->prepare(
             "SELECT
@@ -277,9 +290,10 @@ class Recovery
                 (SELECT COUNT(*) FROM {$chunksTable} WHERE batch_id = b.id AND status = 'retry') as retry_chunks,
                 (SELECT COUNT(*) FROM {$chunksTable} WHERE batch_id = b.id AND status = 'completed') as completed_chunks
             FROM {$batchTable} b
-            WHERE b.status = 'in_progress' AND b.updated_at < %s
+            INNER JOIN {$campaignTable} c ON c.campaign_id = b.campaign_id
+            WHERE b.status = 'in_progress' AND b.updated_at < %s{$ownerWhere}
             ORDER BY b.updated_at ASC",
-            $threshold
+            ...$queryParams
         ));
 
         return new WP_REST_Response([
@@ -296,7 +310,7 @@ class Recovery
     #[Endpoint(
         'recovery/batch/(?P<batch_id>\d+)/reset',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageCampaign']
+        permissionCallback: [Permissions::class, 'canEditCampaign']
     )]
     public function resetBatch(WP_REST_Request $request): WP_REST_Response
     {

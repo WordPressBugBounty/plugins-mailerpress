@@ -14,7 +14,7 @@ use WP_REST_Request;
 
 class CountDown
 {
-    #[Endpoint('countdown', permissionCallback: [Permissions::class, 'canManageCampaign'])]
+    #[Endpoint('countdown', permissionCallback: [Permissions::class, 'canUseEditorContent'])]
     public function generate(WP_REST_Request $request): WP_Error|array
     {
         // Sanitize campaignId: only allow alphanumeric, dash, underscore (prevent path traversal)

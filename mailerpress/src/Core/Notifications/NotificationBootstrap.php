@@ -11,6 +11,7 @@ use MailerPress\Core\Notifications\Messages\DisableWpCronNotification;
 use MailerPress\Core\Notifications\Messages\WorkflowFailedJobsNotification;
 use MailerPress\Core\Notifications\Messages\DatabaseUpdateRequiredNotification;
 use MailerPress\Core\Notifications\Messages\PasswordProtectedActivatedNotification;
+use MailerPress\Core\Notifications\Messages\LicenseActivationRequiredNotification;
 
 class NotificationBootstrap
 {
@@ -55,6 +56,11 @@ class NotificationBootstrap
         NotificationMessageFactory::register(
             'database_update_required',
             DatabaseUpdateRequiredNotification::class
+        );
+
+        NotificationMessageFactory::register(
+            'license_activation_required',
+            LicenseActivationRequiredNotification::class
         );
 
         // Allow plugins and extensions to register their own messages

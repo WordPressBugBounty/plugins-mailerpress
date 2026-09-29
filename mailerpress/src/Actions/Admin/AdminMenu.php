@@ -9,7 +9,60 @@ use MailerPress\Core\Capabilities;
 
 class AdminMenu
 {
+    private const SHOW_ADDONS_MENU = false;
+
     private array|string $options = [];
+
+    private static function adminMenuIcon(): string
+    {
+        return \defined('MAILERPRESS_PLUGIN_DIR_URL')
+            ? MAILERPRESS_PLUGIN_DIR_URL . 'build/public/images/admin-menu-logo.svg'
+            : 'none';
+    }
+
+    private static function getMenuCapability(): string
+    {
+        foreach (Capabilities::get_capabilities() as $capability) {
+            if (current_user_can($capability)) {
+                return $capability;
+            }
+        }
+
+        return 'do_not_allow';
+    }
+
+    private static function getAudienceCapability(): string
+    {
+        foreach ([
+            Capabilities::MANAGE_CONTACTS,
+            Capabilities::MANAGE_LISTS,
+            Capabilities::MANAGE_CONTACT_SEGMENTATION,
+            Capabilities::MANAGE_TAGS,
+            Capabilities::MANAGE_SETTINGS,
+        ] as $capability) {
+            if (current_user_can($capability)) {
+                return $capability;
+            }
+        }
+
+        return 'do_not_allow';
+    }
+
+    private static function getEditorCapability(): string
+    {
+        foreach ([
+            Capabilities::MANAGE_CAMPAIGNS,
+            Capabilities::MANAGE_TEMPLATES,
+            Capabilities::MANAGE_AUTOMATIONS,
+            Capabilities::MANAGE_SETTINGS,
+        ] as $capability) {
+            if (current_user_can($capability)) {
+                return $capability;
+            }
+        }
+
+        return 'do_not_allow';
+    }
 
     public static function mailerpressRoot(): void
     {
@@ -17,12 +70,13 @@ class AdminMenu
         $path = isset($_GET['path']) ? sanitize_text_field(wp_unslash($_GET['path'])) : '';
 
         $capability = match ($path) {
-            '/home/settings', '/home/integrations' => Capabilities::MANAGE_SETTINGS,
+            '', '/home' => self::getMenuCapability(),
+            '/home/settings', '/home/tools', '/home/integrations', '/home/webhooks' => Capabilities::MANAGE_SETTINGS,
             '/home/contacts' => match (isset($_GET['activeView']) ? sanitize_text_field(wp_unslash($_GET['activeView'])) : '') {
-                'Segmentation' => Capabilities::MANAGE_CONTACT_SEGMENTATION,
-                'Contact Lists' => Capabilities::MANAGE_LISTS,
-                'Contact Tags' => Capabilities::MANAGE_TAGS,
-                default => Capabilities::MANAGE_CONTACTS,
+                'segmentation', 'Segmentation' => Capabilities::MANAGE_CONTACT_SEGMENTATION,
+                'contact-lists', 'Contact Lists' => Capabilities::MANAGE_LISTS,
+                'contact-tags', 'Contact Tags' => Capabilities::MANAGE_TAGS,
+                default => self::getAudienceCapability(),
             },
             '/home/templates' => Capabilities::MANAGE_TEMPLATES,
             '/home/workflow' => Capabilities::MANAGE_AUTOMATIONS,
@@ -162,7 +216,7 @@ class AdminMenu
         // Always load options fresh
         $options =  apply_filters('mailerpress_white_label_options', [
             'white_label_active' => false,
-        ]);;
+        ]);
 
         if (is_string($options)) {
             $options = json_decode($options, true);
@@ -182,6 +236,7 @@ class AdminMenu
             'templates' => __('Templates', 'mailerpress'),
             'integrations' => __('Integrations', 'mailerpress'),
             'webhooks' => __('Webhooks', 'mailerpress'),
+            'tools' => __('Tools', 'mailerpress'),
             'settings' => __('Settings', 'mailerpress'),
             'licence' => __('License', 'mailerpress'),
             'workflow' => __('Automations', 'mailerpress'),
@@ -196,19 +251,20 @@ class AdminMenu
             $labels['templates'] = $options['templates_name'] ?? $labels['templates'];
             $labels['integrations'] = $options['integrations_name'] ?? $labels['integrations'];
             $labels['webhooks'] = $options['webhooks_name'] ?? $labels['webhooks'];
+            $labels['tools'] = $options['tools_name'] ?? $labels['tools'];
             $labels['settings'] = $options['settings_name'] ?? $labels['settings'];
         }
 
         // Fallback icon if no white label
         $menu_icon = !empty($options['white_label_active'])
             ? 'dashicons-email'
-            : 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iQ2FscXVlXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHhtbG5zOnNlcmlmPSJodHRwOi8vd3d3LnNlcmlmLmNvbS8iIHZlcnNpb249IjEuMSIgdmlld0JveD0iMCAwIDEwNTguMSA4NzMuOSI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5zdDAgewogICAgICAgIGZpbGw6ICNhN2FhYWQ7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0zMTguMywzODcuOGMwLDAtLjEsMC0uMiwwLS42LDAtMSwuNS0xLDFoMGMxLjMsOTcuNiwxLjksMTk1LjIsMS45LDI5MywwLDMyLDQuMSw1My4yLDMwLjksNjYuNyw1LjksMywxNi4zLDQuNCwzMS4xLDQuMywxODAuMy0xLDM0Ni4zLS45LDQ5Ny45LjQsNDUuNy40LDY4LjUtMjIuOSw2OC41LTY5LjktLjItNTMuMS0uNS0yMTQuOC0uOC00ODUuMSwwLTIwLjktMS4zLTM0LjItMy45LTM5LjgtNS43LTEyLjItMTMuNi0yMi0yMy44LTI5LjEtNy00LjktMTguNy03LjQtMzUuMS03LjQtMjM4LjUsMC00NzYuOS4xLTcxNS40LDAtMjIsMC0zOC4xLDgtNDguMiwyNC01LjksOS41LTguOCwyNC40LTguNiw0NC45LDEuMSwxNTUuNywyLjMsMzA2LjMsMy40LDQ1MS44LDAsMi40LTEuNyw0LjQtNC4xLDQuOC0yNi4xLDQuMi01MC40LDQuNC03Mi42LTEyLjJDMTIuOCw2MTYsLjEsNTg5LjYuMSw1NTYuMSwwLDMyNi4zLDAsMTk3LjQsMCwxNjkuMy0uMSwxMDkuOSwyNCw2My40LDcyLjUsMjkuNywxMDgsNSwxMzguMiwwLDE4NC44LDBjMzA4LjIuMiw1MzguNi4yLDY5MS4xLjIsNzkuMiwwLDEzNS44LDM2LDE2OS43LDEwOCw2LjcsMTQuMSwxMCwzMC45LDEwLjEsNTAuNCwxLjIsMjcyLjYsMiw0NTQuMSwyLjUsNTQ0LjYuMyw1MC44LTE5LjcsOTMuNi02MC4xLDEyOC4yLTM3LjUsMzIuMS03MS44LDQxLjktMTI0LjQsNDItMzAuMywwLTE4NC45LjMtNDYzLjguNS00Ni40LDAtNzYuNi0yLjQtOTAuNi03LjUtNTEuMS0xOC4yLTk2LjYtNjctMTA2LjItMTIyLjMtMS01LjktMS42LTI4LjMtMS43LTY3LjEtLjgtMTU5LjctLjgtMzEwLjEsMC00NTEuMSwwLTMuMSwxLjYtNC43LDQuNy00LjdoOTcuNGM0LjIsMCw4LjIsMS44LDExLDQuOWwyMDIuNywyMjQuNGMwLDAsLjEuMS4yLjIsMi4zLDIuMyw2LjEsMi4zLDguNCwwLDAsMCwuMS0uMS4yLS4ybDIwMC0yMjEuNmM0LjItNC42LDEwLjEtNy4yLDE2LjItNy4yaDg1LjljMi40LDAsNC40LDIsNC40LDQuNHY0MTUuNmMwLDEuNy0uOCwyLjYtMi41LDIuNmgtOTcuOWMtMS42LDAtMy0xLjMtMy0zdi0yNDcuOWMwLTUuOC0xLjktNi41LTUuNi0yLjFsLTE5Ny4zLDIyNy42Yy0uOCwxLTIsMS41LTMuMywxLjVzLTIuMi0uNS0zLTEuM2MtNzEuOC03MS0xMzYuMi0xNDcuNC0yMDcuNS0yMjktMS4yLTEuMy0yLjUtMi4xLTMuOS0yLjRaIi8+Cjwvc3ZnPg==';
+            : 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8cGF0aAogICAgZmlsbD0iIzAwMCIKICAgIGQ9Ik0xNzIuMDQsMTY2LjQyaC00OC41MnYtMzYuMzhsLTQ4LjUxLDM2LjM4di0zMy4xNmwtNDcuNzYsMzMuMTZ2LTg4LjVsNDcuOTgtMzMuNTl2MjUuM2w0OC4yOS0zNi41aDQ4LjUydjEzMy4yOFoiCiAgLz4KPC9zdmc+Cg==';
 
         // Register top-level menu
         add_menu_page(
             $labels['main'],
             $labels['main'],
-            'edit_posts',
+            self::getMenuCapability(),
             'mailerpress/campaigns.php',
             [$this, 'mailerpressRoot'],
             $menu_icon,
@@ -221,7 +277,7 @@ class AdminMenu
                 'title' => $labels['dashboard'],
                 'menu_title' => $labels['dashboard'],
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome',
-                'cap' => Capabilities::MANAGE_CAMPAIGNS,
+                'cap' => self::getMenuCapability(),
             ],
             [
                 'title' => __('New Campaign', 'mailerpress'),
@@ -239,14 +295,14 @@ class AdminMenu
                 'title' => __('Email Editor', 'mailerpress'),
                 'menu_title' => __('Email Editor', 'mailerpress'),
                 'slug' => 'mailerpress/new',
-                'cap' => Capabilities::MANAGE_CAMPAIGNS,
+                'cap' => self::getEditorCapability(),
                 'callback' => 'mailpressCampaigns',
             ],
             [
                 'title' => $labels['audience'],
                 'menu_title' => $labels['audience'],
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fcontacts',
-                'cap' => Capabilities::MANAGE_CONTACTS,
+                'cap' => self::getAudienceCapability(),
             ],
             [
                 'title' => $labels['templates'],
@@ -280,6 +336,12 @@ class AdminMenu
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fwebhooks',
                 'cap' => Capabilities::MANAGE_SETTINGS,
             ],
+            [
+                'title' => $labels['tools'],
+                'menu_title' => $labels['tools'],
+                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftools',
+                'cap' => Capabilities::MANAGE_SETTINGS,
+            ],
             // [
             //     'title' => __('Add-ons', 'mailerpress'),
             //     'menu_title' => __('Add-ons', 'mailerpress'),
@@ -293,6 +355,12 @@ class AdminMenu
                 'cap' => Capabilities::MANAGE_SETTINGS,
 
             ],
+            self::SHOW_ADDONS_MENU ? [
+                'title' => __('Add-ons', 'mailerpress'),
+                'menu_title' => __('Add-ons', 'mailerpress'),
+                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
+                'cap' => 'edit_posts',
+            ] : null,
             // [
             //     'title' => __('Getting Started', 'mailerpress'),
             //     'menu_title' => __('Getting Started', 'mailerpress'),
@@ -307,6 +375,7 @@ class AdminMenu
             //     'external' => true,
             // ],
         ];
+        $submenus = array_values(array_filter($submenus));
 
         if (function_exists('is_plugin_active') && is_plugin_active('mailerpress-pro/mailerpress-pro.php')) {
             $submenus[] = [
@@ -410,6 +479,13 @@ class AdminMenu
     {
     ?>
         <style>
+            #toplevel_page_mailerpress-campaigns .wp-menu-image img {
+                height: 20px;
+                opacity: 1;
+                padding: 7px 0 0;
+                width: 20px;
+            }
+
             #toplevel_page_mailerpress-campaigns .wp-submenu-head,
             #toplevel_page_mailerpress-campaigns .wp-first-item {
                 display: none !important;
@@ -460,6 +536,7 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home/templates',
             'mailerpress/campaigns.php&path=/home/integrations',
             'mailerpress/campaigns.php&path=/home/webhooks',
+            'mailerpress/campaigns.php&path=/home/tools',
             'mailerpress/campaigns.php&path=/home/settings',
             'mailerpress/campaigns.php&path=/home/getting-started',
             'mailerpress/campaigns.php&path=/home/addons',
@@ -503,6 +580,7 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home/templates' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftemplates',
             'mailerpress/campaigns.php&path=/home/integrations' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fintegrations',
             'mailerpress/campaigns.php&path=/home/webhooks' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fwebhooks',
+            'mailerpress/campaigns.php&path=/home/tools' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftools',
             'mailerpress/campaigns.php&path=/home/settings' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings',
             'mailerpress/campaigns.php&path=/home/getting-started' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fgetting-started',
             'mailerpress/campaigns.php&path=/home/addons' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',

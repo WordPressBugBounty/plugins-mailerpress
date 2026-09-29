@@ -413,15 +413,17 @@ class MergeTagBuilder
             'arg_0', 'arg_1', 'arg_2', 'arg_3', 'arg_4', 'arg_5', 'arg_6', 'arg_7', 'arg_8', 'arg_9',
         ];
 
+        $reservedKeys = array_map('strtoupper', $reservedKeys);
+
         foreach ($context as $key => $value) {
+            if (in_array(strtoupper((string) $key), $reservedKeys, true)) {
+                continue;
+            }
+
             if (!is_scalar($value)) {
                 if (is_array($value) && !empty($value)) {
                     $this->flattenArrayForMergeTags($value, $variables, $key);
                 }
-                continue;
-            }
-
-            if (in_array(strtoupper($key), array_map('strtoupper', $reservedKeys))) {
                 continue;
             }
 

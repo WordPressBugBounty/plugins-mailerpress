@@ -17,7 +17,7 @@ class Newsletter
     #[Endpoint(
         'newsletter-subscribe',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canEdit']
+        permissionCallback: [Permissions::class, 'canManageSettings']
     )]
     public function subscribe(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {

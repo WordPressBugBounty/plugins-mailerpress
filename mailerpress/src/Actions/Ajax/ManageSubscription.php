@@ -27,7 +27,16 @@ class ManageSubscription
         $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
         $contactListTable = Tables::get(Tables::MAILERPRESS_CONTACT_LIST);
 
-        check_ajax_referer('mailerpress_update_contact_nonce', 'mailerpress_nonce');
+        $nonce = isset($_POST['mailerpress_nonce'])
+            ? sanitize_text_field(wp_unslash($_POST['mailerpress_nonce']))
+            : '';
+
+        if (empty($nonce) || !wp_verify_nonce($nonce, 'mailerpress_update_contact_nonce')) {
+            wp_send_json_error([
+                'code' => 'invalid_nonce',
+                'message' => __('Security check failed.', 'mailerpress'),
+            ], 403);
+        }
 
         $accessToken = isset($_POST['mailerpress_cid']) ? sanitize_text_field(wp_unslash($_POST['mailerpress_cid'])) : '';
         if (empty($accessToken)) {

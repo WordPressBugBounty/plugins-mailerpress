@@ -11,11 +11,142 @@ use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
+use MailerPress\Services\DebugFileLogger;
 use ZipArchive;
 use WP_REST_Request;
 
 class ExportContact
 {
+    private const DIRECTORY = 'mailerpress_exports';
+    private const PURGE_HOOK = 'mailerpress_purge_export';
+    private const TTL = DAY_IN_SECONDS;
+
+    /**
+     * Root directory of contact exports (uploads/mailerpress_exports), created and protected
+     * against direct HTTP access on first use.
+     */
+    public static function getExportDirectory(): string
+    {
+        $upload_dir = wp_upload_dir(null, false);
+        $directory = trailingslashit($upload_dir['basedir']) . self::DIRECTORY;
+
+        if (!is_dir($directory)) {
+            wp_mkdir_p($directory);
+        }
+
+        DebugFileLogger::protectDirectory($directory);
+
+        return $directory;
+    }
+
+    /**
+     * Delete an export (archive, leftover CSV directory and its option).
+     */
+    public static function purge(string $export_id): void
+    {
+        if (!preg_match('/^[a-zA-Z0-9-]{1,64}$/', $export_id)) {
+            return;
+        }
+
+        $root = self::getExportDirectory();
+        $zip = $root . '/' . $export_id . '.zip';
+        $dir = $root . '/' . $export_id;
+
+        if (is_file($zip)) {
+            @unlink($zip);
+        }
+
+        if (is_dir($dir)) {
+            foreach ((array) glob($dir . '/*') as $file) {
+                if (\is_string($file) && is_file($file)) {
+                    @unlink($file);
+                }
+            }
+            @rmdir($dir);
+        }
+
+        delete_option("mailerpress_export_{$export_id}");
+    }
+
+    #[Action('mailerpress_purge_export', priority: 10, acceptedArgs: 1)]
+    public function purgeScheduled($export_id): void
+    {
+        self::purge((string) $export_id);
+    }
+
+    /**
+     * Remove every export older than the TTL (safety net for purge jobs that never ran, and
+     * for archives produced by previous versions), plus expired export options whose file is
+     * already gone.
+     */
+    public static function purgeStaleExports(): void
+    {
+        $root = self::getExportDirectory();
+        $cutoff = time() - self::TTL;
+
+        foreach ((array) glob($root . '/*.zip') as $zip) {
+            if (\is_string($zip) && is_file($zip) && filemtime($zip) < $cutoff) {
+                self::purge(basename($zip, '.zip'));
+            }
+        }
+
+        foreach ((array) glob($root . '/*', GLOB_ONLYDIR) as $dir) {
+            if (\is_string($dir) && filemtime($dir) < $cutoff) {
+                self::purge(basename($dir));
+            }
+        }
+
+        global $wpdb;
+        $names = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+                $wpdb->esc_like('mailerpress_export_') . '%'
+            )
+        );
+
+        foreach ((array) $names as $name) {
+            $data = get_option($name);
+            $expires = \is_array($data) ? (int) ($data['expires'] ?? 0) : 0;
+            if ($expires < time()) {
+                self::purge(substr((string) $name, \strlen('mailerpress_export_')));
+            }
+        }
+    }
+
+    /**
+     * Upgrade routine for sites that already have an export directory created by a previous
+     * version: protect it against direct HTTP access and drop stale archives right away,
+     * without waiting for the next export.
+     */
+    public static function hardenExistingExports(): void
+    {
+        $upload_dir = wp_upload_dir(null, false);
+        if (!empty($upload_dir['error']) || empty($upload_dir['basedir'])) {
+            return;
+        }
+
+        if (!is_dir(trailingslashit($upload_dir['basedir']) . self::DIRECTORY)) {
+            return;
+        }
+
+        self::getExportDirectory();
+        self::purgeStaleExports();
+    }
+
+    /**
+     * Neutralise spreadsheet formula injection: a cell starting with = + - @ or a tab/CR would
+     * be evaluated by Excel/LibreOffice when the admin opens the export.
+     */
+    private static function csvSafe($value): string
+    {
+        $value = (string) $value;
+
+        if ('' !== $value && \in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $value;
+        }
+
+        return $value;
+    }
     #[Action('mailerpress_export_contact_batch', priority: 10, acceptedArgs: 4)]
     public function run($export_id, $status = null, $offset = null, $contact_ids = []): void
     {
@@ -99,9 +230,12 @@ class ExportContact
             $lists_by_contact[$list['contact_id']][] = $list['list_name'];
         }
 
-        // Prepare CSV
-        $upload_dir = wp_upload_dir();
-        $export_dir = trailingslashit($upload_dir['basedir']) . 'mailerpress_exports/' . $export_id;
+        // Prepare CSV (inside the protected export directory)
+        if (!preg_match('/^[a-zA-Z0-9-]{1,64}$/', (string) $export_id)) {
+            return;
+        }
+
+        $export_dir = self::getExportDirectory() . '/' . $export_id;
         if (!file_exists($export_dir)) wp_mkdir_p($export_dir);
 
         $status_label = $status ?? 'export';
@@ -136,11 +270,11 @@ class ExportContact
             }
 
             // Merge: base contact data + lists + tags + custom fields
-            fputcsv($file, array_merge(
-                $contact,
+            fputcsv($file, array_map([self::class, 'csvSafe'], array_merge(
+                array_values($contact),
                 [$lists_string, $tags_string],
                 $custom_values
-            ));
+            )));
         }
 
         fclose($file);
@@ -153,9 +287,16 @@ class ExportContact
             return;
         }
 
-        $upload_dir = wp_upload_dir();
-        $export_dir = trailingslashit($upload_dir['basedir']) . "mailerpress_exports/{$export_id}/";
-        $zip_path = trailingslashit($upload_dir['basedir']) . "mailerpress_exports/{$export_id}.zip";
+        if (!preg_match('/^[a-zA-Z0-9-]{1,64}$/', (string) $export_id)) {
+            return;
+        }
+
+        $root = self::getExportDirectory();
+        $export_dir = "{$root}/{$export_id}/";
+        $zip_path = "{$root}/{$export_id}.zip";
+
+        // Housekeeping: drop exports that outlived their link.
+        self::purgeStaleExports();
 
         if (!is_dir($export_dir)) {
             return;
@@ -176,8 +317,8 @@ class ExportContact
         array_map('unlink', glob($export_dir . "*.csv"));
         rmdir($export_dir);
 
-        $token = wp_generate_password(24, false);
-        $expires = time() + DAY_IN_SECONDS;
+        $token = bin2hex(random_bytes(32));
+        $expires = time() + self::TTL;
 
         $export_data = [
             'zip_path' => $zip_path,
@@ -185,7 +326,12 @@ class ExportContact
             'token'    => $token,
         ];
 
-        update_option("mailerpress_export_{$export_id}", $export_data);
+        update_option("mailerpress_export_{$export_id}", $export_data, false);
+
+        // The archive contains personal data: delete it as soon as the link expires.
+        if (function_exists('as_schedule_single_action')) {
+            as_schedule_single_action($expires + MINUTE_IN_SECONDS, self::PURGE_HOOK, [$export_id], 'mailerpress');
+        }
 
         $download_url = rest_url("mailerpress/v1/export/{$export_id}?token={$token}");
 

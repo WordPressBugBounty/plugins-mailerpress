@@ -3,12 +3,16 @@
 namespace MailerPress\Core\Workflows\Services;
 
 use MailerPress\Core\HtmlParser;
+use MailerPress\Core\DynamicPostRenderer;
 use MailerPress\Core\Kernel;
 use MailerPress\Core\DynamicOrderRenderer;
 use MailerPress\Core\Workflows\Services\CouponGenerator;
 
 class EmailContentRenderer
 {
+    private const COUPON_CODE_FONT_FAMILY = 'Helvetica, Arial, sans-serif';
+    private const COUPON_CODE_FONT_WEIGHT = '700';
+
     /**
      * Render final HTML content by applying order rendering, cart rendering, merge tags, and HTML parsing.
      */
@@ -53,12 +57,18 @@ class EmailContentRenderer
 
         $htmlContent = $this->removeSubscriptionFooterIfUnavailable($htmlContent, $variables);
 
+        // Render conditional display blocks (Pro feature)
+        $contactId = (int) ( $context['contact_id'] ?? ( $variables['CONTACT_ID'] ?? 0 ) );
+        if ( $contactId > 0 ) {
+            $htmlContent = apply_filters( 'mailerpress/email/per_contact_html', $htmlContent, $htmlContent, $contactId );
+        }
+
         // Decode HTML entities and URL-encoded merge tags
         $htmlContent = $this->decodeMergeTags($htmlContent);
 
         // Parse merge tags via HtmlParser
         $htmlParser = Kernel::getContainer()->get(HtmlParser::class);
-        return $htmlParser->init($htmlContent, $variables)->replaceVariables();
+        return $htmlParser->init($htmlContent, $variables, $context)->replaceVariables();
     }
 
     private function removeSubscriptionFooterIfUnavailable(string $htmlContent, array $variables): string
@@ -545,7 +555,7 @@ class EmailContentRenderer
 
     // ─── Published Post Block Rendering ─────────────────────────────────────
 
-    private function renderPostBlocks(string $htmlContent, array $context): string
+    public function renderPostBlocks(string $htmlContent, array $context): string
     {
         preg_match_all(
             '/(<!-- START published post: BLOCK_CONFIG:)(.*?)(-->)(.*?)(<!-- END published post -->)/is',
@@ -561,6 +571,12 @@ class EmailContentRenderer
         $postData = $this->resolvePostData($context);
 
         if (!$postData) {
+			foreach ( $blocks as $block ) {
+				$config = $this->extractPostBlockConfig( $block[2] );
+				if ( 'template' === ( $config['mode'] ?? '' ) ) {
+					$htmlContent = str_replace( $block[0], '', $htmlContent );
+				}
+			}
             return $htmlContent;
         }
 
@@ -573,6 +589,14 @@ class EmailContentRenderer
             $endComment = $block[5];
 
             $config = $this->extractPostBlockConfig($configJson);
+			if ( 'template' === ( $config['mode'] ?? '' ) ) {
+				$post = \get_post( (int) ( $context['post_id'] ?? 0 ) );
+				$rendered = $post instanceof \WP_Post
+					? ( new DynamicPostRenderer( $blockContent ) )->renderPublishedPost( $post )
+					: '';
+				$htmlContent = str_replace( $fullMatch, $rendered, $htmlContent );
+				continue;
+			}
             $renderedHtml = $this->generatePostHtml($postData, $config);
 
             // Extract mj-text attributes to preserve them
@@ -723,16 +747,16 @@ class EmailContentRenderer
                 'couponCode' => 'WELCOME20',
                 'label' => 'Your exclusive code',
                 'expirationText' => '',
-                'bgColor' => '#f7f7f7',
-                'borderColor' => '#cccccc',
-                'borderStyle' => 'dashed',
-                'borderRadius' => '8px',
+                'background-color' => '#f7f7f7',
+                'border' => '2px dashed #cccccc',
+                'border-radius' => '8px',
+                'inner-padding' => '16px 32px 16px 32px',
+                'fullWidth' => false,
                 'align' => 'center',
-                'showBox' => true,
                 // Code typography
-                'code-font-family' => "'Courier New',Courier,monospace",
+                'code-font-family' => self::COUPON_CODE_FONT_FAMILY,
                 'code-font-size' => '28px',
-                'code-font-weight' => 'bold',
+                'code-font-weight' => self::COUPON_CODE_FONT_WEIGHT,
                 'code-line-height' => '',
                 'code-letter-spacing' => '3px',
                 'code-text-decoration' => 'none',
@@ -770,6 +794,12 @@ class EmailContentRenderer
                 'usageLimitPerUser' => 1,
                 'prefix' => 'AUTO',
                 'allowedEmails' => true,
+                'restrictToProducts' => false,
+                'couponProductIds' => [],
+                'useSubscriptionCoupon' => false,
+                'subscriptionDiscountTarget' => 'first_payment',
+                'subscriptionDiscountType' => 'percent',
+                'subscriptionPaymentCount' => 1,
             ]);
 
             $couponCode = $config['couponCode'];
@@ -780,20 +810,25 @@ class EmailContentRenderer
                 if ($generatedCoupon) {
                     $couponCode = $generatedCoupon;
                     if ($config['expiryDays'] > 0 && empty($config['expirationText'])) {
-                        $expiryDate = new \DateTime();
-                        $expiryDate->modify('+' . $config['expiryDays'] . ' days');
-                        $config['expirationText'] = sprintf(
-                            __('Expires %s', 'mailerpress'),
-                            $expiryDate->format(get_option('date_format'))
-                        );
+                        $expiryLabel = $this->getAutoCouponExpiryLabel($couponCode, (int) $config['expiryDays']);
+                        if ($expiryLabel !== '') {
+                            $config['expirationText'] = sprintf(
+                                __('Expires %s', 'mailerpress'),
+                                $expiryLabel
+                            );
+                        }
                     }
                 }
             }
 
+            $originalCodeFontFamily = $config['code-font-family'] ?? '';
+            $config['code-font-family'] = $this->normalizeCouponCodeFontFamily($originalCodeFontFamily);
+            $config['code-font-weight'] = $this->normalizeCouponCodeFontWeight($config['code-font-weight'] ?? '', $originalCodeFontFamily);
+
             $codeStyle = $this->buildCouponTypoStyle($config, 'code-', [
-                'font-family' => "'Courier New',Courier,monospace",
+                'font-family' => self::COUPON_CODE_FONT_FAMILY,
                 'font-size' => '28px',
-                'font-weight' => 'bold',
+                'font-weight' => self::COUPON_CODE_FONT_WEIGHT,
                 'letter-spacing' => '3px',
                 'color' => '#333333',
             ]);
@@ -807,13 +842,20 @@ class EmailContentRenderer
                 'color' => '#999999',
             ]);
 
-            $showBox = $config['showBox'] === true || $config['showBox'] === 'true';
+            $couponStyles = $this->normalizeCouponStyleConfig($config);
 
-            $html = '<div style="text-align:' . \esc_attr($config['align']) . ';">';
+            $boxDisplay = $couponStyles['fullWidth']
+                ? 'display:block;width:100%;box-sizing:border-box;'
+                : 'display:inline-block;';
+            $boxStyle = $boxDisplay
+                . 'background-color:' . \esc_attr($couponStyles['background-color']) . ';'
+                . $this->buildCouponBorderStyle($couponStyles) . ';'
+                . 'border-radius:' . \esc_attr($couponStyles['border-radius']) . ';'
+                . 'padding:' . \esc_attr($couponStyles['inner-padding']) . ';'
+                . 'text-align:' . \esc_attr($couponStyles['align']) . ';';
 
-            if ($showBox) {
-                $html .= '<div style="display:inline-block;background-color:' . \esc_attr($config['bgColor']) . ';border:2px ' . \esc_attr($config['borderStyle']) . ' ' . \esc_attr($config['borderColor']) . ';border-radius:' . \esc_attr($config['borderRadius']) . ';padding:16px 32px;text-align:center;">';
-            }
+            $html = '<div style="text-align:' . \esc_attr($couponStyles['align']) . ';">';
+            $html .= '<div style="' . $boxStyle . '">';
 
             if (!empty($config['label'])) {
                 $html .= '<div style="' . $labelStyle . ';margin-bottom:8px;">' . \esc_html($config['label']) . '</div>';
@@ -825,11 +867,7 @@ class EmailContentRenderer
                 $html .= '<div style="' . $expirationStyle . ';margin-top:8px;">' . \esc_html($config['expirationText']) . '</div>';
             }
 
-            if ($showBox) {
-                $html .= '</div>';
-            }
-
-            $html .= '</div>';
+            $html .= '</div></div>';
 
             $mjTextAttributes = '';
             if (preg_match('/<mj-text([^>]*)>/i', $blockContent, $attrMatches)) {
@@ -843,6 +881,81 @@ class EmailContentRenderer
         }
 
         return $htmlContent;
+    }
+
+    private function normalizeCouponStyleConfig(array $config): array
+    {
+        $verticalPadding = $this->normalizeCouponCssLength($config['boxPaddingVertical'] ?? null, 16);
+        $horizontalPadding = $this->normalizeCouponCssLength($config['boxPaddingHorizontal'] ?? null, 32);
+        $fullWidthValue = $config['fullWidth'] ?? false;
+
+        return array_merge($config, [
+            'background-color' => $config['background-color'] ?? ($config['bgColor'] ?? '#f7f7f7'),
+            'border' => $config['border'] ?? $this->buildLegacyCouponBorder($config),
+            'border-radius' => $config['border-radius'] ?? ($config['borderRadius'] ?? '8px'),
+            'inner-padding' => $config['inner-padding'] ?? $verticalPadding . ' ' . $horizontalPadding . ' ' . $verticalPadding . ' ' . $horizontalPadding,
+            'fullWidth' => $fullWidthValue === true || $fullWidthValue === 'true' || $fullWidthValue === 1 || $fullWidthValue === '1' || ($config['boxWidth'] ?? '') === 'full',
+            'align' => $config['align'] ?? 'center',
+        ]);
+    }
+
+    private function normalizeCouponCssLength($value, int $fallback): string
+    {
+        if (is_string($value) && substr(trim($value), -2) === 'px') {
+            return $value;
+        }
+
+        return ($value ?? $fallback) . 'px';
+    }
+
+    private function buildLegacyCouponBorder(array $config): string
+    {
+        $borderWidth = $config['borderWidth'] ?? 2;
+
+        if (is_numeric($borderWidth)) {
+            $borderWidth .= 'px';
+        }
+
+        return $borderWidth . ' ' . ($config['borderStyle'] ?? 'dashed') . ' ' . ($config['borderColor'] ?? '#cccccc');
+    }
+
+    private function buildCouponBorderStyle(array $config): string
+    {
+        $parts = [];
+
+        foreach (['top', 'right', 'bottom', 'left'] as $side) {
+            $key = 'border-' . $side;
+            if (!empty($config[$key])) {
+                $parts[] = $key . ':' . \esc_attr($config[$key]);
+            }
+        }
+
+        if (!empty($parts)) {
+            return implode(';', $parts);
+        }
+
+        return 'border:' . \esc_attr($config['border'] ?? $this->buildLegacyCouponBorder($config));
+    }
+
+    private function normalizeCouponCodeFontFamily($value): string
+    {
+        return $this->isLegacyCouponCodeFontFamily($value) ? self::COUPON_CODE_FONT_FAMILY : (string)$value;
+    }
+
+    private function normalizeCouponCodeFontWeight($value, $fontFamily): string
+    {
+        if (empty($value) || 'bold' === $value || $this->isLegacyCouponCodeFontFamily($fontFamily)) {
+            return self::COUPON_CODE_FONT_WEIGHT;
+        }
+
+        return (string)$value;
+    }
+
+    private function isLegacyCouponCodeFontFamily($value): bool
+    {
+        $normalized = strtolower(preg_replace('/\s+/', '', str_replace(['"', "'"], '', (string)$value)));
+
+        return '' === $normalized || false !== strpos($normalized, 'couriernew');
     }
 
     private function buildCouponTypoStyle(array $config, string $prefix, array $defaults = []): string
@@ -1312,6 +1425,18 @@ class EmailContentRenderer
                 'fullWidth' => false,
             ]);
 
+            // Native buttons already contain the compiled styles and responsive
+            // markup. Resolve only their URL instead of rebuilding the button.
+            if (($config['renderMode'] ?? '') === 'native') {
+                $resolvedContent = preg_replace_callback(
+                    '/href\s*=\s*(["\'])(?:\{\{\s*cart_recovery_url\s*\}\}|%7B%7B(?:%20)*cart_recovery_url(?:%20)*%7D%7D)\1/i',
+                    static fn ($match) => 'href=' . $match[1] . \esc_url($recoveryUrl) . $match[1],
+                    $blockContent
+                ) ?? $blockContent;
+                $htmlContent = str_replace($fullMatch, $startComment . $configJson . $endStartComment . $resolvedContent . $endComment, $htmlContent);
+                continue;
+            }
+
             $widthStyle = $config['fullWidth']
                 ? 'display:block;width:100%;text-align:center;box-sizing:border-box;'
                 : 'display:inline-block;';
@@ -1517,6 +1642,13 @@ class EmailContentRenderer
                 'imageRadius' => '8px',
             ]);
 
+            if ('template' === ($config['mode'] ?? '') || false !== strpos($blockContent, '<!-- START post ')) {
+                $templateHtml = $this->renderProductShowcaseTemplate($blockContent, $productData);
+                $newBlock = $startComment . $configJson . $endStartComment . $templateHtml . $endComment;
+                $htmlContent = str_replace($fullMatch, $newBlock, $htmlContent);
+                continue;
+            }
+
             $html = $this->generateProductShowcaseHtml($productData, $config);
 
             $mjTextAttributes = '';
@@ -1531,6 +1663,125 @@ class EmailContentRenderer
         }
 
         return $htmlContent;
+    }
+
+    private function renderProductShowcaseTemplate(string $content, array $data): string
+    {
+        $replaceTextBlock = static function (string $html, string $value): string {
+            $escapedValue = \esc_html($value);
+
+            return preg_replace_callback(
+                '/<(mj-text|div)\b([^>]*)>.*?<\/\1>/is',
+                static fn(array $matches): string => '<' . $matches[1] . $matches[2] . '>'
+                    . $escapedValue
+                    . '</' . $matches[1] . '>',
+                $html,
+                1
+            ) ?? $html;
+        };
+
+        $setAttribute = static function (string $html, string $tag, string $attribute, string $value): string {
+            return preg_replace_callback(
+                '/<' . preg_quote($tag, '/') . '\b([^>]*)>/i',
+                static function (array $matches) use ($tag, $attribute, $value): string {
+                    $attributes = $matches[1];
+                    $selfClosing = (bool) preg_match('/\/\s*$/', $attributes);
+                    if ($selfClosing) {
+                        $attributes = preg_replace('/\/\s*$/', '', $attributes) ?? $attributes;
+                    }
+                    $escapedValue = \esc_attr($value);
+                    $attributePattern = '/\s' . preg_quote($attribute, '/') . '\s*=\s*(["\']).*?\1/i';
+
+                    if (preg_match($attributePattern, $attributes)) {
+                        $attributes = preg_replace(
+                            $attributePattern,
+                            ' ' . $attribute . '="' . $escapedValue . '"',
+                            $attributes,
+                            1
+                        ) ?? $attributes;
+                    } else {
+                        $attributes .= ' ' . $attribute . '="' . $escapedValue . '"';
+                    }
+
+                    return '<' . $tag . $attributes . ($selfClosing ? ' /' : '') . '>';
+                },
+                $html,
+                1
+            ) ?? $html;
+        };
+
+        $content = preg_replace_callback(
+            '/(<!-- START post title -->)(.*?)(<!-- END post title -->)/is',
+            static fn(array $matches): string => $matches[1]
+                . $replaceTextBlock($matches[2], (string) ($data['product_name'] ?? ''))
+                . $matches[3],
+            $content
+        ) ?? $content;
+
+        $content = preg_replace_callback(
+            '/(<!-- START post excerpt(?::(\d+))? -->)(.*?)(<!-- END post excerpt -->)/is',
+            static function (array $matches) use ($data, $replaceTextBlock): string {
+                $description = (string) ($data['product_description'] ?? '');
+                $wordCount = isset($matches[2]) ? (int) $matches[2] : 30;
+                if ($wordCount > 0) {
+                    $description = \wp_trim_words($description, $wordCount);
+                }
+
+                return $matches[1] . $replaceTextBlock($matches[3], $description) . $matches[4];
+            },
+            $content
+        ) ?? $content;
+
+        $content = preg_replace_callback(
+            '/(<!-- START product price -->)(.*?)(<!-- END product price -->)/is',
+            static function (array $matches) use ($data): string {
+                $price = (string) ($data['product_price_formatted'] ?? '');
+                $safePrice = \wp_kses_post($price);
+                $inner = preg_replace_callback(
+                    '/<(mj-text|div)\b([^>]*)>.*?<\/\1>/is',
+                    static fn(array $textMatches): string => '<' . $textMatches[1] . $textMatches[2] . '>'
+                        . $safePrice
+                        . '</' . $textMatches[1] . '>',
+                    $matches[2],
+                    1
+                ) ?? $matches[2];
+
+                return $matches[1] . $inner . $matches[3];
+            },
+            $content
+        ) ?? $content;
+
+        $content = preg_replace_callback(
+            '/(<!-- START post readmore -->)(.*?)(<!-- END post readmore -->)/is',
+            static function (array $matches) use ($data, $setAttribute): string {
+                $inner = $setAttribute($matches[2], 'mj-button', 'href', (string) ($data['product_url'] ?? '#'));
+                $inner = $setAttribute($inner, 'a', 'href', (string) ($data['product_url'] ?? '#'));
+                return $matches[1] . $inner . $matches[3];
+            },
+            $content
+        ) ?? $content;
+
+        $content = preg_replace_callback(
+            '/(<!-- START post media(?::[^ ]+)? -->)(.*?)(<!-- END post media -->)/is',
+            static function (array $matches) use ($data, $setAttribute): string {
+                $imageUrl = (string) ($data['product_image_url'] ?? '');
+                if ('' === $imageUrl) {
+                    return '';
+                }
+
+                $inner = $setAttribute($matches[2], 'mj-image', 'src', $imageUrl);
+                $inner = $setAttribute($inner, 'mj-image', 'href', (string) ($data['product_url'] ?? '#'));
+                $inner = $setAttribute($inner, 'mj-image', 'alt', (string) ($data['product_name'] ?? ''));
+                $inner = $setAttribute($inner, 'img', 'src', $imageUrl);
+                $inner = $setAttribute($inner, 'img', 'alt', (string) ($data['product_name'] ?? ''));
+                $inner = $setAttribute($inner, 'a', 'href', (string) ($data['product_url'] ?? '#'));
+
+                return $matches[1] . $inner . $matches[3];
+            },
+            $content
+        ) ?? $content;
+
+        return $content;
     }
 
     private function resolveProductData(array $context): ?array
@@ -1904,6 +2155,24 @@ class EmailContentRenderer
     }
 
     /**
+     * Expiry date shown for an auto-generated coupon, taken from the WooCommerce coupon itself
+     * so the email matches what WooCommerce enforces (including a coupon reused for the same job).
+     */
+    private function getAutoCouponExpiryLabel(string $couponCode, int $expiryDays): string
+    {
+        $dateFormat = (string) get_option('date_format');
+        $couponId = function_exists('wc_get_coupon_id_by_code') ? (int) wc_get_coupon_id_by_code($couponCode) : 0;
+
+        if ($couponId > 0) {
+            $expires = (new \WC_Coupon($couponId))->get_date_expires();
+
+            return $expires ? $expires->date_i18n($dateFormat) : '';
+        }
+
+        return wp_date($dateFormat, CouponGenerator::getExpiryDate($expiryDays)->getTimestamp());
+    }
+
+    /**
      * Generate auto coupon using CouponGenerator service
      */
     private function generateAutoCoupon(array $config, array $context): ?string
@@ -1923,6 +2192,12 @@ class EmailContentRenderer
             'usageLimitPerUser' => $config['usageLimitPerUser'] ?? 1,
             'prefix' => $config['prefix'] ?? 'AUTO',
             'allowedEmails' => $config['allowedEmails'] ?? true,
+            'restrictToProducts' => $config['restrictToProducts'] ?? false,
+            'couponProductIds' => $config['couponProductIds'] ?? [],
+            'useSubscriptionCoupon' => $config['useSubscriptionCoupon'] ?? false,
+            'subscriptionDiscountTarget' => $config['subscriptionDiscountTarget'] ?? 'first_payment',
+            'subscriptionDiscountType' => $config['subscriptionDiscountType'] ?? 'percent',
+            'subscriptionPaymentCount' => $config['subscriptionPaymentCount'] ?? 1,
         ];
 
         return $couponGenerator->getOrGenerateCoupon($settings, $context);

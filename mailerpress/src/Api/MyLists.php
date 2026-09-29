@@ -467,28 +467,30 @@ class MyLists
         if ($contact) {
             // Contact exists - update it
             $contact_id = $contact->contact_id;
-
-            // Update name fields if provided
-            $update_data = ['updated_at' => current_time('mysql')];
-            $update_format = ['%s'];
+            $contactData = ['email' => $email, 'assign_default_list' => false];
 
             if (!empty($first_name)) {
-                $update_data['first_name'] = $first_name;
-                $update_format[] = '%s';
+                $contactData['first_name'] = $first_name;
             }
 
             if (!empty($last_name)) {
-                $update_data['last_name'] = $last_name;
-                $update_format[] = '%s';
+                $contactData['last_name'] = $last_name;
             }
 
-            $wpdb->update(
-                $contact_table,
-                $update_data,
-                ['contact_id' => $contact_id],
-                $update_format,
-                ['%d']
-            );
+            if ($contact->subscription_status === 'unsubscribed') {
+                $signupConfirmation = mailerpress_get_signup_confirmation_option();
+                $contactData['subscription_status'] = !empty($signupConfirmation['enableSignupConfirmation']) ? 'pending' : 'subscribed';
+                $contactData['opt_in_source'] = 'my_lists_form';
+            }
+
+            $result = (new \MailerPress\Services\ContactUpsertService())->upsert($contactData);
+            if (empty($result['success'])) {
+                return new WP_Error(
+                    'contact_update_failed',
+                    __('Failed to update your subscription. Please try again.', 'mailerpress'),
+                    ['status' => 500]
+                );
+            }
         } else {
             // Create new contact
             $unsubscribe_token = wp_generate_uuid4();

@@ -5,7 +5,7 @@ namespace MailerPress\Services;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Interfaces\ContactFetcherInterface;
 
-class SegmentContactFetcher implements ContactFetcherInterface
+class SegmentContactFetcher implements ContactFetcherInterface, \Countable
 {
     private string $segmentName;
 
@@ -45,11 +45,45 @@ class SegmentContactFetcher implements ContactFetcherInterface
         return $this->fetchViaRest($limit, $offset);
     }
 
+    public function count(): int
+    {
+        global $wpdb;
+
+        $query = $this->directQuery();
+        if ($query !== null) {
+            return $query === '' ? 0 : (int) $wpdb->get_var("SELECT COUNT(*) FROM ({$query}) audience");
+        }
+
+        $total = 0;
+        do {
+            $ids = $this->fetchViaRest(1000, $total);
+            $total += count($ids);
+        } while (count($ids) === 1000);
+
+        return $total;
+    }
+
+    private function fetchDirect(int $limit, int $offset): ?array
+    {
+        global $wpdb;
+
+        $query = $this->directQuery();
+        if ($query === null) {
+            return null;
+        }
+        if ($query === '') {
+            return [];
+        }
+
+        $query .= $wpdb->prepare(' LIMIT %d OFFSET %d', $limit, $offset);
+        return array_map('intval', $wpdb->get_col($query) ?: []);
+    }
+
     /**
      * Direct DB query using Pro plugin's segmentation classes.
      * Returns null if Pro plugin classes are not available.
      */
-    private function fetchDirect(int $limit, int $offset): ?array
+    private function directQuery(): ?string
     {
         global $wpdb;
 
@@ -74,7 +108,7 @@ class SegmentContactFetcher implements ContactFetcherInterface
             Logger::error('SegmentContactFetcher: Segment not found', [
                 'segment_name' => $this->segmentName,
             ]);
-            return [];
+            return '';
         }
 
         // Parse conditions (may be serialized or JSON)
@@ -83,43 +117,59 @@ class SegmentContactFetcher implements ContactFetcherInterface
             : $segment_row['conditions'];
         $segment_conditions = is_string($raw_conditions) ? json_decode($raw_conditions, true) : $raw_conditions;
 
-        if (!is_array($segment_conditions) || !isset($segment_conditions['conditions'])) {
+        if (!is_array($segment_conditions)) {
             Logger::error('SegmentContactFetcher: Invalid segment conditions', [
                 'segment_name' => $this->segmentName,
             ]);
-            return [];
+            return '';
         }
 
         // Build Segment object using Pro classes
-        $segment = new \MailerPressPro\Core\Segmentation\Segment($segment_conditions['operator'] ?? 'AND');
-        foreach ($segment_conditions['conditions'] as $cond) {
-            try {
-                $conditionObj = \MailerPressPro\Core\Segmentation\ConditionFactory::create($cond);
-                $segment->addCondition($conditionObj);
-            } catch (\InvalidArgumentException $e) {
-                Logger::error('SegmentContactFetcher: Invalid condition', [
+        if (method_exists('MailerPressPro\\Core\\Segmentation\\Segment', 'fromArray')) {
+            $segment = \MailerPressPro\Core\Segmentation\Segment::fromArray($segment_conditions);
+        } else {
+            if (!isset($segment_conditions['conditions'])) {
+                Logger::error('SegmentContactFetcher: Invalid legacy segment conditions', [
                     'segment_name' => $this->segmentName,
-                    'condition' => $cond,
-                    'error' => $e->getMessage(),
                 ]);
+                return '';
+            }
+
+            $segment = new \MailerPressPro\Core\Segmentation\Segment($segment_conditions['operator'] ?? 'AND');
+            foreach ($segment_conditions['conditions'] as $cond) {
+                try {
+                    $conditionObj = \MailerPressPro\Core\Segmentation\ConditionFactory::create($cond);
+                    $segment->addCondition($conditionObj);
+                } catch (\InvalidArgumentException $e) {
+                    Logger::error('SegmentContactFetcher: Invalid condition', [
+                        'segment_name' => $this->segmentName,
+                        'condition' => $cond,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 
-        if (empty($segment->getConditions())) {
+        $hasConditions = method_exists($segment, 'hasConditions')
+            ? $segment->hasConditions()
+            : !empty($segment->getConditions());
+
+        if (!$hasConditions) {
             Logger::error('SegmentContactFetcher: No valid conditions', [
                 'segment_name' => $this->segmentName,
             ]);
-            return [];
+            return '';
         }
 
         // Build and execute query
         $queryBuilder = new \MailerPressPro\Core\Segmentation\SegmentQueryBuilder($segment);
-        $sql = $queryBuilder->buildQuery(['fields' => 'c.contact_id']);
-        $sql .= $wpdb->prepare(' LIMIT %d OFFSET %d', $limit, $offset);
-
-        $results = $wpdb->get_col($sql);
-
-        return array_values(array_map('intval', $results ?: []));
+        $segmentSql = rtrim($queryBuilder->buildQuery(['fields' => 'c.contact_id']), " \t\n\r\0\x0B;");
+        $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
+        $sql = "SELECT segment_contacts.contact_id
+                FROM ({$segmentSql}) segment_contacts
+                INNER JOIN {$contactTable} c ON c.contact_id = segment_contacts.contact_id
+                WHERE c.subscription_status = 'subscribed'";
+        return $sql;
     }
 
     /**
@@ -174,6 +224,31 @@ class SegmentContactFetcher implements ContactFetcherInterface
             $ids = array_slice($ids, $offsetWithinPage, $limit);
         }
 
-        return $ids;
+        return $this->filterSubscribedIds($ids);
+    }
+
+    private function filterSubscribedIds(array $ids): array
+    {
+        global $wpdb;
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn($id) => $id > 0)));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $contactTable = Tables::get(Tables::MAILERPRESS_CONTACT);
+
+        $subscribedIds = $wpdb->get_col($wpdb->prepare(
+            "SELECT contact_id
+             FROM {$contactTable}
+             WHERE subscription_status = 'subscribed'
+               AND contact_id IN ({$placeholders})",
+            ...$ids
+        ));
+
+        $subscribedSet = array_flip(array_map('intval', $subscribedIds ?: []));
+
+        return array_values(array_filter($ids, static fn(int $id): bool => isset($subscribedSet[$id])));
     }
 }

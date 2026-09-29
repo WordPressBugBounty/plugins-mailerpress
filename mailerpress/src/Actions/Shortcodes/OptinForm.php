@@ -302,6 +302,7 @@ class OptinForm
             [
                 'apiUrl' => rest_url('mailerpress/v1/contact'),
                 'nonce' => wp_create_nonce('wp_rest'),
+                'ajaxUrl' => admin_url('admin-ajax.php'),
             ]
         );
 
@@ -317,24 +318,6 @@ class OptinForm
         if ($realRoot && $realScriptPath && strpos($realScriptPath, $realRoot) === 0 && file_exists($viewScriptPath)) {
             $scriptContent = file_get_contents($viewScriptPath);
             if ($scriptContent) {
-                // Replace relative path with dynamic URL from wp_localize_script
-                // Use rest_url() to get correct URL and properly escape for JavaScript
-                $apiUrl = rest_url('mailerpress/v1/contact');
-                $apiUrlJson = wp_json_encode($apiUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-                $scriptContent = str_replace(
-                    'const response = await fetch("/wp-json/mailerpress/v1/contact",',
-                    'const apiUrl = (typeof mailerpressOptin !== "undefined" && mailerpressOptin && mailerpressOptin.apiUrl) ? mailerpressOptin.apiUrl : ' . $apiUrlJson . ';' . "\n                const response = await fetch(apiUrl,",
-                    $scriptContent
-                );
-
-                // Update lists handling to support multiple lists (like tags)
-                // Change from single value to JSON array parsing
-                $scriptContent = str_replace(
-                    'lists: [formData.get(\'mailerpress-list\')].filter(Boolean).map(id => ({ id })),',
-                    'lists: JSON.parse(formData.get(\'mailerpress-list\') || \'[]\').map(id => ({ id })),',
-                    $scriptContent
-                );
-
                 wp_add_inline_script(
                     'mailerpress-optin-form-js',
                     $scriptContent,

@@ -26,6 +26,21 @@ class CustomTrigger
      */
     public const TRIGGER_KEY = 'custom_trigger';
 
+    public static function isAllowedHookName($hookName): bool
+    {
+        if (!is_string($hookName) || $hookName === '') {
+            return false;
+        }
+
+        if (preg_match('/^mailerpress_custom_[a-zA-Z0-9_]+$/', $hookName) === 1) {
+            return true;
+        }
+
+        $allowedHooks = apply_filters('mailerpress/workflows/allowed_custom_hooks', []);
+
+        return is_array($allowedHooks) && in_array($hookName, $allowedHooks, true);
+    }
+
     /**
      * Whether dynamic hooks have already been registered in this request
      */
@@ -40,7 +55,7 @@ class CustomTrigger
     {
         $definition = [
             'label' => __('Custom Hook', 'mailerpress'),
-            'description' => __('Trigger a workflow on any WordPress hook. Perfect for developers and custom integrations. Configure the hook name and parameters below. Allows you to integrate your own plugins and features with the workflow system.', 'mailerpress'),
+            'description' => __('Trigger a workflow on a mailerpress_custom_ hook or a hook allowed by site code.', 'mailerpress'),
             'icon' => 'code',
             'category' => 'developer',
             'settings_schema' => [
@@ -49,8 +64,8 @@ class CustomTrigger
                     'label' => __('Hook Name', 'mailerpress'),
                     'type' => 'text',
                     'required' => true,
-                    'placeholder' => __('e.g., my_custom_plugin_event', 'mailerpress'),
-                    'help' => __('Enter the WordPress hook name (action or filter) to listen to. This hook will be fired by your custom code or plugin.', 'mailerpress'),
+                    'placeholder' => __('e.g., mailerpress_custom_my_event', 'mailerpress'),
+                    'help' => __('Use a mailerpress_custom_ hook name. Other names must be allowed by site code.', 'mailerpress'),
                 ],
                 [
                     'key' => 'parameter_1_type',
@@ -167,7 +182,7 @@ class CustomTrigger
         }
 
         $automations = $wpdb->get_results(
-            "SELECT a.id, a.status, s.step_id, s.settings
+            "SELECT a.id, a.author, a.status, s.step_id, s.settings
             FROM {$automationsTable} a
             INNER JOIN {$stepsTable} s ON a.id = s.automation_id
             WHERE a.status = 'ENABLED'
@@ -182,7 +197,7 @@ class CustomTrigger
             $settings = json_decode($automation->settings, true);
             $hookName = $settings['hook_name'] ?? '';
 
-            if (empty($hookName)) {
+            if (!self::isAllowedHookName($hookName) || !user_can((int) $automation->author, 'manage_options')) {
                 continue;
             }
 
@@ -202,13 +217,14 @@ class CustomTrigger
      * 
      * @param mixed ...$args Hook arguments
      */
-    public static function handleCustomHook(...$args): void
+    public static function handleCustomHook(...$args): mixed
     {
+        $filterValue = $args[0] ?? null;
         // Get the hook name that was called
         $hookName = current_filter();
 
         if (empty($hookName)) {
-            return;
+            return $filterValue;
         }
 
         // Trigger the workflow system with the custom hook name
@@ -232,13 +248,13 @@ class CustomTrigger
         $stepsExists = $wpdb->get_var("SHOW TABLES LIKE '{$stepsTable}'") === $stepsTable;
 
         if (!$automationsExists || !$stepsExists) {
-            return; // Tables don't exist yet, skip
+            return $filterValue; // Tables don't exist yet, skip
         }
 
         // Check if the 'id' column exists in automations table
         $columns = $wpdb->get_col("SHOW COLUMNS FROM {$automationsTable}", 0);
         if (!in_array('id', $columns, true)) {
-            return; // Column 'id' doesn't exist yet, skip
+            return $filterValue; // Column 'id' doesn't exist yet, skip
         }
 
         $automations = $wpdb->get_results($wpdb->prepare(
@@ -268,6 +284,8 @@ class CustomTrigger
             // Manually trigger the workflow
             $manager->handleCustomTrigger('custom_trigger', $context, (int) $automation->id, $automation->step_id);
         }
+
+        return $filterValue;
     }
 
     /**
@@ -347,7 +365,7 @@ class CustomTrigger
 
                             $wpdb->insert($contactTable, [
                                 'email' => $email,
-                                'subscription_status' => 'subscribed',
+                                'subscription_status' => 'pending',
                                 'opt_in_source' => 'custom_trigger',
                                 'created_at' => current_time('mysql'),
                                 'updated_at' => current_time('mysql'),
@@ -356,7 +374,7 @@ class CustomTrigger
                             $userId = (int) $wpdb->insert_id;
                             $context['contact_id'] = $userId;
                             $context['user_id'] = $userId;
-                            $context['subscription_status'] = 'subscribed';
+                            $context['subscription_status'] = 'pending';
 
                             // Trigger contact_created hook
                             do_action('mailerpress_contact_created', $userId);
@@ -435,7 +453,7 @@ class CustomTrigger
 
                     $wpdb->insert($contactTable, [
                         'email' => $email,
-                        'subscription_status' => 'subscribed',
+                        'subscription_status' => 'pending',
                         'opt_in_source' => 'custom_trigger',
                         'created_at' => current_time('mysql'),
                         'updated_at' => current_time('mysql'),
@@ -444,7 +462,7 @@ class CustomTrigger
                     $userId = (int) $wpdb->insert_id;
                     $context['contact_id'] = $userId;
                     $context['user_id'] = $userId;
-                    $context['subscription_status'] = 'subscribed';
+                    $context['subscription_status'] = 'pending';
 
                     // Trigger contact_created hook
                     do_action('mailerpress_contact_created', $userId);

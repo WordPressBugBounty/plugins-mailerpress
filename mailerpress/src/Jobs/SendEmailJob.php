@@ -7,10 +7,12 @@ namespace MailerPress\Jobs;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Abstract\BaseJob;
+use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\HtmlParser;
 use MailerPress\Core\Kernel;
+use MailerPress\Services\InactiveContactManager;
 use Throwable;
 use WP_Error;
 
@@ -112,27 +114,37 @@ class SendEmailJob extends BaseJob
             $preprocessedBody = HtmlParser::preprocessBody($data['body']);
 
             $statsToInsert = [];
+            $sentContactIds = [];
 
             $emailIndex = 0;
             foreach ($recipientBatches as $recipient) {
                 try {
                     // Ensure tracking variables are present
                     $variables = $recipient['variables'] ?? [];
+                    $mergeTagContext = [
+                        'contact_id' => (int) ($recipient['id'] ?? $variables['CONTACT_ID'] ?? 0),
+                        'email' => $recipient['email'],
+                    ];
 
                     // Render per‑recipient body
                     // IMPORTANT: HtmlParser->init() injects tracking pixel BEFORE replaceVariables()
                     // This ensures tracking is always present even with third-party SMTP plugins
                     $clickTracking = $data['clickTracking'] ?? 'yes';
+                    $htmlTemplate = $recipient['body'] ?? $data['body'];
+                    $preparedBody = isset($recipient['body'])
+                        ? HtmlParser::preprocessBody($htmlTemplate)
+                        : $preprocessedBody;
                     $body = $parser->init(
-                        $preprocessedBody,
-                        $variables
+                        $preparedBody,
+                        $variables,
+                        $mergeTagContext
                     )->replaceVariables($clickTracking);
 
-                    $result = $mailer->sendEmail([
+                    $emailPayload = [
                         'to' => $recipient['email'],
                         'html' => true,
                         'body' => $body,
-                        'subject' => $data['subject'],
+                        'subject' => $parser->replaceSubjectVariables($data['subject'], $variables, $mergeTagContext),
                         'sender_name' => $data['sender_name'] ?? '',
                         'sender_to' => $data['sender_to'] ?? '',
                         'reply_to_name' => $replyToName,
@@ -141,18 +153,34 @@ class SendEmailJob extends BaseJob
                         'campaign_id' => $recipient['campaign_id'] ?? null,
                         'contact_id' => $recipient['id'] ?? null,
                         'batch_id' => $data['batch_id'] ?? null,
-                    ]);
+                    ];
 
-                    // Collect stats for batch insert after the loop
-                    if (!empty($recipient['id']) && !empty($recipient['campaign_id'])) {
-                        $statsToInsert[] = [
-                            'contact_id' => (int) $recipient['id'],
-                            'campaign_id' => (int) $recipient['campaign_id'],
+                    $unsubToken = $recipient['unsubscribe_token'] ?? '';
+                    if ( ! empty( $unsubToken ) ) {
+                        $unsubUrl = get_rest_url( null, sprintf(
+                            'mailerpress/v1/one-click-unsubscribe?token=%s',
+                            urlencode( $unsubToken )
+                        ) );
+                        $emailPayload['custom_headers'] = [
+                            'List-Unsubscribe'      => '<' . $unsubUrl . '>',
+                            'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
                         ];
                     }
 
+                    $result = $mailer->sendEmail($emailPayload);
+
                     if ($result === true) {
                         ++$countSuccess;
+
+                        // Collect stats for batch insert after successful delivery only.
+                        if (!empty($recipient['id']) && !empty($recipient['campaign_id'])) {
+                            $contactId = (int) $recipient['id'];
+                            $statsToInsert[] = [
+                                'contact_id' => $contactId,
+                                'campaign_id' => (int) $recipient['campaign_id'],
+                            ];
+                            $sentContactIds[] = $contactId;
+                        }
 
                         // Note: La mise à jour de sent_emails se fait maintenant à la fin du traitement pour éviter les problèmes de concurrence
                     } else {
@@ -171,23 +199,12 @@ class SendEmailJob extends BaseJob
                         ];
                         // Note: La mise à jour de error_emails se fait maintenant à la fin du traitement pour éviter les problèmes de concurrence
 
-                        // --- Log to file per batch ---
-                        $batchId = $data['batch_id'] ?? 'unknown';
-                        $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-                        $logFile = $logDir . "/batch-{$batchId}.log";
-
-                        if (!is_dir($logDir)) {
-                            wp_mkdir_p($logDir);
-                        }
-
-                        $logEntry = sprintf(
-                            "[%s] Email: %s | Error: %s\n",
-                            current_time('mysql'),
-                            $recipient['email'],
-                            $errorMessage
+                        // --- Log to file per batch (WP_DEBUG_LOG only, protected directory, masked email) ---
+                        $batchId = (int) ($data['batch_id'] ?? 0);
+                        DebugFileLogger::write(
+                            "batch-{$batchId}.log",
+                            sprintf('Email: %s | Error: %s', DebugFileLogger::maskEmail((string) $recipient['email']), $errorMessage)
                         );
-
-                        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
                     }
 
                     // Apply rate limiting: wait between emails to respect the rate limit
@@ -223,24 +240,12 @@ class SendEmailJob extends BaseJob
                         'message' => $e->getMessage(),
                     ];
 
-                    // --- Log to file per batch ---
-                    $batchId = $data['batch_id'] ?? 'unknown';
-
-                    $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-                    $logFile = $logDir . "/batch-{$batchId}.log";
-
-                    if (!is_dir($logDir)) {
-                        wp_mkdir_p($logDir); // creates dir safely with proper perms
-                    }
-
-                    $logEntry = sprintf(
-                        "[%s] Email: %s | Error: %s\n",
-                        current_time('mysql'),
-                        $recipient['email'] ?? 'N/A',
-                        $e->getMessage()
+                    // --- Log to file per batch (WP_DEBUG_LOG only, protected directory, masked email) ---
+                    $batchId = (int) ($data['batch_id'] ?? 0);
+                    DebugFileLogger::write(
+                        "batch-{$batchId}.log",
+                        sprintf('Email: %s | Error: %s', DebugFileLogger::maskEmail((string) ($recipient['email'] ?? '')), $e->getMessage())
                     );
-
-                    file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
                 }
             }
 
@@ -268,6 +273,8 @@ class SendEmailJob extends BaseJob
                     VALUES " . implode(', ', $placeholders),
                     ...$values
                 ));
+
+                $container->get(InactiveContactManager::class)->markEmailsSent($sentContactIds, $now);
             }
 
             // Mettre à jour sent_emails et error_emails en une seule fois à la fin (plus efficace et évite les problèmes de concurrence)
@@ -489,16 +496,8 @@ class SendEmailJob extends BaseJob
      */
     private function log(string $message, array $context = []): void
     {
-        $logDir = WP_CONTENT_DIR . '/mailerpress-logs';
-        if (!is_dir($logDir)) {
-            wp_mkdir_p($logDir);
-        }
-
-        $logFile = $logDir . '/queue-debug.log';
-        $timestamp = current_time('mysql');
-        $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
-        $logEntry = sprintf("[%s] %s%s\n", $timestamp, $message, $contextStr);
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
+        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     private function getMemoryLimitBytes(): int

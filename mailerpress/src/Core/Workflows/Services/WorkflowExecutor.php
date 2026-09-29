@@ -16,6 +16,9 @@ use MailerPress\Core\Workflows\Handlers\RemoveTagStepHandler;
 use MailerPress\Core\Workflows\Handlers\RemoveFromListStepHandler;
 use MailerPress\Core\Workflows\Handlers\CreateContactStepHandler;
 use MailerPress\Core\Workflows\Handlers\CreateWordPressUserStepHandler;
+use MailerPress\Core\Workflows\Handlers\WaitUntilDateStepHandler;
+use MailerPress\Core\Workflows\Handlers\LoadPostFieldsStepHandler;
+use MailerPress\Core\Workflows\Handlers\GoalStepHandler;
 use MailerPress\Core\Workflows\Services\ConditionEvaluator;
 use MailerPress\Core\Workflows\Models\AutomationJob;
 use MailerPress\Core\Workflows\Exceptions\NonRetryableException;
@@ -56,6 +59,11 @@ class WorkflowExecutor
         $this->handlerRegistry->register(new RemoveFromListStepHandler());
         $this->handlerRegistry->register(new CreateContactStepHandler());
         $this->handlerRegistry->register(new CreateWordPressUserStepHandler());
+        $this->handlerRegistry->register(new WaitUntilDateStepHandler());
+        $this->handlerRegistry->register(new LoadPostFieldsStepHandler());
+        // Registered last: it claims any key present in the goal registry, which
+        // is populated after the handlers are built.
+        $this->handlerRegistry->register(new GoalStepHandler());
     }
 
     public function getHandlerRegistry(): StepHandlerRegistry
@@ -309,14 +317,7 @@ class WorkflowExecutor
         $job->setScheduledAt($scheduledAt);
         $this->jobRepo->update($job);
 
-        if (function_exists('as_schedule_single_action')) {
-            as_schedule_single_action(
-                time() + $delaySeconds,
-                'mailerpress_continue_workflow',
-                [['job_id' => $job->getId()]],
-                'mailerpress_workflows'
-            );
-        }
+        ActionSchedulerManager::scheduleContinue(time() + $delaySeconds, (int) $job->getId());
 
         Logger::info('WorkflowExecutor: Job scheduled for retry', [
             'job_id' => $job->getId(),
@@ -440,6 +441,12 @@ class WorkflowExecutor
         $reevaluated = 0;
 
         foreach ($waitingJobs as $job) {
+            // A job parked on a goal is owned by GoalManager: the condition
+            // re-evaluation must not pull it back to an earlier condition step.
+            if ($this->isParkedOnGoal($job)) {
+                continue;
+            }
+
             $waitingLogs = $this->resolveWaitingLogsForJob($job, $allWaitingLogs, $eventType, $campaignId);
 
             if (empty($waitingLogs)) {
@@ -487,6 +494,22 @@ class WorkflowExecutor
         }
 
         return $reevaluated;
+    }
+
+    /**
+     * Is this waiting job held by a GOAL step?
+     */
+    private function isParkedOnGoal(AutomationJob $job): bool
+    {
+        $nextStepId = $job->getNextStepId();
+
+        if (!$nextStepId) {
+            return false;
+        }
+
+        $step = $this->stepRepo->findByStepId($nextStepId);
+
+        return $step && $step->isGoal();
     }
 
     /**

@@ -52,6 +52,12 @@ class PhpService extends AbstractEmailService
                 $headers[] = 'Return-Path: <' . $returnPath . '>';
             }
             
+            if ( ! empty( $emailData['custom_headers'] ) && \is_array( $emailData['custom_headers'] ) ) {
+                foreach ( $emailData['custom_headers'] as $headerName => $headerValue ) {
+                    $headers[] = $headerName . ': ' . $headerValue;
+                }
+            }
+
             // Additional headers
             $headers[] = 'X-Mailer: MailerPress/PHP-Service';
             $headers[] = 'X-Mailer-Version: 1.0';

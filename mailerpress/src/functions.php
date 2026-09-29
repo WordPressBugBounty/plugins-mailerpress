@@ -15,6 +15,18 @@ use MailerPress\Services\TemplateDirectoryParser;
 require_once __DIR__ . '/Helpers/Helpers.php';
 
 /**
+ * Register custom email merge tags on init, on every request (including cron).
+ *
+ * @param array $tags Map of tag keys to labels or label/type definitions.
+ * @param callable $callback Receives (string $key, object $contact, array $context).
+ * @return bool Whether the group was registered. Invalid or duplicate groups are rejected.
+ */
+function mailerpress_register_merge_tag_group(string $group, string $label, array $tags, callable $callback): bool
+{
+    return Kernel::getContainer()->get(\MailerPress\Core\MergeTags::class)->registerGroup($group, $label, $tags, $callback);
+}
+
+/**
  * @throws DependencyException
  * @throws NotFoundException
  * @throws Exception
@@ -135,7 +147,8 @@ function add_mailerpress_contact($data): array
     $existingContact = $contactModel->getContactByEmail($email);
 
     $hasStatus = !empty($data['subscription_status']) || !empty($data['contactStatus']) || !empty($data['subscriptionStatus']);
-    if (!$existingContact && !$hasStatus) {
+    $isResubscription = $existingContact && $existingContact->subscription_status === 'unsubscribed';
+    if ((!$existingContact || $isResubscription) && !$hasStatus) {
         $signupConfirmation = mailerpress_get_signup_confirmation_option();
         $source = $data['opt_in_source'] ?? 'custom_form';
         $data['subscription_status'] = ($source !== 'manual' && !empty($signupConfirmation) && true === $signupConfirmation['enableSignupConfirmation'])
@@ -148,7 +161,7 @@ function add_mailerpress_contact($data): array
         'update_existing' => true,
         'assign_default_list' => true,
         'auto_map_custom_fields' => true,
-        'opt_in_source' => $data['opt_in_source'] ?? ($existingContact ? ($existingContact->opt_in_source ?? 'custom_form') : 'custom_form'),
+        'opt_in_source' => $data['opt_in_source'] ?? ($existingContact && !$isResubscription ? ($existingContact->opt_in_source ?? 'custom_form') : 'custom_form'),
     ]));
 
     if (empty($result['success'])) {
@@ -476,8 +489,13 @@ function mailerpress_get_active_service_sender_identity(): array
     $serviceConfig = is_string($defaultService) && isset($servicesData['services'][$defaultService]['conf'])
         ? (array) $servicesData['services'][$defaultService]['conf']
         : [];
+    $sender = mailerpress_normalize_sender_identity($serviceConfig);
 
-    return mailerpress_normalize_sender_identity($serviceConfig);
+    if (!empty($sender['fromName']) && !empty($sender['fromTo'])) {
+        $sender['senderId'] = 'active-service-default';
+    }
+
+    return $sender;
 }
 
 function mailerpress_get_global_sender_identity(): array
@@ -513,6 +531,13 @@ function mailerpress_apply_sender_identity_to_config(array $config, array $sende
 function mailerpress_resolve_sender_config(array $config, bool $forceCurrentDefault = false): array
 {
     $senderId = isset($config['senderId']) ? (string) $config['senderId'] : '';
+
+    if ('active-service-default' === $senderId) {
+        $sender = mailerpress_get_active_service_sender_identity();
+        if (!empty($sender)) {
+            return mailerpress_apply_sender_identity_to_config($config, $sender);
+        }
+    }
 
     if ('' !== $senderId && 'default' !== $senderId) {
         $sender = mailerpress_find_email_sender_by_id($senderId);
@@ -751,7 +776,7 @@ function mailerpress_cancel_scheduled_automated_campaign_actions(int $campaignId
         'hook' => 'mailerpress_run_campaign_once',
         'group' => 'mailerpress',
         'status' => \ActionScheduler_Store::STATUS_PENDING,
-        'per_page' => 1000,
+        'per_page' => -1,
     ]);
 
     $cancelled = 0;
@@ -1036,7 +1061,6 @@ Thank you,
     // Restore line breaks in emailContent by reading the original (untranslated) value
     // and applying its \n\n structure to the translated text.
     if (!empty($result['emailContent'])) {
-        $before = $result['emailContent'];
         $result['emailContent'] = mailerpress_restore_newlines_from_original($result['emailContent']);
     }
 
@@ -1052,7 +1076,11 @@ Thank you,
  * For each segment ending in the original, find the corresponding ending in the translated text
  * (same trailing punctuation/tag pattern) and insert \n\n after it.
  */
-function mailerpress_restore_newlines_from_original(string $translatedContent): string
+function mailerpress_restore_newlines_from_original(
+    string $translatedContent,
+    string $optionName = 'mailerpress_signup_confirmation',
+    string $contentKey = 'emailContent'
+): string
 {
     // If the translated content already has \n\n, it's fine — no restoration needed
     if (str_contains($translatedContent, "\n\n")) {
@@ -1072,7 +1100,7 @@ function mailerpress_restore_newlines_from_original(string $translatedContent): 
     global $wpdb;
     $rawValue = $wpdb->get_var($wpdb->prepare(
         "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
-        'mailerpress_signup_confirmation'
+        $optionName
     ));
 
     if (!$rawValue) {
@@ -1081,11 +1109,11 @@ function mailerpress_restore_newlines_from_original(string $translatedContent): 
 
     $originalOption = maybe_unserialize($rawValue);
 
-    if (!is_array($originalOption) || empty($originalOption['emailContent'])) {
+    if (!is_array($originalOption) || empty($originalOption[$contentKey])) {
         return $translatedContent;
     }
 
-    $originalContent = $originalOption['emailContent'];
+    $originalContent = $originalOption[$contentKey];
 
     if (!str_contains($originalContent, "\n\n")) {
         return $translatedContent;

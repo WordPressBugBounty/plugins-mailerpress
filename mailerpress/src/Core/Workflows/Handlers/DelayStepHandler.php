@@ -5,6 +5,7 @@ namespace MailerPress\Core\Workflows\Handlers;
 use MailerPress\Core\Workflows\Models\Step;
 use MailerPress\Core\Workflows\Models\AutomationJob;
 use MailerPress\Core\Workflows\Results\StepResult;
+use MailerPress\Core\Workflows\Services\ActionSchedulerManager;
 
 class DelayStepHandler implements StepHandlerInterface
 {
@@ -77,17 +78,11 @@ class DelayStepHandler implements StepHandlerInterface
 
         $timestamp = $this->calculateTimestamp($value, $unit);
 
-        if (function_exists('as_schedule_single_action')) {
-            as_schedule_single_action(
-                $timestamp,
-                'mailerpress_continue_workflow',
-                [
-                    'job_id' => $job->getId(),
-                    'next_step_id' => $step->getNextStepId(),
-                ],
-                'mailerpress_workflows'
-            );
-        }
+        ActionSchedulerManager::scheduleContinue(
+            $timestamp,
+            (int) $job->getId(),
+            $step->getNextStepId()
+        );
 
         $job->setScheduledAt(date('Y-m-d H:i:s', $timestamp));
         $job->setNextStepId($step->getNextStepId());

@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name: MailerPress
  * Plugin URI: https://mailerpress.com/
  * Description: Create beautiful emails simply inside WordPress connected to your favorite Email Service Provider
- * Version: 2.0.7
+ * Version: 2.1.0
  * Author: Team MailerPress
  * Author URI: https://mailerpress.com/
  * License: GPLv3 or later
@@ -44,7 +44,7 @@ use MailerPress\Services\Activation;
 use MailerPress\Services\DeactivatePro;
 
 // Define constants
-define('MAILERPRESS_VERSION', '2.0.7');
+define('MAILERPRESS_VERSION', '2.1.0');
 define('MAILERPRESS_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 define('MAILERPRESS_PLUGIN_DIR_URL', plugin_dir_url(__FILE__));
 define('MAILERPRESS_ASSETS_DIR', MAILERPRESS_PLUGIN_DIR_URL . 'assets');
@@ -99,6 +99,10 @@ try {
 
         // Hook pour permettre à d'autres parties du plugin d'enregistrer des triggers personnalisés
         do_action('mailerpress_register_custom_triggers', $manager->getTriggerManager());
+
+        // Les goals (benchmarks) promeuvent les triggers déclarés ci-dessus :
+        // ils doivent donc être initialisés après l'enregistrement des triggers.
+        $manager->bootGoals();
 
         // Initialize notification messages
         NotificationBootstrap::init();

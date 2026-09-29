@@ -7,7 +7,7 @@ defined('ABSPATH') || exit;
 use MailerPress\Core\Notifications\AbstractNotificationMessage;
 
 /**
- * Notification for MailerPress 2.0 product update
+ * Notification for MailerPress 2.1 product update
  * This is NOT persistent - once dismissed, it won't show again
  */
 class ProductUpdateNotification extends AbstractNotificationMessage
@@ -19,7 +19,7 @@ class ProductUpdateNotification extends AbstractNotificationMessage
 
     public function getMessage(): string
     {
-        return __('MailerPress 2.0 is here! 🚀 Automate your email workflows with the all-new Automations (Beta) and much more.', 'mailerpress');
+        return __('MailerPress 2.1 is here! 🚀 Discover the new A/B testing features and optimize your email campaigns.', 'mailerpress');
     }
 
     public function shouldDisplay(): bool

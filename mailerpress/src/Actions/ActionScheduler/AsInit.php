@@ -8,6 +8,8 @@ namespace MailerPress\Actions\ActionScheduler;
 
 use MailerPress\Actions\ActionScheduler\Processors\ProcessChunkDeleteContact;
 use MailerPress\Actions\ActionScheduler\Processors\ProcessChunkImportContact;
+use MailerPress\Actions\ActionScheduler\Processors\ProcessMigrationChunk;
+use MailerPress\Core\Migration\MigrationManager;
 use MailerPress\Api\CountDown;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Attributes\Filter;
@@ -26,6 +28,7 @@ final class AsInit
         // This ensures hooks are available for async requests
         $this->registerImportChunkProcessor();
         $this->registerDeleteChunkProcessor();
+        $this->registerMigrationChunkProcessor();
 
         CountDown::cleanupExpired();
 
@@ -222,6 +225,23 @@ final class AsInit
                 if ($container && $container->has(ProcessChunkDeleteContact::class)) {
                     $processor = $container->get(ProcessChunkDeleteContact::class);
                     add_action('process_delete_chunk', [$processor, 'processDeleteChunk'], 10, 1);
+                }
+            } catch (\Exception $e) {
+            }
+        }
+    }
+
+    /**
+     * Register the plugin migration chunk processor callback explicitly.
+     */
+    private function registerMigrationChunkProcessor(): void
+    {
+        if (!has_action(MigrationManager::PROCESS_CHUNK_HOOK)) {
+            try {
+                $container = Kernel::getContainer();
+                if ($container && $container->has(ProcessMigrationChunk::class)) {
+                    $processor = $container->get(ProcessMigrationChunk::class);
+                    add_action(MigrationManager::PROCESS_CHUNK_HOOK, [$processor, 'processMigrationChunk'], 10, 1);
                 }
             } catch (\Exception $e) {
             }

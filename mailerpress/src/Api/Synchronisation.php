@@ -52,6 +52,24 @@ class Synchronisation
         }
 
         if ($request->get_method() === 'POST') {
+            if ($connector instanceof \MailerPress\Core\Synchronisation\ProConnectorStub) {
+                return new \WP_Error('pro_required', __('WordPress synchronization requires MailerPress Pro.', 'mailerpress'), ['status' => 403]);
+            }
+            $records = $this->manager->getConfigurations($key);
+            if (count($records) > 1) {
+                return new \WP_Error('sync_configuration_required', __('Choose a synchronization configuration before saving settings.', 'mailerpress'), ['status' => 409]);
+            }
+            if (method_exists($connector, 'startSync')) {
+                $target = '/mailerpress/v1/sync/wordpress-users' . ($records ? '/' . $records[0]->id : '');
+                $forward = new \WP_REST_Request('POST', $target);
+                $forward->set_headers($request->get_headers());
+                $forward->set_body_params([
+                    'label' => $records ? $records[0]->label : $connector->getLabel(),
+                    'settings' => $request->get_param('settings') ?? [],
+                    'status' => $request->get_param('status') ?? 'inactive',
+                ]);
+                return rest_do_request($forward);
+            }
             $settings = $request->get_param('settings') ?? [];
             $status   = $request->get_param('status') ?? 'inactive';
 
@@ -137,6 +155,22 @@ class Synchronisation
 
         if (!$connector) {
             return new \WP_Error('not_found', __('Connector not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        $records = $this->manager->getConfigurations($key);
+        if (count($records) > 1) {
+            return new \WP_Error('sync_configuration_required', __('Choose a synchronization configuration before running it.', 'mailerpress'), ['status' => 409]);
+        }
+        if ($connector instanceof \MailerPress\Core\Synchronisation\ProConnectorStub) {
+            return new \WP_Error('pro_required', __('WordPress synchronization requires MailerPress Pro.', 'mailerpress'), ['status' => 403]);
+        }
+        if (method_exists($connector, 'startSync')) {
+            if (!$records) {
+                return new \WP_Error('not_configured', __('Save a synchronization configuration first.', 'mailerpress'), ['status' => 400]);
+            }
+            $forward = new \WP_REST_Request('POST', '/mailerpress/v1/sync/wordpress-users/' . $records[0]->id . '/sync');
+            $forward->set_headers($request->get_headers());
+            return rest_do_request($forward);
         }
 
         $record   = $this->manager->getDbRecord($key);

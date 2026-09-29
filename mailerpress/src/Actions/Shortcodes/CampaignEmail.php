@@ -135,8 +135,9 @@ class CampaignEmail
      */
     private function outputRawHtml(string $html, int $campaign_id): void
     {
-        // Remove footer-email elements
-        $html = $this->removeFooterEmailElements($html);
+
+        // Strip conditional display markers, keep only default content
+        $html = $this->stripConditionalMarkers($html);
 
         // Clean merge tags from public view
         $html = $this->cleanMergeTags($html);
@@ -183,11 +184,41 @@ class CampaignEmail
     }
 
     /**
+     * Strip conditional display markers, keeping only the default content.
+     */
+    private function stripConditionalMarkers(string $html): string
+    {
+        if ( false === strpos( $html, '%%MP_COND_START%%' ) ) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '/%%MP_COND_START%%.+?%%MP_COND_START%%(.*?)%%MP_COND_END%%/s',
+            function ( $matches ) {
+                $innerHtml = $matches[1];
+                $parts     = preg_split( '/%%MP_COND_VARIANT%%[a-f0-9-]+%%MP_COND_VARIANT%%/', $innerHtml, 2 );
+
+                return $parts[0] ?? '';
+            },
+            $html
+        ) ?? $html;
+    }
+
+    /**
      * Clean merge tags from HTML for public display
      * Removes merge tag spans and their placeholders
      */
     private function cleanMergeTags(string $html): string
     {
+        // Recipient-specific subscription actions do not apply to public previews.
+        $subscription_link = '<a\b(?=[^>]*\bhref\s*=\s*["\']%(?:UNSUB_LINK|MANAGE_SUB_LINK)%["\'])[^>]*>.*?<\/a>';
+        $subscription_separator = '(?:\s|&nbsp;)*(?:\||&#124;)(?:\s|&nbsp;)*';
+        $html = preg_replace(
+            '/(?:' . $subscription_separator . ')?' . $subscription_link . '(?:' . $subscription_separator . ')?/is',
+            '',
+            $html
+        ) ?? $html;
+
         // Remove merge-tag-span elements completely (they contain {{placeholder}} text)
         $html = preg_replace(
             '/<span[^>]*class\s*=\s*["\'][^"\']*merge-tag-span[^"\']*["\'][^>]*>.*?<\/span>/is',
@@ -197,28 +228,10 @@ class CampaignEmail
 
         // Also remove any remaining raw merge tag placeholders like {{contact_first_name}}
         $html = preg_replace('/\{\{[a-z_]+\}\}/i', '', $html) ?? $html;
+        $html = preg_replace('/%(?:UNSUB_LINK|MANAGE_SUB_LINK)%/i', '', $html) ?? $html;
 
         // Clean up any leftover &nbsp; that might be around removed tags
         $html = preg_replace('/(&nbsp;\s*)+(&nbsp;)?/i', ' ', $html) ?? $html;
-
-        return $html;
-    }
-
-    /**
-     * Remove footer-email elements from HTML
-     */
-    private function removeFooterEmailElements(string $html): string
-    {
-        // Simple regex approach - remove elements with footer-email class
-        $patterns = [
-            '/<table[^>]*class\s*=\s*["\'][^"\']*footer-email[^"\']*["\'][^>]*>.*?<\/table>/is',
-            '/<div[^>]*class\s*=\s*["\'][^"\']*footer-email[^"\']*["\'][^>]*>.*?<\/div>/is',
-            '/<[^>]*class\s*=\s*["\'][^"\']*footer-email[^"\']*["\'][^>]*>.*?<\/[^>]+>/is',
-        ];
-
-        foreach ($patterns as $pattern) {
-            $html = preg_replace($pattern, '', $html) ?? $html;
-        }
 
         return $html;
     }

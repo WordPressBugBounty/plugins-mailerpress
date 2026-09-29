@@ -31,12 +31,16 @@ final class TemplatesCategories
 
         // Build query to get categories filtered by usage_type if provided
         if (!empty($usage_type) && in_array($usage_type, ['newsletter', 'automation'], true)) {
+            $usageWhere = $usage_type === 'newsletter'
+                ? '(t.usage_type = %s OR t.usage_type IS NULL)'
+                : 't.usage_type = %s';
+
             $categories = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT DISTINCT c.category_id, c.name AS label
                      FROM {$categoriesTable} c
                      INNER JOIN {$templatesTable} t ON c.category_id = t.cat_id
-                     WHERE c.type = %s AND t.usage_type = %s
+                     WHERE c.type = %s AND {$usageWhere}
                      ORDER BY c.name ASC",
                     'template',
                     $usage_type
@@ -76,12 +80,19 @@ final class TemplatesCategories
 
         // Fetch all categories where type = 'template', optionally filtered by usage_type
         if (!empty($usage_type) && in_array($usage_type, ['newsletter', 'automation'], true)) {
+            $usageWhere = $usage_type === 'newsletter'
+                ? '(t.usage_type = %s OR t.usage_type IS NULL)'
+                : 't.usage_type = %s';
+            $entryUsageWhere = $usage_type === 'newsletter'
+                ? '(usage_type = %s OR usage_type IS NULL)'
+                : 'usage_type = %s';
+
             $categories = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT DISTINCT c.category_id, c.name AS label 
                      FROM {$categoriesTable} c
                      INNER JOIN {$templatesTable} t ON c.category_id = t.cat_id
-                     WHERE c.type = %s AND t.usage_type = %s",
+                     WHERE c.type = %s AND {$usageWhere}",
                     'template',
                     $usage_type
                 ),
@@ -93,7 +104,7 @@ final class TemplatesCategories
                 $wpdb->prepare(
                     "SELECT cat_id, COUNT(*) AS total_entries
                      FROM {$templatesTable}
-                     WHERE usage_type = %s
+                     WHERE {$entryUsageWhere}
                      GROUP BY cat_id",
                     $usage_type
                 ),

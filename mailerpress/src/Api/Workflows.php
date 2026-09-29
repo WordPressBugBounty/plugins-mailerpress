@@ -2,18 +2,99 @@
 
 namespace MailerPress\Api;
 
+use MailerPress\Actions\Workflows\WooCommerce\CustomerInactiveTrigger;
+use MailerPress\Actions\Workflows\MailerPress\Triggers\CustomTrigger;
+use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Workflows\WorkflowSystem;
 use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 use MailerPress\Core\Workflows\Repositories\AutomationJobRepository;
+use MailerPress\Core\Workflows\Repositories\GoalRepository;
 use MailerPress\Core\Workflows\Repositories\StepRepository;
+use MailerPress\Core\Workflows\Handlers\CreateWordPressUserStepHandler;
 use MailerPress\Api\Permissions;
 use MailerPress\Models\Contacts;
 use MailerPress\Models\CustomFields;
+use MailerPress\Services\AiUsageGuard;
+use MailerPress\Services\Logger;
 
 class Workflows
 {
+    private function validateSensitiveNodes(array $nodes, \WP_REST_Request $request): bool|\WP_Error
+    {
+        foreach ($nodes as $node) {
+            if (!is_array($node)) {
+                return new \WP_Error('invalid_data', __('Invalid workflow node.', 'mailerpress'), ['status' => 400]);
+            }
+
+            if (($node['type'] ?? null) === 'TRIGGER' && ($node['key'] ?? null) === CustomTrigger::TRIGGER_KEY) {
+                if (ApiAuthentication::isApiKeyRequest($request) || !current_user_can('manage_options')) {
+                    return new \WP_Error('rest_forbidden', __('Only administrators can configure custom hook triggers.', 'mailerpress'), ['status' => 403]);
+                }
+
+                $settings = $node['settings'] ?? [];
+                if (!is_array($settings) || !CustomTrigger::isAllowedHookName($settings['hook_name'] ?? null)) {
+                    return new \WP_Error('invalid_hook_name', __('Custom hook names must start with mailerpress_custom_ or be allowed by site code.', 'mailerpress'), ['status' => 400]);
+                }
+            }
+
+            if (($node['key'] ?? null) === 'create_wp_user') {
+                if (ApiAuthentication::isApiKeyRequest($request) || !current_user_can('create_users') || !current_user_can('promote_users')) {
+                    return new \WP_Error('rest_forbidden', __('Only user administrators can configure WordPress user creation.', 'mailerpress'), ['status' => 403]);
+                }
+
+                $settings = $node['settings'] ?? [];
+                if (!is_array($settings) || !CreateWordPressUserStepHandler::isAllowedRole($settings['role'] ?? 'subscriber')) {
+                    return new \WP_Error('invalid_role', __('This WordPress user role is not allowed in workflows.', 'mailerpress'), ['status' => 400]);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private function validateStoredSensitiveNodes(int $automationId, StepRepository $stepRepo, \WP_REST_Request $request): bool|\WP_Error
+    {
+        $nodes = [];
+        foreach ($stepRepo->findByAutomationId($automationId) as $step) {
+            $nodes[] = [
+                'type' => $step->getType(),
+                'key' => $step->getKey(),
+                'settings' => $step->getSettings(),
+            ];
+        }
+
+        return $this->validateSensitiveNodes($nodes, $request);
+    }
+
+    private function automationOwnerWhere(\WP_REST_Request $request, string $column = 'author'): string
+    {
+        if (ApiAuthentication::isApiKeyRequest($request) || current_user_can('edit_others_posts')) {
+            return '';
+        }
+
+        global $wpdb;
+
+        return $wpdb->prepare(" AND {$column} = %d", get_current_user_id());
+    }
+
+    private function automationResourceOwnerWhere(\WP_REST_Request $request, string $column = 'automation_id'): string
+    {
+        if (ApiAuthentication::isApiKeyRequest($request) || current_user_can('edit_others_posts')) {
+            return '';
+        }
+
+        global $wpdb;
+
+        $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
+
+        return $wpdb->prepare(
+            " AND {$column} IN (SELECT id FROM {$automationsTable} WHERE author = %d)",
+            get_current_user_id()
+        );
+    }
+
     #[Endpoint(
         'workflows/triggers',
         methods: 'GET',
@@ -98,6 +179,34 @@ class Workflows
     }
 
     #[Endpoint(
+        'workflows/goals',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canManageAutomations'],
+    )]
+    public function getGoals(): \WP_REST_Response
+    {
+        $definitions = WorkflowSystem::getInstance()
+            ->getManager()
+            ->getGoalManager()
+            ->getRegistry()
+            ->getDefinitions();
+
+        $isPro = $this->isProActive();
+        $result = [];
+
+        foreach ($definitions as $definition) {
+            // Goals are a Pro capability: the editor still lists them so the
+            // upsell can explain what they do, but flags them as locked.
+            $definition['requires_pro'] = true;
+            $definition['is_locked'] = !$isPro;
+
+            $result[] = $definition;
+        }
+
+        return new \WP_REST_Response($result, 200);
+    }
+
+    #[Endpoint(
         'workflows/conditions',
         methods: 'GET',
         permissionCallback: [Permissions::class, 'canManageAutomations'],
@@ -178,7 +287,7 @@ class Workflows
             $fields[] = $fieldConfig;
         }
 
-        if (function_exists('wc_get_customer_total_spent')) {
+        if ($this->isWooCommerceActiveForAi()) {
             $fields = array_merge($fields, [
                 ['key' => 'wc_total_spent', 'label' => 'Total Spent', 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => 'Total amount spent by the customer'],
                 ['key' => 'wc_order_count', 'label' => 'Order Count', 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => 'Number of orders placed by the customer'],
@@ -216,7 +325,7 @@ class Workflows
     #[Endpoint(
         'workflows/woocommerce/categories',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canUseEditorContent']
     )]
     public function getWooCommerceCategories(): \WP_REST_Response
     {
@@ -248,7 +357,7 @@ class Workflows
     #[Endpoint(
         'workflows/woocommerce/products',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canUseEditorContent']
     )]
     public function getWooCommerceProducts(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -256,18 +365,36 @@ class Workflows
             return new \WP_REST_Response([], 200);
         }
 
-        $search = $request->get_param('search') ?? '';
-        $per_page = (int) ($request->get_param('per_page') ?? 50);
+        $search = trim(sanitize_text_field((string) ($request->get_param('search') ?? '')));
+        $search_product_id = preg_match('/^#?([0-9]+)$/D', $search, $id_match)
+            ? absint($id_match[1])
+            : null;
+        $per_page = min(100, max(1, (int) ($request->get_param('per_page') ?? 50)));
+        $include_variations = filter_var($request->get_param('include_variations'), FILTER_VALIDATE_BOOLEAN);
+        $paginate = !$include_variations && filter_var($request->get_param('paginate'), FILTER_VALIDATE_BOOLEAN);
 
         $args = [
             'limit' => $per_page,
+            'page' => max(1, (int) ($request->get_param('page') ?? 1)),
+            'paginate' => $paginate,
             'status' => 'publish',
-            'orderby' => 'title',
+            'orderby' => ['title' => 'ASC', 'ID' => 'ASC'],
             'order' => 'ASC',
         ];
 
-        if (!empty($search)) {
-            $args['search'] = sanitize_text_field($search);
+        if ($search_product_id !== null) {
+            $args['include'] = [$search_product_id];
+        } elseif ($search !== '') {
+            $args['s'] = $search;
+        }
+
+        // Product search only matches titles and content, so also resolve an exact slug.
+        $slug_product = null;
+        if ($search_product_id === null && $search !== '' && $args['page'] === 1 && sanitize_title($search) === $search) {
+            $slug_post = get_page_by_path($search, OBJECT, 'product');
+            if ($slug_post && 'publish' === $slug_post->post_status) {
+                $slug_product = wc_get_product($slug_post->ID);
+            }
         }
 
         $products = wc_get_products($args);
@@ -276,47 +403,138 @@ class Workflows
             return new \WP_REST_Response([], 200);
         }
 
+        $total = $paginate ? (int) $products->total : 0;
+        $total_pages = $paginate ? (int) $products->max_num_pages : 0;
+        $products = $paginate ? $products->products : $products;
+
         $full = filter_var($request->get_param('full'), FILTER_VALIDATE_BOOLEAN);
+        $formatted = [];
+        $seen = [];
 
-        $formatted = array_map(function ($product) use ($full) {
-            $item = [
-                'label' => $product->get_name() . ' (#' . $product->get_id() . ')',
-                'value' => (string) $product->get_id(),
-            ];
+        foreach ($products as $product) {
+            $this->appendWooCommerceProductOption($formatted, $seen, $product, $full);
 
-            if ($full) {
-                $imageId = $product->get_image_id();
-                $imageUrl = $imageId ? wp_get_attachment_image_url($imageId, 'large') : '';
-
-                $images = [];
-                if ($imageId) {
-                    foreach (['thumbnail', 'medium', 'large'] as $size) {
-                        $url = wp_get_attachment_image_url($imageId, $size);
-                        if ($url) {
-                            $images[$size] = $url;
-                        }
+            if ($include_variations && method_exists($product, 'get_children')) {
+                foreach ((array) $product->get_children() as $variation_id) {
+                    $variation = wc_get_product($variation_id);
+                    if ($variation) {
+                        $this->appendWooCommerceProductOption($formatted, $seen, $variation, $full);
                     }
                 }
+            }
+        }
 
-                $item['product_name'] = $product->get_name();
-                $item['product_price'] = $product->get_price();
-                $item['product_currency'] = get_woocommerce_currency();
-                $item['product_description'] = $product->get_short_description();
-                $item['product_url'] = get_permalink($product->get_id());
-                $item['product_image_url'] = $imageUrl ?: '';
-                $item['product_images'] = $images;
+        if ($slug_product) {
+            $count_before = count($formatted);
+            $this->appendWooCommerceProductOption($formatted, $seen, $slug_product, $full);
+            if ($paginate && count($formatted) > $count_before) {
+                $total++;
+            }
+        }
+
+        if ($include_variations) {
+            $variation_args = [
+                'limit' => $per_page,
+                'status' => ['publish', 'private'],
+                'type' => ['variation', 'subscription_variation'],
+                'orderby' => 'title',
+                'order' => 'ASC',
+            ];
+
+            if ($search_product_id !== null) {
+                $variation_args['include'] = [$search_product_id];
+            } elseif ($search !== '') {
+                $variation_args['s'] = $search;
             }
 
-            return $item;
-        }, $products);
+            $variations = wc_get_products($variation_args);
+            if (!is_wp_error($variations)) {
+                foreach ($variations as $variation) {
+                    $this->appendWooCommerceProductOption($formatted, $seen, $variation, $full);
+                }
+            }
+        }
 
-        return new \WP_REST_Response($formatted, 200);
+        usort($formatted, function ($a, $b) {
+            return strcmp($a['label'], $b['label']);
+        });
+
+        $response = new \WP_REST_Response($formatted, 200);
+        if ($paginate) {
+            $response->header('X-WP-Total', $total);
+            $response->header('X-WP-TotalPages', $total_pages);
+        }
+
+        return $response;
+    }
+
+    private function appendWooCommerceProductOption(array &$formatted, array &$seen, $product, bool $full): void
+    {
+        if (!$product || !method_exists($product, 'get_id')) {
+            return;
+        }
+
+        $product_id = (int) $product->get_id();
+        if ($product_id <= 0 || isset($seen[$product_id])) {
+            return;
+        }
+
+        $seen[$product_id] = true;
+        $is_variation = method_exists($product, 'get_parent_id') && (int) $product->get_parent_id() > 0;
+        $parent_id = $is_variation ? (int) $product->get_parent_id() : 0;
+        $parent = $parent_id > 0 ? wc_get_product($parent_id) : null;
+
+        $label = $product->get_name() . ' (#' . $product_id . ')';
+        if ($is_variation) {
+            $parent_name = $parent ? $parent->get_name() : $product->get_name();
+            $variation_label = function_exists('wc_get_formatted_variation')
+                ? wc_get_formatted_variation($product, true, false, true)
+                : '';
+            $label = $parent_name . ' - ' . ($variation_label ?: __('Variation', 'mailerpress')) . ' (#' . $product_id . ')';
+        }
+
+        $item = [
+            'label' => $label,
+            'value' => (string) $product_id,
+            'type' => method_exists($product, 'get_type') ? $product->get_type() : '',
+            'is_variation' => $is_variation,
+            'parent_id' => $parent_id ? (string) $parent_id : '',
+        ];
+
+        if ($full) {
+            $imageId = $product->get_image_id();
+            if (!$imageId && $parent) {
+                $imageId = $parent->get_image_id();
+            }
+
+            $imageUrl = $imageId ? wp_get_attachment_image_url($imageId, 'large') : '';
+
+            $images = [];
+            if ($imageId) {
+                foreach (['thumbnail', 'medium', 'large'] as $size) {
+                    $url = wp_get_attachment_image_url($imageId, $size);
+                    if ($url) {
+                        $images[$size] = $url;
+                    }
+                }
+            }
+
+            $item['product_name'] = $product->get_name();
+            $item['product_price'] = $product->get_price();
+            $item['product_currency'] = get_woocommerce_currency();
+            $item['product_description'] = $product->get_short_description();
+            $item['product_url'] = get_permalink($parent_id ?: $product_id);
+            $item['product_image_url'] = $imageUrl ?: '';
+            $item['product_images'] = $images;
+        }
+
+        $formatted[] = $item;
     }
 
     #[Endpoint(
         'workflows/woocommerce/product-tags',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canUseEditorContent']
     )]
     public function getWooCommerceProductTags(): \WP_REST_Response
     {
@@ -348,7 +566,7 @@ class Workflows
     #[Endpoint(
         'workflows/surecart/products',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canUseEditorContent']
     )]
     public function getSureCartProducts(\WP_REST_Request $request): \WP_REST_Response
     {
@@ -450,24 +668,35 @@ class Workflows
 
         // Build WHERE clause
         $where = [];
-        $params = [];
+        $whereParams = [];
         $joins = [];
+        $joinParams = [];
 
         if (!empty($search)) {
             $where[] = 'a.name LIKE %s';
-            $params[] = '%' . $wpdb->esc_like($search) . '%';
+            $whereParams[] = '%' . $wpdb->esc_like($search) . '%';
         }
 
         if (!empty($status)) {
             $where[] = 'a.status = %s';
-            $params[] = $status;
+            $whereParams[] = $status;
+        }
+
+        if (
+            !ApiAuthentication::isApiKeyRequest($request)
+            && !current_user_can('edit_others_posts')
+        ) {
+            $where[] = 'a.author = %d';
+            $whereParams[] = get_current_user_id();
         }
 
         // Use INNER JOIN instead of EXISTS for better performance when filtering by trigger_type
         if (!empty($triggerType)) {
             $joins[] = "INNER JOIN {$stepsTable} s ON s.automation_id = a.id AND s.type = 'TRIGGER' AND s.key = %s";
-            $params[] = $triggerType;
+            $joinParams[] = $triggerType;
         }
+
+        $params = array_merge($joinParams, $whereParams);
 
         $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
         $joinClause = !empty($joins) ? implode(' ', $joins) : '';
@@ -684,6 +913,26 @@ class Workflows
             );
         }
 
+        if ($this->nodesContainGoal($nodes) && !$this->isProActive()) {
+            return new \WP_Error(
+                'pro_required',
+                __('Goals require MailerPress Pro. Please upgrade to measure conversions inside your automations.', 'mailerpress'),
+                ['status' => 403]
+            );
+        }
+
+        $sensitiveNodesValidation = $this->validateSensitiveNodes($nodes, $request);
+        if ($sensitiveNodesValidation !== true) {
+            return $sensitiveNodesValidation;
+        }
+
+        if (($automationData['status'] ?? null) === 'ENABLED') {
+            $validationErrors = $this->validateWorkflowBeforeActivation($nodes);
+            if (!empty($validationErrors)) {
+                return new \WP_Error('activation_validation_failed', implode("\n", $validationErrors), ['status' => 400, 'errors' => $validationErrors]);
+            }
+        }
+
         // Create automation
         $automationId = $automationRepo->create([
             'name' => $automationData['name'] ?? 'New Workflow',
@@ -757,6 +1006,20 @@ class Workflows
         // Templates that require Pro version
         $proTemplates = [
             'email-sequence',
+            'nurture-until-purchase',
+            // Goal-based templates
+            'goal-double-optin',
+            'goal-profile-completion',
+            'goal-dormant-login',
+            'goal-premium-upgrade',
+            'goal-chain-sequences',
+            'goal-custom-hook',
+            'goal-lead-magnet-click',
+            'goal-activation-tag',
+            'goal-engagement-measurement',
+            'goal-reengagement-entry',
+            'goal-nurture-until-order',
+            'goal-second-order',
             'post-purchase-followup',
             'tag-and-email',
             'customer-first-order-journey',
@@ -788,6 +1051,199 @@ class Workflows
             && is_plugin_active('mailerpress-pro/mailerpress-pro.php');
     }
 
+    private function isPluginActiveForAi(string $pluginFile): bool
+    {
+        if (function_exists('is_plugin_active') && is_plugin_active($pluginFile)) {
+            return true;
+        }
+
+        $activePlugins = (array) get_option('active_plugins', []);
+        if (function_exists('apply_filters')) {
+            $activePlugins = (array) apply_filters('active_plugins', $activePlugins);
+        }
+
+        if (in_array($pluginFile, $activePlugins, true)) {
+            return true;
+        }
+
+        if (function_exists('is_multisite') && is_multisite() && function_exists('get_site_option')) {
+            $networkActivePlugins = (array) get_site_option('active_sitewide_plugins', []);
+            if (isset($networkActivePlugins[$pluginFile])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isWooCommerceActiveForAi(): bool
+    {
+        return class_exists('WooCommerce')
+            || function_exists('WC')
+            || function_exists('wc_get_order')
+            || function_exists('wc_get_order_statuses')
+            || function_exists('wc_get_customer_total_spent')
+            || defined('WC_VERSION')
+            || defined('WC_PLUGIN_FILE')
+            || $this->isPluginActiveForAi('woocommerce/woocommerce.php');
+    }
+
+    private function isWooCommerceSubscriptionsActiveForAi(): bool
+    {
+        return class_exists('WC_Subscriptions')
+            || function_exists('wcs_get_subscription')
+            || $this->isPluginActiveForAi('woocommerce-subscriptions/woocommerce-subscriptions.php');
+    }
+
+    private function isSureCartActiveForAi(): bool
+    {
+        return class_exists('\SureCart\SureCart')
+            || class_exists('\SureCart\Models\Purchase')
+            || function_exists('surecart')
+            || defined('SURECART_PLUGIN_FILE')
+            || defined('SURECART_VERSION')
+            || $this->isPluginActiveForAi('surecart/surecart.php');
+    }
+
+    private function buildAiIntegrationsContext(array $triggers, array $conditions, array $actions): string
+    {
+        $coreCategories = [
+            'user',
+            'contact',
+            'content',
+            'engagement',
+            'email',
+            'general',
+            'mailerpress',
+            'campaign',
+            'communication',
+            'data',
+            'developer',
+            'logic',
+            'testing',
+            'timing',
+            'wordpress',
+        ];
+        $integrations = [];
+        $categoryPresence = [
+            'triggers' => [],
+            'conditions' => [],
+            'actions' => [],
+        ];
+
+        $markIntegration = static function (string $category, string $source) use (&$integrations): void {
+            $category = sanitize_key($category);
+            if ('' === $category) {
+                return;
+            }
+
+            $integrations[$category] ??= [];
+            $integrations[$category][$source] = true;
+        };
+
+        foreach ($triggers as $trigger) {
+            $category = sanitize_key((string)($trigger['category'] ?? ''));
+            if ('' !== $category && !in_array($category, $coreCategories, true)) {
+                $categoryPresence['triggers'][$category] = true;
+                $markIntegration($category, 'registered triggers');
+            }
+        }
+
+        foreach (($conditions['fields'] ?? []) as $field) {
+            $category = sanitize_key((string)($field['category'] ?? ''));
+            if ('' !== $category && !in_array($category, $coreCategories, true)) {
+                $categoryPresence['conditions'][$category] = true;
+                $markIntegration($category, 'registered condition fields');
+            }
+        }
+
+        foreach ($actions as $action) {
+            $category = sanitize_key((string)($action['category'] ?? ''));
+            if ('' !== $category && !in_array($category, $coreCategories, true)) {
+                $categoryPresence['actions'][$category] = true;
+                $markIntegration($category, 'registered actions');
+            }
+        }
+
+        if ($this->isWooCommerceActiveForAi()) {
+            $markIntegration('woocommerce', 'plugin detected');
+
+            if (empty($categoryPresence['triggers']['woocommerce'])) {
+                $this->logAiIntegrationDetectionIssue(
+                    'WooCommerce is active but no WooCommerce workflow triggers were registered for the AI context.',
+                    [
+                        'integration' => 'woocommerce',
+                        'missing_capability' => 'triggers',
+                        'trigger_count' => count($triggers),
+                        'condition_field_count' => count($conditions['fields'] ?? []),
+                    ]
+                );
+            }
+
+            if (empty($categoryPresence['conditions']['woocommerce'])) {
+                $this->logAiIntegrationDetectionIssue(
+                    'WooCommerce is active but no WooCommerce condition fields were registered for the AI context.',
+                    [
+                        'integration' => 'woocommerce',
+                        'missing_capability' => 'condition_fields',
+                        'trigger_count' => count($triggers),
+                        'condition_field_count' => count($conditions['fields'] ?? []),
+                    ]
+                );
+            }
+        }
+
+        if ($this->isWooCommerceSubscriptionsActiveForAi()) {
+            $markIntegration('woocommerce_subscriptions', 'plugin detected');
+        }
+
+        if ($this->isSureCartActiveForAi()) {
+            $markIntegration('surecart', 'plugin detected');
+        }
+
+        if (empty($integrations)) {
+            return "No third-party integrations are currently active. Only core MailerPress triggers and actions are available (user, contact, content, email). If the user asks about WooCommerce, SureCart, or any other plugin, tell them it's not installed or not integrated.";
+        }
+
+        ksort($integrations);
+
+        $integrationLines = [];
+        foreach ($integrations as $category => $sources) {
+            $integrationLines[] = sprintf(
+                '- %s: ACTIVE (%s)',
+                $this->getAiIntegrationDisplayName($category),
+                implode(', ', array_keys($sources))
+            );
+        }
+
+        return "Active third-party integrations:\n" . implode("\n", $integrationLines)
+            . "\n\nIf the user asks about a plugin/integration NOT listed above, it is NOT installed or not integrated with MailerPress. Tell them it's not available. For listed integrations, use only the triggers, actions, and condition fields available in the lists below.";
+    }
+
+    private function getAiIntegrationDisplayName(string $category): string
+    {
+        return match ($category) {
+            'woocommerce' => 'WooCommerce',
+            'woocommerce_subscriptions' => 'WooCommerce Subscriptions',
+            'surecart' => 'SureCart',
+            default => ucwords(str_replace(['_', '-'], ' ', $category)),
+        };
+    }
+
+    private function logAiIntegrationDetectionIssue(string $message, array $context): void
+    {
+        Logger::warning($message, $context);
+
+        if (
+            defined('WP_DEBUG')
+            && WP_DEBUG
+            && defined('WP_DEBUG_LOG')
+            && WP_DEBUG_LOG
+        ) {
+            error_log('[MailerPress AI] ' . $message . ' ' . wp_json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+    }
+
     /**
      * Validate workflow nodes before activation.
      * Checks that all send_email nodes have templates with actual HTML content.
@@ -797,9 +1253,16 @@ class Workflows
         $errors = [];
         $campaignsModel = new \MailerPress\Models\Campaigns();
 
+        $goalRegistry = WorkflowSystem::getInstance()->getManager()->getGoalManager()->getRegistry();
+
         foreach ($nodes as $node) {
             $key = $node['key'] ?? '';
             $type = $node['type'] ?? '';
+
+            if ($type === 'GOAL') {
+                $errors = array_merge($errors, $this->validateGoalNode($node, $goalRegistry));
+                continue;
+            }
 
             if ($type !== 'ACTION' || ($key !== 'send_email' && $key !== 'send_mail')) {
                 continue;
@@ -843,10 +1306,108 @@ class Workflows
         return $errors;
     }
 
+    /**
+     * Validate a single goal node before activation.
+     */
+    private function validateGoalNode(array $node, $goalRegistry): array
+    {
+        $errors = [];
+        $key = $node['key'] ?? '';
+        $settings = $node['settings'] ?? [];
+        $label = $settings['label'] ?? ($key ?: __('Goal', 'mailerpress'));
+
+        if (!$goalRegistry->has($key)) {
+            $errors[] = sprintf(
+                /* translators: %s: goal name */
+                __('"%s": this goal event is not available. The integration providing it may be disabled.', 'mailerpress'),
+                $label
+            );
+
+            return $errors;
+        }
+
+        $isEssential = ($settings['goal_mode'] ?? 'essential') !== 'optional';
+
+        // An essential goal with nothing after it holds contacts forever for no
+        // reason: there is no path to resume once the event happens.
+        if ($isEssential && empty($node['next_step_id'])) {
+            $errors[] = sprintf(
+                /* translators: %s: goal name */
+                __('"%s": an essential goal needs at least one step after it, otherwise contacts wait with nowhere to go.', 'mailerpress'),
+                $label
+            );
+        }
+
+        return $errors;
+    }
+
+    #[Endpoint(
+        'workflows/(?P<id>\d+)/goals',
+        methods: 'GET',
+        permissionCallback: [Permissions::class, 'canReadAutomation']
+    )]
+    public function getWorkflowGoalStats(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
+    {
+        $automationId = (int) $request->get_param('id');
+
+        $automation = (new AutomationRepository())->find($automationId);
+
+        if (!$automation) {
+            return new \WP_Error('not_found', 'Automation not found', ['status' => 404]);
+        }
+
+        $stats = (new GoalRepository())->getStatsByAutomation($automationId);
+        $goalSteps = (new StepRepository())->findByAutomationIdAndType($automationId, 'GOAL');
+        $registry = WorkflowSystem::getInstance()->getManager()->getGoalManager()->getRegistry();
+
+        $goals = [];
+        $totals = ['total' => 0, 'pending' => 0, 'achieved' => 0, 'expired' => 0, 'skipped' => 0];
+
+        foreach ($goalSteps as $step) {
+            $stepId = (string) $step->getStepId();
+            $settings = $step->getSettings() ?? [];
+            $definition = $registry->getDefinition((string) $step->getKey());
+
+            $stat = $stats[$stepId] ?? [
+                'total' => 0,
+                'pending' => 0,
+                'achieved' => 0,
+                'expired' => 0,
+                'skipped' => 0,
+                'conversion_rate' => 0.0,
+                'median_seconds' => null,
+            ];
+
+            foreach (array_keys($totals) as $metric) {
+                $totals[$metric] += (int) ($stat[$metric] ?? 0);
+            }
+
+            $goals[] = [
+                'step_id' => $stepId,
+                'goal_event' => $step->getKey(),
+                'label' => $settings['label'] ?? ($definition['label'] ?? $step->getKey()),
+                'mode' => ($settings['goal_mode'] ?? 'essential') === 'optional' ? 'optional' : 'essential',
+                'allow_entry' => !empty($settings['goal_allow_entry']),
+                'next_step_id' => $step->getNextStepId(),
+                'alternative_step_id' => $step->getAlternativeStepId(),
+                'stats' => $stat,
+            ];
+        }
+
+        $totals['conversion_rate'] = $totals['total'] > 0
+            ? round(($totals['achieved'] / $totals['total']) * 100, 2)
+            : 0.0;
+
+        return new \WP_REST_Response([
+            'goals' => $goals,
+            'totals' => $totals,
+        ], 200);
+    }
+
     #[Endpoint(
         'workflows/ai-generate',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageAutomations'],
+        permissionCallback: [Permissions::class, 'canUseAutomationAi'],
     )]
     public function aiGenerateWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -888,6 +1449,7 @@ class Workflows
         if (is_string($aiSettings)) {
             $aiSettings = json_decode($aiSettings, true);
         }
+        $aiSettings = \MailerPress\Services\DeepSeekConfig::normalizeSettings(is_array($aiSettings) ? $aiSettings : []);
 
         if (empty($aiSettings['text_ai']['provider']) || empty($aiSettings['api_keys'])) {
             return new \WP_Error(
@@ -1000,45 +1562,7 @@ class Workflows
             ? "EXISTING CUSTOM FIELDS in the user's MailerPress:\n" . implode("\n", $customFieldDescriptions)
             : "No custom fields exist yet in the user's MailerPress.";
 
-        // Detect active integrations automatically from registered trigger/condition categories
-        $coreCategories = ['user', 'contact', 'content', 'engagement', 'email', 'general'];
-        $integrationCategories = [];
-
-        // Collect categories from triggers
-        foreach ($triggers as $t) {
-            $cat = $t['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-
-        // Collect categories from condition fields
-        foreach (($conditions['fields'] ?? []) as $f) {
-            $cat = $f['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-
-        // Collect categories from actions
-        foreach ($actions as $a) {
-            $cat = $a['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-
-        // Build integrations context — active categories are plugins that registered triggers/conditions
-        $activeIntegrations = array_keys($integrationCategories);
-        if (!empty($activeIntegrations)) {
-            $integrationLines = array_map(function($cat) {
-                return '- ' . ucfirst($cat) . ': ACTIVE (triggers/conditions registered)';
-            }, $activeIntegrations);
-            $integrationsContext = "Active third-party integrations:\n" . implode("\n", $integrationLines)
-                . "\n\nIf the user asks about a plugin/integration NOT listed above, it is NOT installed or not integrated with MailerPress. Tell them it's not available.";
-        } else {
-            $integrationsContext = "No third-party integrations are currently active. Only core MailerPress triggers and actions are available (user, contact, content, email). If the user asks about WooCommerce, SureCart, or any other plugin, tell them it's not installed or not integrated.";
-        }
+        $integrationsContext = $this->buildAiIntegrationsContext($triggers, $conditions, $actions);
 
         // User locale for response language
         $current_user = wp_get_current_user();
@@ -1276,6 +1800,10 @@ PROMPT;
             $requestBody['temperature'] = 0.3;
         }
 
+        if ($provider === 'deepseek') {
+            $requestBody = \MailerPress\Services\DeepSeekConfig::prepareRequest($requestBody, $aiSettings['text_ai']);
+        }
+
         // Determine API URL based on provider
         $apiUrl = match($provider) {
             'openai' => 'https://api.openai.com/v1/chat/completions',
@@ -1341,6 +1869,25 @@ PROMPT;
             ];
         }
 
+        $requestBody = $this->applyStructuredJsonMode($provider, $requestBody);
+
+        $promptEstimate = AiUsageGuard::estimatePromptTokens($systemPrompt);
+        foreach ($messages as $msg) {
+            if (($msg['role'] ?? '') !== $systemRole) {
+                $promptEstimate += AiUsageGuard::estimatePromptTokens((string)($msg['content'] ?? ''));
+            }
+        }
+
+        $quotaError = AiUsageGuard::preflight($provider, $model, 'workflow_generation', [
+            'prompt_tokens' => $promptEstimate,
+            'completion_tokens' => 4000,
+            'tokens' => $promptEstimate + 4000,
+        ]);
+
+        if ($quotaError instanceof \WP_Error) {
+            return $quotaError;
+        }
+
         $response = wp_remote_post($apiUrl, [
             'headers' => $headers,
             'body' => wp_json_encode($requestBody),
@@ -1360,13 +1907,10 @@ PROMPT;
         $data = json_decode($responseBody, true);
 
         if ($statusCode !== 200) {
-            $errorMsg = $data['error']['message'] ?? $responseBody;
-            return new \WP_Error(
-                'ai_api_error',
-                __('AI provider error: ', 'mailerpress') . $errorMsg,
-                ['status' => 502]
-            );
+            return $this->buildAiProviderError($provider, $statusCode, $responseBody, $data);
         }
+
+        AiUsageGuard::recordProviderResponse($provider, $model, 'workflow_generation', $data);
 
         // Extract content based on provider
         if ($provider === 'anthropic') {
@@ -1394,14 +1938,18 @@ PROMPT;
         $content = preg_replace('/\s*```$/i', '', $content);
         $content = trim($content);
 
-        $parsed = json_decode($content, true);
+        $parseDiagnostic = [];
+        $parsed = $this->parseAiJsonContent($content, $parseDiagnostic);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return new \WP_Error(
-                'ai_invalid_json',
-                __('AI generated an invalid response. Please try again with a clearer description.', 'mailerpress'),
-                ['status' => 422]
-            );
+        if (null === $parsed) {
+            return $this->buildInvalidAiJsonError($content, [
+                'endpoint' => 'workflows/ai-generate',
+                'feature' => 'workflow_generation',
+                'provider' => $provider,
+                'model' => $model,
+                'conversation_messages' => count($conversationMessages),
+                'existing_nodes' => count($existingNodes),
+            ], $parseDiagnostic);
         }
 
         // Handle "questions" response type — AI needs more info
@@ -1634,6 +2182,259 @@ PROMPT;
     }
 
     /**
+     * Parse provider text into a JSON object, including common cases where the
+     * model wraps the JSON with prose despite the prompt instructions.
+     */
+    private function parseAiJsonContent(string $content, array &$diagnostic): ?array
+    {
+        $content = trim($content);
+        $diagnostic = [
+            'content_bytes' => strlen($content),
+            'content_sha256' => hash('sha256', $content),
+            'used_json_excerpt' => false,
+        ];
+
+        $parsed = json_decode($content, true);
+
+        if (JSON_ERROR_NONE === json_last_error() && is_array($parsed)) {
+            $diagnostic['parse_status'] = 'valid_json';
+            return $parsed;
+        }
+
+        $diagnostic['full_json_error'] = json_last_error_msg();
+
+        $start = strpos($content, '{');
+        $end = strrpos($content, '}');
+        $diagnostic['first_opening_brace'] = false === $start ? null : $start;
+        $diagnostic['last_closing_brace'] = false === $end ? null : $end;
+
+        if (false === $start || false === $end || $end <= $start) {
+            $diagnostic['parse_status'] = 'no_json_object_found';
+            return null;
+        }
+
+        $jsonExcerpt = substr($content, $start, $end - $start + 1);
+        $diagnostic['used_json_excerpt'] = true;
+        $diagnostic['excerpt_bytes'] = strlen($jsonExcerpt);
+
+        $parsed = json_decode($jsonExcerpt, true);
+
+        if (JSON_ERROR_NONE === json_last_error() && is_array($parsed)) {
+            $diagnostic['parse_status'] = 'valid_json_excerpt';
+            return $parsed;
+        }
+
+        $diagnostic['parse_status'] = 'invalid_json_excerpt';
+        $diagnostic['excerpt_json_error'] = json_last_error_msg();
+
+        return null;
+    }
+
+    private function buildInvalidAiJsonError(string $content, array $context = [], array $diagnostic = []): \WP_Error
+    {
+        $logId = $this->logInvalidAiJsonResponse($content, $context, $diagnostic);
+
+        return new \WP_Error(
+            'ai_invalid_json',
+            sprintf(
+                __('The AI returned a response that MailerPress could not read. Log ID: %s. Please check the AI diagnostic logs for details.', 'mailerpress'),
+                $logId
+            ),
+            [
+                'status' => 422,
+                'log_id' => $logId,
+                'debug_hint' => __('Check wp-content/debug.log or wp-content/plugins/mailerpress/logs when MailerPress debug logging is enabled.', 'mailerpress'),
+            ]
+        );
+    }
+
+    private function logInvalidAiJsonResponse(string $content, array $context = [], array $diagnostic = []): string
+    {
+        $logId = 'mp_ai_' . gmdate('YmdHis') . '_' . substr(str_replace('-', '', wp_generate_uuid4()), 0, 12);
+        $logContext = [
+            'log_id' => $logId,
+            'context' => $context,
+            'diagnostic' => $diagnostic,
+            'response_preview' => $this->sanitizeAiLogExcerpt($content),
+        ];
+
+        Logger::warning('AI workflow response could not be parsed as JSON.', $logContext);
+
+        if (
+            defined('WP_DEBUG')
+            && WP_DEBUG
+            && defined('WP_DEBUG_LOG')
+            && WP_DEBUG_LOG
+        ) {
+            error_log('[MailerPress AI] Invalid workflow JSON response: ' . wp_json_encode($logContext, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+
+        do_action('mailerpress_ai_invalid_json_response', $logId, $logContext);
+
+        return $logId;
+    }
+
+    private function sanitizeAiLogExcerpt(string $content): string
+    {
+        $content = wp_strip_all_tags($content);
+        $content = preg_replace('/[[:cntrl:]]+/', ' ', $content) ?? $content;
+        $content = preg_replace('/\s+/', ' ', $content) ?? $content;
+        $content = preg_replace('/\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b/i', '[redacted-email]', $content) ?? $content;
+        $content = preg_replace('/\bsk-[A-Za-z0-9_\-]{16,}\b/i', '[redacted-api-key]', $content) ?? $content;
+        $content = preg_replace('/\bsk-ant-[A-Za-z0-9_\-]{16,}\b/i', '[redacted-api-key]', $content) ?? $content;
+        $content = preg_replace('/(["\']?(?:api[_-]?key|x-api-key|authorization|password|secret|token)["\']?\s*[:=]\s*["\']?)[^"\'\s,}]+/i', '$1[redacted]', $content) ?? $content;
+        $content = trim($content);
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($content, 0, 4000);
+        }
+
+        return substr($content, 0, 4000);
+    }
+
+    private function buildAiProviderError(string $provider, int $statusCode, string $responseBody, mixed $data): \WP_Error
+    {
+        $providerName = $this->getAiProviderLabel($provider);
+        $error = is_array($data) && isset($data['error']) && is_array($data['error']) ? $data['error'] : [];
+        $errorType = sanitize_key((string)($error['type'] ?? ''));
+        $errorMessage = $this->sanitizeAiProviderErrorMessage($error['message'] ?? $responseBody);
+        $normalizedError = strtolower(trim($errorType . ' ' . $errorMessage));
+
+        $errorData = [
+            'status' => 502,
+            'provider' => $provider,
+            'provider_status' => $statusCode,
+        ];
+
+        if ('' !== $errorType) {
+            $errorData['provider_error_type'] = $errorType;
+        }
+
+        if (
+            in_array($statusCode, [401, 403], true)
+            || str_contains($normalizedError, 'invalid x-api-key')
+            || str_contains($normalizedError, 'invalid api key')
+            || str_contains($normalizedError, 'authentication')
+            || str_contains($normalizedError, 'unauthorized')
+        ) {
+            $errorData['status'] = 400;
+
+            return new \WP_Error(
+                'ai_invalid_api_key',
+                sprintf(__('%s rejected the API key. Please verify the key in AI Settings or create a new one.', 'mailerpress'), $providerName),
+                $errorData
+            );
+        }
+
+        if (
+            429 === $statusCode
+            || str_contains($normalizedError, 'rate limit')
+            || str_contains($normalizedError, 'quota')
+            || str_contains($normalizedError, 'billing')
+            || str_contains($normalizedError, 'credit')
+        ) {
+            $errorData['status'] = 429;
+
+            return new \WP_Error(
+                'ai_rate_limited',
+                sprintf(__('%s reported a rate limit, quota, or billing issue. Please check your provider account or try again later.', 'mailerpress'), $providerName),
+                $errorData
+            );
+        }
+
+        if (
+            404 === $statusCode
+            || (str_contains($normalizedError, 'model') && (
+                str_contains($normalizedError, 'not found')
+                || str_contains($normalizedError, 'not supported')
+                || str_contains($normalizedError, 'unavailable')
+                || str_contains($normalizedError, 'does not exist')
+            ))
+        ) {
+            $errorData['status'] = 400;
+
+            return new \WP_Error(
+                'ai_model_unavailable',
+                sprintf(__('%s does not support the selected model. Please choose another model in AI Settings.', 'mailerpress'), $providerName),
+                $errorData
+            );
+        }
+
+        return new \WP_Error(
+            'ai_provider_error',
+            sprintf(
+                __('%1$s returned an error: %2$s', 'mailerpress'),
+                $providerName,
+                '' !== $errorMessage ? $errorMessage : __('Unknown provider error.', 'mailerpress')
+            ),
+            $errorData
+        );
+    }
+
+    private function sanitizeAiProviderErrorMessage(mixed $message): string
+    {
+        $message = wp_strip_all_tags((string)$message);
+        $message = preg_replace('/\s+/', ' ', $message);
+        $message = trim($message);
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($message, 0, 300);
+        }
+
+        return substr($message, 0, 300);
+    }
+
+    private function getAiProviderLabel(string $provider): string
+    {
+        return match ($provider) {
+            'anthropic' => __('Claude (Anthropic)', 'mailerpress'),
+            'openai' => __('OpenAI', 'mailerpress'),
+            'mistral' => __('Mistral', 'mailerpress'),
+            'deepseek' => __('DeepSeek', 'mailerpress'),
+            'gemini' => __('Gemini', 'mailerpress'),
+            default => __('The selected AI provider', 'mailerpress'),
+        };
+    }
+
+    private function getConfiguredTextAiLogContext(?string $modelOverride = null): array
+    {
+        $aiSettings = get_option('mailerpress_ai_model_settings', []);
+        if (is_string($aiSettings)) {
+            $aiSettings = json_decode($aiSettings, true);
+        }
+        $aiSettings = \MailerPress\Services\DeepSeekConfig::normalizeSettings(is_array($aiSettings) ? $aiSettings : []);
+
+        if (!is_array($aiSettings)) {
+            return [
+                'provider' => null,
+                'model' => $modelOverride,
+            ];
+        }
+
+        $provider = $aiSettings['text_ai']['provider'] ?? null;
+        $model = $modelOverride ?? ($aiSettings['text_ai']['model'] ?? null);
+
+        return [
+            'provider' => $provider,
+            'model' => $model,
+        ];
+    }
+
+    private function applyStructuredJsonMode(string $provider, array $requestBody): array
+    {
+        if (in_array($provider, ['openai', 'deepseek', 'mistral'], true)) {
+            $requestBody['response_format'] = ['type' => 'json_object'];
+        }
+
+        if ('gemini' === $provider) {
+            $requestBody['generationConfig'] = $requestBody['generationConfig'] ?? [];
+            $requestBody['generationConfig']['responseMimeType'] = 'application/json';
+        }
+
+        return $requestBody;
+    }
+
+    /**
      * Call the configured AI provider with a system prompt and user messages.
      *
      * @param string      $systemPrompt  The system/developer prompt.
@@ -1647,6 +2448,7 @@ PROMPT;
         if (is_string($aiSettings)) {
             $aiSettings = json_decode($aiSettings, true);
         }
+        $aiSettings = \MailerPress\Services\DeepSeekConfig::normalizeSettings(is_array($aiSettings) ? $aiSettings : []);
 
         if (empty($aiSettings['text_ai']['provider']) || empty($aiSettings['api_keys'])) {
             return new \WP_Error(
@@ -1668,6 +2470,20 @@ PROMPT;
         }
 
         $model = $modelOverride ?? ($aiSettings['text_ai']['model'] ?? 'gpt-4o');
+        $promptEstimate = AiUsageGuard::estimatePromptTokens($systemPrompt);
+        foreach ($userMessages as $msg) {
+            $promptEstimate += AiUsageGuard::estimatePromptTokens((string)($msg['content'] ?? ''));
+        }
+
+        $quotaError = AiUsageGuard::preflight($provider, $model, 'workflow_generation', [
+            'prompt_tokens' => $promptEstimate,
+            'completion_tokens' => 4000,
+            'tokens' => $promptEstimate + 4000,
+        ]);
+
+        if ($quotaError instanceof \WP_Error) {
+            return $quotaError;
+        }
 
         // GPT-5.x / o3 / o4 use 'developer' role
         $isReasoningModel = preg_match('/^(gpt-5|o[34])/', $model);
@@ -1688,6 +2504,10 @@ PROMPT;
         } else {
             $requestBody['max_tokens'] = 4000;
             $requestBody['temperature'] = 0.3;
+        }
+
+        if ($provider === 'deepseek') {
+            $requestBody = \MailerPress\Services\DeepSeekConfig::prepareRequest($requestBody, $aiSettings['text_ai']);
         }
 
         // Determine API URL based on provider
@@ -1747,6 +2567,8 @@ PROMPT;
             ];
         }
 
+        $requestBody = $this->applyStructuredJsonMode($provider, $requestBody);
+
         $response = wp_remote_post($apiUrl, [
             'headers' => $headers,
             'body' => wp_json_encode($requestBody),
@@ -1766,13 +2588,10 @@ PROMPT;
         $data = json_decode($responseBody, true);
 
         if ($statusCode !== 200) {
-            $errorMsg = $data['error']['message'] ?? $responseBody;
-            return new \WP_Error(
-                'ai_api_error',
-                __('AI provider error: ', 'mailerpress') . $errorMsg,
-                ['status' => 502]
-            );
+            return $this->buildAiProviderError($provider, $statusCode, $responseBody, $data);
         }
+
+        AiUsageGuard::recordProviderResponse($provider, $model, 'workflow_generation', $data);
 
         // Extract content based on provider
         if ($provider === 'anthropic') {
@@ -2017,7 +2836,7 @@ PROMPT;
     #[Endpoint(
         'workflows/ai-explain',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageAutomations'],
+        permissionCallback: [Permissions::class, 'canUseAutomationAi'],
     )]
     public function aiExplainWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2130,7 +2949,7 @@ PROMPT;
     #[Endpoint(
         'workflows/ai-steps',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageAutomations'],
+        permissionCallback: [Permissions::class, 'canUseAutomationAi'],
     )]
     public function aiGenerateSteps(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2257,38 +3076,7 @@ PROMPT;
             ? "EXISTING CUSTOM FIELDS:\n" . implode("\n", $customFieldDescriptions)
             : "No custom fields exist yet.";
 
-        // Detect active integrations
-        $coreCategories = ['user', 'contact', 'content', 'engagement', 'email', 'general'];
-        $integrationCategories = [];
-
-        foreach ($triggers as $t) {
-            $cat = $t['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-        foreach (($conditions['fields'] ?? []) as $f) {
-            $cat = $f['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-        foreach ($actions as $a) {
-            $cat = $a['category'] ?? '';
-            if ($cat && !in_array($cat, $coreCategories, true)) {
-                $integrationCategories[$cat] = true;
-            }
-        }
-
-        $activeIntegrations = array_keys($integrationCategories);
-        if (!empty($activeIntegrations)) {
-            $integrationLines = array_map(function($cat) {
-                return '- ' . ucfirst($cat) . ': ACTIVE (triggers/conditions registered)';
-            }, $activeIntegrations);
-            $integrationsContext = "Active third-party integrations:\n" . implode("\n", $integrationLines);
-        } else {
-            $integrationsContext = "No third-party integrations are currently active. Only core MailerPress triggers and actions are available.";
-        }
+        $integrationsContext = $this->buildAiIntegrationsContext($triggers, $conditions, $actions);
 
         // User locale for response language
         $current_user = wp_get_current_user();
@@ -2427,14 +3215,20 @@ PROMPT;
             return $result;
         }
 
-        $parsed = json_decode($result, true);
+        $parseDiagnostic = [];
+        $parsed = $this->parseAiJsonContent($result, $parseDiagnostic);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return new \WP_Error(
-                'ai_invalid_json',
-                __('AI generated an invalid response. Please try again with a clearer description.', 'mailerpress'),
-                ['status' => 422]
-            );
+        if (null === $parsed) {
+            return $this->buildInvalidAiJsonError($result, array_merge(
+                [
+                    'endpoint' => 'workflows/ai-steps',
+                    'feature' => 'workflow_step_generation',
+                    'parent_node_id' => $parentNodeId,
+                    'branch' => $branch,
+                    'existing_nodes' => count($existingNodes),
+                ],
+                $this->getConfiguredTextAiLogContext()
+            ), $parseDiagnostic);
         }
 
         $rawNodes = $parsed['nodes'] ?? [];
@@ -2457,7 +3251,7 @@ PROMPT;
     #[Endpoint(
         'workflows/ab-tests/(?P<automationId>\d+)',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canReadAutomation']
     )]
     public function getABTestResults(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2629,6 +3423,19 @@ PROMPT;
             );
         }
 
+        if ($this->nodesContainGoal($nodes) && !$this->isProActive()) {
+            return new \WP_Error(
+                'pro_required',
+                __('Goals require MailerPress Pro. Please upgrade to measure conversions inside your automations.', 'mailerpress'),
+                ['status' => 403]
+            );
+        }
+
+        $sensitiveNodesValidation = $this->validateSensitiveNodes($nodes, $request);
+        if ($sensitiveNodesValidation !== true) {
+            return $sensitiveNodesValidation;
+        }
+
         // Validate email content before enabling
         $newStatus = $automationData['status'] ?? null;
         if ($newStatus === 'ENABLED') {
@@ -2751,11 +3558,19 @@ PROMPT;
             ];
         }
 
+        // Drop goal records whose step no longer exists, otherwise a deleted
+        // goal would keep skewing the reports.
+        (new GoalRepository())->deleteOrphansByAutomationId($automationId, array_values(array_filter($newStepIds)));
+
         // Get updated automation
         $automation = $automationRepo->find($automationId);
 
         // Trigger hook for custom triggers to re-register hooks
         do_action('mailerpress_workflow_updated', $automationId);
+
+        if (($automationData['status'] ?? null) === 'ENABLED' && $this->nodesContainTrigger($nodes, CustomerInactiveTrigger::TRIGGER_KEY)) {
+            CustomerInactiveTrigger::scheduleImmediateCheck();
+        }
 
         return new \WP_REST_Response([
             'automation' => $automation ? $automation->toArray() : null,
@@ -2766,7 +3581,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)/retry-failed',
         methods: 'POST',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canEditAutomation']
     )]
     public function retryFailedJobs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -2843,7 +3658,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canReadAutomation']
     )]
     public function getWorkflow(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -3018,6 +3833,7 @@ PROMPT;
     public function updateStatus(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
         $automationRepo = new AutomationRepository();
+        $stepRepo = new StepRepository();
 
         $ids = $request->get_param('ids');
         $status = sanitize_text_field($request->get_param('status'));
@@ -3044,6 +3860,15 @@ PROMPT;
                 ], 200);
             }
 
+            if ($status === 'ENABLED') {
+                foreach ($automations as $automation) {
+                    $validation = $this->validateStoredSensitiveNodes((int) $automation->getId(), $stepRepo, $request);
+                    if ($validation !== true) {
+                        return $validation;
+                    }
+                }
+            }
+
             $updatedCount = 0;
             foreach ($automations as $automation) {
                 $automationId = $automation->getId();
@@ -3053,6 +3878,10 @@ PROMPT;
                         $updatedCount++;
                         // Trigger hook for custom triggers to re-register hooks
                         do_action('mailerpress_workflow_status_changed', $automationId, $status);
+
+                        if ($status === 'ENABLED' && $stepRepo->findTriggerByKey($automationId, CustomerInactiveTrigger::TRIGGER_KEY)) {
+                            CustomerInactiveTrigger::scheduleImmediateCheck();
+                        }
                     }
                 }
             }
@@ -3081,6 +3910,17 @@ PROMPT;
             );
         }
 
+        if ($status === 'ENABLED') {
+            foreach ($ids as $id) {
+                if ($automationRepo->find($id)) {
+                    $validation = $this->validateStoredSensitiveNodes($id, $stepRepo, $request);
+                    if ($validation !== true) {
+                        return $validation;
+                    }
+                }
+            }
+        }
+
         $updatedCount = 0;
         $errors = [];
 
@@ -3098,6 +3938,10 @@ PROMPT;
                 $updatedCount++;
                 // Trigger hook for custom triggers to re-register hooks
                 do_action('mailerpress_workflow_status_changed', $id, $status);
+
+                if ($status === 'ENABLED' && $stepRepo->findTriggerByKey($id, CustomerInactiveTrigger::TRIGGER_KEY)) {
+                    CustomerInactiveTrigger::scheduleImmediateCheck();
+                }
             } else {
                 $errors[] = sprintf(__('Failed to update workflow ID: %d', 'mailerpress'), $id);
             }
@@ -3130,7 +3974,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)/stats',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canReadAutomation']
     )]
     public function getWorkflowStats(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -3244,18 +4088,23 @@ PROMPT;
         $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
         $logsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_LOG);
+        $automationOwnerWhere = $this->automationOwnerWhere($request);
+        $automationAliasOwnerWhere = $this->automationOwnerWhere($request, 'a.author');
+        $jobOwnerWhere = $this->automationResourceOwnerWhere($request);
+        $logOwnerWhere = $this->automationResourceOwnerWhere($request);
+        $logAliasOwnerWhere = $this->automationResourceOwnerWhere($request, 'l.automation_id');
 
         // Statistiques globales
-        $totalWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable}");
-        $enabledWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'ENABLED'");
-        $draftWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'DRAFT'");
+        $totalWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable} WHERE 1=1 {$automationOwnerWhere}");
+        $enabledWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'ENABLED' {$automationOwnerWhere}");
+        $draftWorkflows = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$automationsTable} WHERE status = 'DRAFT' {$automationOwnerWhere}");
 
         // Statistiques des jobs (toutes périodes)
-        $totalJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable}");
-        $activeJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status IN ('ACTIVE', 'PROCESSING', 'WAITING')");
-        $completedJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED'");
-        $failedJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED'");
-        $uniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable}");
+        $totalJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE 1=1 {$jobOwnerWhere}");
+        $activeJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status IN ('ACTIVE', 'PROCESSING', 'WAITING') {$jobOwnerWhere}");
+        $completedJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' {$jobOwnerWhere}");
+        $failedJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' {$jobOwnerWhere}");
+        $uniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE 1=1 {$jobOwnerWhere}");
 
         // Construire la condition WHERE selon la période
         if ($isToday) {
@@ -3265,10 +4114,10 @@ PROMPT;
         }
 
         // Statistiques sur la période sélectionnée
-        $intervalJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE {$dateCondition}");
-        $intervalCompleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' AND {$dateCondition}");
-        $intervalFailed = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' AND {$dateCondition}");
-        $intervalUniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE {$dateCondition}");
+        $intervalJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE {$dateCondition} {$jobOwnerWhere}");
+        $intervalCompleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' AND {$dateCondition} {$jobOwnerWhere}");
+        $intervalFailed = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' AND {$dateCondition} {$jobOwnerWhere}");
+        $intervalUniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE {$dateCondition} {$jobOwnerWhere}");
 
         // Calcul des taux
         $successRate = $totalJobs > 0 ? round(($completedJobs / $totalJobs) * 100, 2) : 0;
@@ -3285,17 +4134,18 @@ PROMPT;
                 $interval
             );
         }
-        $prevJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE {$prevDateCondition}");
-        $prevCompleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' AND {$prevDateCondition}");
-        $prevFailed = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' AND {$prevDateCondition}");
-        $prevUniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE {$prevDateCondition}");
+        $prevJobs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE {$prevDateCondition} {$jobOwnerWhere}");
+        $prevCompleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'COMPLETED' AND {$prevDateCondition} {$jobOwnerWhere}");
+        $prevFailed = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$jobsTable} WHERE status = 'FAILED' AND {$prevDateCondition} {$jobOwnerWhere}");
+        $prevUniqueUsers = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$jobsTable} WHERE {$prevDateCondition} {$jobOwnerWhere}");
         $prevSuccessRate = $prevJobs > 0 ? round(($prevCompleted / $prevJobs) * 100, 2) : 0;
 
         // Average execution time (completed jobs only, in seconds)
         $avgExecutionTime = (float) $wpdb->get_var(
             "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at))
              FROM {$jobsTable}
-             WHERE status = 'COMPLETED' AND {$dateCondition} AND updated_at IS NOT NULL AND updated_at > created_at"
+             WHERE status = 'COMPLETED' AND {$dateCondition} AND updated_at IS NOT NULL AND updated_at > created_at
+             {$jobOwnerWhere}"
         );
 
         // Recent activity feed (last 5 executions)
@@ -3306,6 +4156,7 @@ PROMPT;
              FROM {$jobsTable} j
              INNER JOIN {$automationsTable} a ON j.automation_id = a.id
              LEFT JOIN {$wpdb->users} u ON j.user_id = u.ID
+             WHERE 1=1 {$automationAliasOwnerWhere}
              ORDER BY j.created_at DESC
              LIMIT 5",
             ARRAY_A
@@ -3327,6 +4178,7 @@ PROMPT;
             FROM {$automationsTable} a
             LEFT JOIN {$jobsTable} j ON a.id = j.automation_id
                 AND DATE(j.created_at) = CURDATE()
+            WHERE 1=1 {$automationAliasOwnerWhere}
             GROUP BY a.id, a.name, a.status
             HAVING total_jobs > 0
             ORDER BY completed_jobs DESC, total_jobs DESC
@@ -3347,6 +4199,7 @@ PROMPT;
                 FROM {$automationsTable} a
                 LEFT JOIN {$jobsTable} j ON a.id = j.automation_id
                     AND j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                WHERE 1=1 {$automationAliasOwnerWhere}
                 GROUP BY a.id, a.name, a.status
                 HAVING total_jobs > 0
                 ORDER BY completed_jobs DESC, total_jobs DESC
@@ -3425,6 +4278,7 @@ PROMPT;
                 SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed
             FROM {$jobsTable}
             WHERE DATE(created_at) = CURDATE()
+            {$jobOwnerWhere}
             GROUP BY DATE(created_at)
             ORDER BY date ASC";
         } else {
@@ -3436,6 +4290,7 @@ PROMPT;
                     SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed
                 FROM {$jobsTable}
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                {$jobOwnerWhere}
                 GROUP BY DATE(created_at)
                 ORDER BY date ASC",
                 $interval
@@ -3447,6 +4302,7 @@ PROMPT;
         $jobsByStatus = $wpdb->get_results(
             "SELECT status, COUNT(*) as count
              FROM {$jobsTable}
+             WHERE 1=1 {$jobOwnerWhere}
              GROUP BY status",
             ARRAY_A
         );
@@ -3464,6 +4320,7 @@ PROMPT;
                 COUNT(*) as count
             FROM {$jobsTable}
             WHERE DATE(created_at) = CURDATE()
+            {$jobOwnerWhere}
             GROUP BY WEEKDAY(created_at), HOUR(created_at)";
         } else {
             $heatmapQuery = $wpdb->prepare(
@@ -3473,6 +4330,7 @@ PROMPT;
                     COUNT(*) as count
                 FROM {$jobsTable}
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                {$jobOwnerWhere}
                 GROUP BY WEEKDAY(created_at), HOUR(created_at)",
                 $interval
             );
@@ -3519,6 +4377,7 @@ PROMPT;
                         AND JSON_EXTRACT(l.data, '$.order_total') > 0
                         AND JSON_EXTRACT(l.data, '$.order_id') IS NOT NULL
                         AND JSON_EXTRACT(l.data, '$.order_id') > 0
+                        {$logAliasOwnerWhere}
                     GROUP BY l.automation_id, l.user_id, JSON_EXTRACT(l.data, '$.order_id')
                 ) as unique_orders
                 INNER JOIN {$jobsTable} j ON unique_orders.automation_id = j.automation_id
@@ -3546,6 +4405,7 @@ PROMPT;
                     AND JSON_EXTRACT(data, '$.order_total') > 0
                     AND JSON_EXTRACT(data, '$.order_id') IS NOT NULL
                     AND JSON_EXTRACT(data, '$.order_id') > 0
+                    {$logOwnerWhere}
                 GROUP BY JSON_EXTRACT(data, '$.order_id')
             ) as unique_orders";
 
@@ -3571,6 +4431,7 @@ PROMPT;
                         AND JSON_EXTRACT(l.data, '$.order_total') > 0
                         AND JSON_EXTRACT(l.data, '$.order_id') IS NOT NULL
                         AND JSON_EXTRACT(l.data, '$.order_id') > 0
+                        {$logAliasOwnerWhere}
                     GROUP BY JSON_EXTRACT(l.data, '$.order_id')
                 ) as unique_orders
                 GROUP BY DATE(first_log_date)
@@ -3599,6 +4460,7 @@ PROMPT;
                         AND JSON_EXTRACT(l.data, '$.order_total') > 0
                         AND JSON_EXTRACT(l.data, '$.order_id') IS NOT NULL
                         AND JSON_EXTRACT(l.data, '$.order_id') > 0
+                        {$logAliasOwnerWhere}
                     GROUP BY l.automation_id, JSON_EXTRACT(l.data, '$.order_id')
                 ) as unique_orders
                 INNER JOIN {$automationsTable} a ON unique_orders.automation_id = a.id
@@ -3730,6 +4592,7 @@ PROMPT;
 
         $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
+        $ownerWhere = $this->automationOwnerWhere($request, 'a.author');
 
         // Récupérer les détails des contacts avec leurs workflows et interactions
         if ($isToday) {
@@ -3744,6 +4607,7 @@ PROMPT;
             FROM {$jobsTable} j
             INNER JOIN {$automationsTable} a ON j.automation_id = a.id
             WHERE DATE(j.created_at) = CURDATE()
+            {$ownerWhere}
             ORDER BY j.user_id, j.created_at DESC";
         } else {
             $contactsQuery = $wpdb->prepare(
@@ -3758,6 +4622,7 @@ PROMPT;
                 FROM {$jobsTable} j
                 INNER JOIN {$automationsTable} a ON j.automation_id = a.id
                 WHERE j.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                {$ownerWhere}
                 ORDER BY j.user_id, j.created_at DESC",
                 $interval
             );
@@ -3812,10 +4677,12 @@ PROMPT;
                     $logQuery = $wpdb->prepare(
                         "SELECT data FROM {$logsTable}
                          WHERE user_id = %d
+                         AND automation_id = %d
                          AND (data LIKE '%%\"customer_email\"%%' OR data LIKE '%%\"email\"%%')
                          ORDER BY created_at DESC
                          LIMIT 1",
-                        $userId
+                        $userId,
+                        (int) $jobData['automation_id']
                     );
                     $logData = $wpdb->get_var($logQuery);
 
@@ -4012,6 +4879,7 @@ PROMPT;
         $automationsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS);
         $jobsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_JOBS);
         $logsTable = Tables::get(Tables::MAILERPRESS_AUTOMATIONS_LOG);
+        $ownerWhere = $this->automationOwnerWhere($request, 'a.author');
 
         // Construire la condition WHERE selon la période
         if ($isToday) {
@@ -4033,6 +4901,7 @@ PROMPT;
             INNER JOIN {$automationsTable} a ON j.automation_id = a.id
             WHERE j.status = 'FAILED'
                 AND {$dateCondition}
+                {$ownerWhere}
             ORDER BY j.created_at DESC
             LIMIT 500";
 
@@ -4066,10 +4935,12 @@ PROMPT;
                 $logQuery = $wpdb->prepare(
                     "SELECT data FROM {$logsTable}
                      WHERE user_id = %d
+                     AND automation_id = %d
                      AND (data LIKE '%%\"customer_email\"%%' OR data LIKE '%%\"email\"%%')
                      ORDER BY created_at DESC
                      LIMIT 1",
-                    $userId
+                    $userId,
+                    $automationId
                 );
                 $logData = $wpdb->get_var($logQuery);
 
@@ -4131,7 +5002,7 @@ PROMPT;
     #[Endpoint(
         'workflows/(?P<id>\d+)/logs',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canManageAutomations']
+        permissionCallback: [Permissions::class, 'canReadAutomation']
     )]
     public function getWorkflowLogs(\WP_REST_Request $request): \WP_Error|\WP_HTTP_Response|\WP_REST_Response
     {
@@ -4367,6 +5238,31 @@ PROMPT;
             'page' => $page,
             'per_page' => $per_page,
         ], 200);
+    }
+
+    /**
+     * Does the payload contain at least one goal step?
+     */
+    private function nodesContainGoal(array $nodes): bool
+    {
+        foreach ($nodes as $node) {
+            if (($node['type'] ?? '') === 'GOAL') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function nodesContainTrigger(array $nodes, string $triggerKey): bool
+    {
+        foreach ($nodes as $node) {
+            if (($node['type'] ?? '') === 'TRIGGER' && ($node['key'] ?? '') === $triggerKey) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

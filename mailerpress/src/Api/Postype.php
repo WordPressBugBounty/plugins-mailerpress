@@ -13,7 +13,7 @@ class Postype
     #[Endpoint(
         'public-post-types',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadEditorMetadata']
     )]
     public function getPublicPostTypes(WP_REST_Request $request): WP_Error|WP_HTTP_Response|WP_REST_Response
     {
@@ -59,7 +59,7 @@ class Postype
     #[Endpoint(
         'posts',
         methods: 'GET',
-        permissionCallback: [Permissions::class, 'canView']
+        permissionCallback: [Permissions::class, 'canReadEditorMetadata']
     )]
     public function getPosts(WP_REST_Request $request): WP_Error|WP_HTTP_Response|WP_REST_Response
     {

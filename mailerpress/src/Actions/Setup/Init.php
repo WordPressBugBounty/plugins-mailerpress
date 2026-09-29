@@ -14,6 +14,12 @@ use MailerPress\Core\Workflows\WorkflowSystem;
 
 class Init
 {
+    private const WP_THEME_STYLESHEET_OPTION = 'mailerpress_wp_theme_stylesheet';
+
+    /** Bump this value to re-run hardenStorage() on every site at the next admin page load. */
+    private const STORAGE_HARDENING_VERSION = '2026-09-23.1';
+    private const STORAGE_HARDENING_OPTION = 'mailerpress_storage_hardening';
+
     #[Action('init')]
     public function rewriteRule(): void
     {
@@ -106,6 +112,36 @@ class Init
         }
     }
 
+    /**
+     * One-shot hardening of files left on disk by previous versions. Keyed by its own marker,
+     * NOT by the plugin version: it must also run when the same version is re-deployed with
+     * this fix, and again whenever STORAGE_HARDENING_VERSION is bumped.
+     */
+    #[Action('admin_init', priority: 6)]
+    public function hardenStorage(): void
+    {
+        if (get_option(self::STORAGE_HARDENING_OPTION) === self::STORAGE_HARDENING_VERSION) {
+            return;
+        }
+
+        try {
+            // Send logs (with recipient emails) used to live in the world-readable
+            // wp-content/mailerpress-logs/: remove it, and protect the shared uploads log directory.
+            \MailerPress\Services\DebugFileLogger::purgeLegacyDirectory();
+            \MailerPress\Services\DebugFileLogger::protectLegacyUploadsDirectory();
+
+            // Contact exports left in uploads/mailerpress_exports: protect the directory now and
+            // delete archives older than their download link.
+            \MailerPress\Actions\ActionScheduler\Processors\ExportContact::hardenExistingExports();
+        } catch (\Throwable $e) {
+            // Never take the admin down for a housekeeping task: leave the marker unset so the
+            // routine retries on the next admin page load.
+            return;
+        }
+
+        update_option(self::STORAGE_HARDENING_OPTION, self::STORAGE_HARDENING_VERSION, false);
+    }
+
     #[Action('admin_init', priority: 5)]
     public function migrateJsonOptions(): void
     {
@@ -135,6 +171,22 @@ class Init
         }
 
         update_option('mailerpress_migrated_json_options_v2', true);
+    }
+
+    #[Action('admin_init', priority: 5)]
+    public function syncThemeStylesheet(): void
+    {
+        $stylesheet = get_stylesheet();
+
+        if (get_option(self::WP_THEME_STYLESHEET_OPTION) === $stylesheet) {
+            return;
+        }
+
+        update_option(self::WP_THEME_STYLESHEET_OPTION, $stylesheet, false);
+
+        if (!function_exists('wp_is_block_theme') || !wp_is_block_theme()) {
+            $this->resetMailerPressThemeStyles();
+        }
     }
 
     /**
@@ -172,12 +224,23 @@ class Init
         return $vars;
     }
 
-    #[Action('switch_theme')]
-    public function sanitize($vars)
+    #[Action('switch_theme', acceptedArgs: 2)]
+    public function resetThemeStylesOnSwitch(string $newName, \WP_Theme $newTheme): void
     {
-        delete_option('mailerpress_theme');
+        update_option(
+            self::WP_THEME_STYLESHEET_OPTION,
+            $newTheme->get_stylesheet(),
+            false
+        );
+        $this->resetMailerPressThemeStyles(!$newTheme->is_block_theme());
+    }
+
+    private function resetMailerPressThemeStyles(bool $resetTypography = true): void
+    {
         update_option('mailerpress_theme', 'Core');
-        return $vars;
+        if ($resetTypography) {
+            delete_option('mailerpress_global_typography');
+        }
     }
 
     private function registerDefaultTemplateCategories(): void

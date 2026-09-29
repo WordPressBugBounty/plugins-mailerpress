@@ -20,12 +20,13 @@ class BrevoMailer implements MailerInterface
                 'Content-Type' => 'application/json',
                 'api-key' => $config['apiKey'],
             ],
-            'body' => wp_json_encode([
+            'body' => wp_json_encode(array_filter([
                 'sender' => ['name' => $headers['sender_name'] ?? $sender['from_name'], 'email' => $headers['sender_to'] ?? $sender['from_to']],
                 'to' => [['email' => $to]],
                 'subject' => $subject,
                 'htmlContent' => $body,
-            ]),
+                'headers' => ! empty( $headers['custom_headers'] ) ? $headers['custom_headers'] : null,
+            ])),
         ]);
 
         return !is_wp_error($response) && 201 === wp_remote_retrieve_response_code($response);

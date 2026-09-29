@@ -22,13 +22,36 @@ class WorkflowCleanup
     {
         $deletedJobs = $this->cleanupOldJobs();
         $deletedLogs = $this->cleanupOldLogs();
+        $expiredGoals = $this->expireOverdueGoals();
 
         Logger::info('WorkflowCleanup: completed', [
             'deleted_jobs' => $deletedJobs,
             'deleted_logs' => $deletedLogs,
+            'expired_goals' => $expiredGoals,
         ]);
 
-        return ['jobs' => $deletedJobs, 'logs' => $deletedLogs];
+        return ['jobs' => $deletedJobs, 'logs' => $deletedLogs, 'expired_goals' => $expiredGoals];
+    }
+
+    /**
+     * Safety net for goals whose Action Scheduler expiry was lost (scheduler
+     * flushed, site migrated…). Without this a run could wait forever.
+     */
+    private function expireOverdueGoals(): int
+    {
+        try {
+            // Re-arm first: a goal whose expiry action went missing would
+            // otherwise only ever expire through this daily sweep.
+            GoalManager::instance()->ensureTimeoutsScheduled();
+
+            return GoalManager::instance()->expireOverdueGoals();
+        } catch (\Exception $e) {
+            Logger::warning('WorkflowCleanup: failed to expire overdue goals', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
     }
 
     private function cleanupOldJobs(): int

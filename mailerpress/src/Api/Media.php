@@ -24,7 +24,11 @@ class Media
         $input = $request->get_param('url');
 
         if (empty($input)) {
-            return new \WP_Error('missing_param', 'The "url" parameter is required.', ['status' => 400]);
+            return new \WP_Error('missing_param', __('The "url" parameter is required.', 'mailerpress'), ['status' => 400]);
+        }
+
+        if (!is_string($input)) {
+            return new \WP_Error('invalid_param', __('The "url" parameter must be a string.', 'mailerpress'), ['status' => 400]);
         }
 
         // --- Handle base64-encoded images ---
@@ -34,14 +38,14 @@ class Media
             // Security: only allow known image extensions
             $allowed_extensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'];
             if (!in_array($ext, $allowed_extensions, true)) {
-                return new \WP_Error('invalid_image_type', 'Unsupported image type: ' . $ext, ['status' => 400]);
+                return new \WP_Error('invalid_image_type', sprintf(/* translators: %s: image extension. */ __('Unsupported image type: %s', 'mailerpress'), $ext), ['status' => 400]);
             }
 
             $data = substr($input, strpos($input, ',') + 1);
-            $data = base64_decode($data);
+            $data = base64_decode($data, true);
 
-            if ($data === false) {
-                return new \WP_Error('invalid_base64', 'Invalid base64 encoded image.', ['status' => 400]);
+            if (false === $data || '' === $data) {
+                return new \WP_Error('invalid_base64', __('Invalid base64 encoded image.', 'mailerpress'), ['status' => 400]);
             }
 
             // Save temp file
@@ -68,7 +72,7 @@ class Media
 
         // --- Handle remote URL ---
         if (!wp_http_validate_url($input)) {
-            return new \WP_Error('invalid_url', 'URL is not valid or not http(s).', ['status' => 400]);
+            return new \WP_Error('invalid_url', __('URL is not valid or not http(s).', 'mailerpress'), ['status' => 400]);
         }
 
         $tmp = download_url($input);
@@ -85,7 +89,7 @@ class Media
 
             if (!$mime || strpos($mime, 'image/') !== 0) {
                 wp_delete_file($tmp);
-                return new \WP_Error('invalid_filetype', 'Only image files are allowed.', ['status' => 400]);
+                return new \WP_Error('invalid_filetype', __('Only image files are allowed.', 'mailerpress'), ['status' => 400]);
             }
 
             $ext = explode('/', $mime)[1] ?? 'jpg';
