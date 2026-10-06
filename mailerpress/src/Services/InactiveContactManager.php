@@ -19,8 +19,6 @@ class InactiveContactManager
     private const DEFAULT_INACTIVE_PERIOD_VALUE = 1;
     private const DEFAULT_BATCH_SIZE = 1000;
     private const DEFAULT_MIN_EMAILS_SENT = 3;
-    private const DEFAULT_REENGAGEMENT_SUBJECT = 'Do you still want to hear from [site:title]?';
-    private const DEFAULT_REENGAGEMENT_CONTENT = "Hello [contact:firstName],\n\nWe noticed you have not engaged with our emails recently. If you still want to receive updates from [site:title], please confirm below:\n\n[reengagement_link]Yes, keep me subscribed[/reengagement_link]\n\nIf you do not confirm, we will keep you inactive and stop sending regular emails.\n\nThank you,\n[site:title]\n\n[unsubscribe_link]Unsubscribe[/unsubscribe_link]";
     private const PERIOD_UNITS = [
         'days' => [
             'multiplier' => 1,
@@ -46,6 +44,16 @@ class InactiveContactManager
 
     private static array $columnCache = [];
 
+    private static function getDefaultReengagementSubject(): string
+    {
+        return __('Do you still want to hear from [site:title]?', 'mailerpress');
+    }
+
+    private static function getDefaultReengagementContent(): string
+    {
+        return __("Hello [contact:firstName],\n\nWe noticed you have not engaged with our emails recently. If you still want to receive updates from [site:title], please confirm below:\n\n[reengagement_link]Yes, keep me subscribed[/reengagement_link]\n\nIf you do not confirm, we will keep you inactive and stop sending regular emails.\n\nThank you,\n[site:title]\n\n[unsubscribe_link]Unsubscribe[/unsubscribe_link]", 'mailerpress');
+    }
+
     public function getSettings(): array
     {
         $settings = get_option(self::OPTION_NAME, []);
@@ -67,8 +75,8 @@ class InactiveContactManager
             'batch_size' => self::DEFAULT_BATCH_SIZE,
             'min_emails_sent' => self::DEFAULT_MIN_EMAILS_SENT,
             'reengagement_enabled' => false,
-            'reengagement_subject' => self::DEFAULT_REENGAGEMENT_SUBJECT,
-            'reengagement_content' => self::DEFAULT_REENGAGEMENT_CONTENT,
+            'reengagement_subject' => self::getDefaultReengagementSubject(),
+            'reengagement_content' => self::getDefaultReengagementContent(),
             'campaign_id' => null,
             'useDesignedEmail' => false,
         ], is_array($settings) ? $settings : []);
@@ -87,10 +95,10 @@ class InactiveContactManager
         $settings['reengagement_subject'] = sanitize_text_field((string) $settings['reengagement_subject']);
         $settings['reengagement_content'] = wp_kses_post((string) $settings['reengagement_content']);
         if ($settings['reengagement_subject'] === '') {
-            $settings['reengagement_subject'] = self::DEFAULT_REENGAGEMENT_SUBJECT;
+            $settings['reengagement_subject'] = self::getDefaultReengagementSubject();
         }
         if ($settings['reengagement_content'] === '') {
-            $settings['reengagement_content'] = self::DEFAULT_REENGAGEMENT_CONTENT;
+            $settings['reengagement_content'] = self::getDefaultReengagementContent();
         }
         if (function_exists('mailerpress_restore_newlines_from_original')) {
             $settings['reengagement_content'] = mailerpress_restore_newlines_from_original(

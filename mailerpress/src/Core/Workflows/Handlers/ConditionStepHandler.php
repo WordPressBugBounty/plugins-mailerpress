@@ -39,7 +39,7 @@ class ConditionStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'condition',
-                    'label' => 'Condition',
+                    'label' => __('Condition', 'mailerpress'),
                     'type' => 'condition_builder',
                     'required' => true,
                 ],

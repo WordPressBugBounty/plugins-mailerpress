@@ -220,7 +220,7 @@ class Contacts
         $table_name = Tables::get(Tables::MAILERPRESS_CONTACT);
 
         if (empty($contactId)) {
-            wp_die('Invalid unsubscribe request. Token is missing.');
+            wp_die(esc_html__('Invalid unsubscribe request. Token is missing.', 'mailerpress'));
         }
 
         $updated = $wpdb->update(
@@ -296,7 +296,7 @@ class Contacts
         $table_name = Tables::get(Tables::MAILERPRESS_CONTACT);
 
         if (empty($contactId)) {
-            wp_die('Invalid unsubscribe request. Token is missing.');
+            wp_die(esc_html__('Invalid unsubscribe request. Token is missing.', 'mailerpress'));
         }
 
         $updated = $wpdb->update(

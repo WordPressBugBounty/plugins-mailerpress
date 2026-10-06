@@ -66,7 +66,7 @@ class Postype
         $post_type = $request->get_param('postType') ?? 'post';
 
         if (!post_type_exists($post_type)) {
-            return new WP_Error('invalid_post_type', 'Invalid post type.', ['status' => 400]);
+            return new WP_Error('invalid_post_type', __('Invalid post type.', 'mailerpress'), ['status' => 400]);
         }
 
         $search = $request->get_param('search');

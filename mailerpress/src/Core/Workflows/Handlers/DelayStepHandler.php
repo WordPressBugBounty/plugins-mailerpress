@@ -26,22 +26,22 @@ class DelayStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'delay.value',
-                    'label' => 'Duration',
+                    'label' => __('Duration', 'mailerpress'),
                     'type' => 'number',
                     'required' => true,
                     'default' => 1,
                 ],
                 [
                     'key' => 'delay.unit',
-                    'label' => 'Unit',
+                    'label' => __('Unit', 'mailerpress'),
                     'type' => 'select',
                     'required' => true,
                     'default' => 'minutes',
                     'options' => [
-                        ['value' => 'minutes', 'label' => 'Minutes'],
-                        ['value' => 'hours', 'label' => 'Hours'],
-                        ['value' => 'days', 'label' => 'Days'],
-                        ['value' => 'weeks', 'label' => 'Weeks'],
+                        ['value' => 'minutes', 'label' => __('Minutes', 'mailerpress')],
+                        ['value' => 'hours', 'label' => __('Hours', 'mailerpress')],
+                        ['value' => 'days', 'label' => __('Days', 'mailerpress')],
+                        ['value' => 'weeks', 'label' => __('Weeks', 'mailerpress')],
                     ],
                 ],
             ],
@@ -84,11 +84,11 @@ class DelayStepHandler implements StepHandlerInterface
             $step->getNextStepId()
         );
 
-        $job->setScheduledAt(date('Y-m-d H:i:s', $timestamp));
+        $job->setScheduledAt(gmdate('Y-m-d H:i:s', $timestamp));
         $job->setNextStepId($step->getNextStepId());
 
         return StepResult::success($step->getNextStepId(), [
-            'delayed_until' => date('Y-m-d H:i:s', $timestamp),
+            'delayed_until' => wp_date('Y-m-d H:i:s', $timestamp),
             'delay_value' => $value,
             'delay_unit' => $unit,
         ]);

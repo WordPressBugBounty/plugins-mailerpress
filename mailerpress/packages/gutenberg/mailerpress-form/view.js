@@ -124,7 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (response.ok) {
           noticeEl.classList.add("success");
           noticeEl.textContent =
-            form.dataset.successMessage || "Successfully subscribed!";
+            form.dataset.successMessage ||
+            window.mailerpressFormConfig?.i18n?.success ||
+            "Successfully subscribed!";
           form.reset();
 
           const redirectUrl = form.dataset.redirectUrl;
@@ -143,6 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
           noticeEl.textContent =
             form.dataset.errorMessage ||
             result.message ||
+            window.mailerpressFormConfig?.i18n?.error ||
             "An error occurred. Please try again.";
         }
 
@@ -153,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
         errorEl.className = "mailerpress-notice error";
         errorEl.textContent =
           form.dataset.errorMessage ||
+          window.mailerpressFormConfig?.i18n?.unexpected ||
           "Unexpected error. Please try again later.";
         form.appendChild(errorEl);
         setTimeout(() => errorEl.remove(), 4000);

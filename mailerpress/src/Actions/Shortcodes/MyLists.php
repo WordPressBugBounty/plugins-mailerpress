@@ -632,6 +632,12 @@ class MyLists
             [
                 'apiUrl' => rest_url('mailerpress/v1/my-lists'),
                 'nonce' => wp_create_nonce('wp_rest'),
+                'i18n' => [
+                    'successMessage' => __('Your subscription preferences have been updated successfully.', 'mailerpress'),
+                    'errorMessage' => __('An error occurred while updating your preferences. Please try again.', 'mailerpress'),
+                    'loadingText' => __('Saving...', 'mailerpress'),
+                    'emailRequired' => __('Email address is required.', 'mailerpress'),
+                ],
             ]
         );
     }

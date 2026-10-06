@@ -22,13 +22,13 @@ class Users
     {
         $user_id = get_current_user_id();
         if (!$user_id) {
-            return new \WP_Error('no_user', 'User not logged in', ['status' => 403]);
+            return new \WP_Error('no_user', __('User not logged in', 'mailerpress'), ['status' => 403]);
         }
 
         $newPreferences = $request->get_json_params(); // entire payload is preference object
 
         if (!is_array($newPreferences)) {
-            return new \WP_Error('invalid_data', 'Invalid preferences payload', ['status' => 400]);
+            return new \WP_Error('invalid_data', __('Invalid preferences payload', 'mailerpress'), ['status' => 400]);
         }
 
         // Sanitize preference values while preserving types (booleans, integers)
@@ -73,7 +73,7 @@ class Users
     {
         $user_id = get_current_user_id();
         if (!$user_id) {
-            return new \WP_Error('no_user', 'User not logged in', ['status' => 403]);
+            return new \WP_Error('no_user', __('User not logged in', 'mailerpress'), ['status' => 403]);
         }
 
         $preferences = get_user_meta($user_id, 'mailerpress_preferences', true);
@@ -96,7 +96,7 @@ class Users
     {
         $user_id = get_current_user_id();
         if (!$user_id) {
-            return new \WP_Error('no_user', 'User not logged in', ['status' => 403]);
+            return new \WP_Error('no_user', __('User not logged in', 'mailerpress'), ['status' => 403]);
         }
 
         // Retrieve from request parameters instead of JSON
@@ -104,7 +104,7 @@ class Users
         $meta_value = $request->get_param('value');
 
         if (empty($meta_name)) {
-            return new \WP_Error('invalid_meta_key', 'Meta name is required', ['status' => 400]);
+            return new \WP_Error('invalid_meta_key', __('Meta name is required', 'mailerpress'), ['status' => 400]);
         }
 
         // Optional whitelist for security
@@ -114,7 +114,7 @@ class Users
             'mailerpress_settings'
         ];
         if (!in_array($meta_name, $allowed_keys, true)) {
-            return new \WP_Error('unauthorized_meta_key', 'Meta key not allowed', ['status' => 403]);
+            return new \WP_Error('unauthorized_meta_key', __('Meta key not allowed', 'mailerpress'), ['status' => 403]);
         }
 
         // Sanitize meta value before storing

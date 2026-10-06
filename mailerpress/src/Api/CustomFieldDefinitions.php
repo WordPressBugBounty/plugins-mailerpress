@@ -67,7 +67,7 @@ class CustomFieldDefinitions
         $type = sanitize_text_field($request->get_param('type') ?? 'text');
 
         if (empty($label)) {
-            return new \WP_Error('invalid_input', 'The field label cannot be empty.', ['status' => 400]);
+            return new \WP_Error('invalid_input', __('The field label cannot be empty.', 'mailerpress'), ['status' => 400]);
         }
 
         $allowed_types = ['text', 'number', 'date', 'checkbox', 'select'];
@@ -80,7 +80,7 @@ class CustomFieldDefinitions
         $field_key = trim($field_key, '_');
 
         if (empty($field_key)) {
-            return new \WP_Error('invalid_input', 'Could not generate a valid field key from the label.', ['status' => 400]);
+            return new \WP_Error('invalid_input', __('Could not generate a valid field key from the label.', 'mailerpress'), ['status' => 400]);
         }
 
         // Check for duplicate field_key
@@ -117,7 +117,7 @@ class CustomFieldDefinitions
         );
 
         if (false === $inserted) {
-            return new \WP_Error('db_error', 'Failed to create the custom field.', ['status' => 500]);
+            return new \WP_Error('db_error', __('Failed to create the custom field.', 'mailerpress'), ['status' => 500]);
         }
 
         CustomFields::clearCache();

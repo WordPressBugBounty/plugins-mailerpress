@@ -22,7 +22,7 @@ class CountDown
         $imageName = sanitize_file_name($request['name'] ?? 'countdown');
 
         if (empty($campaignId)) {
-            return new WP_Error('missing_campaign', 'campaign_id is required', ['status' => 400]);
+            return new WP_Error('missing_campaign', __('campaign_id is required', 'mailerpress'), ['status' => 400]);
         }
 
         // Collect params with bounds to prevent excessive resource consumption

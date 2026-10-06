@@ -46,7 +46,7 @@ class Promotions
         $promotion_id = sanitize_key((string) $request->get_param('promotion_id'));
 
         if (!$promotion_id) {
-            return new \WP_Error('missing_promotion_id', 'Missing promotion_id', ['status' => 400]);
+            return new \WP_Error('missing_promotion_id', __('Missing promotion_id', 'mailerpress'), ['status' => 400]);
         }
 
         $success = PromotionStorage::dismiss($promotion_id);
@@ -67,7 +67,7 @@ class Promotions
         $promotion_id = sanitize_key((string) $request->get_param('promotion_id'));
 
         if (!$promotion_id) {
-            return new \WP_Error('missing_promotion_id', 'Missing promotion_id', ['status' => 400]);
+            return new \WP_Error('missing_promotion_id', __('Missing promotion_id', 'mailerpress'), ['status' => 400]);
         }
 
         $success = PromotionStorage::clearDismissedPromotion($promotion_id);

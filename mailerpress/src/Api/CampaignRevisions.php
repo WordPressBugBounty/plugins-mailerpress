@@ -26,7 +26,7 @@ class CampaignRevisions
         if ( ! $campaign_exists ) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Campaign not found.'
+                'message' => __('Campaign not found.', 'mailerpress')
             ], 404);
         }
 
@@ -47,7 +47,7 @@ class CampaignRevisions
         if ($latest_revision && $latest_revision === $new_json) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'No major changes detected, revision not added.'
+                'message' => __('No major changes detected, revision not added.', 'mailerpress')
             ]);
         }
 
@@ -104,7 +104,7 @@ class CampaignRevisions
         ", $revision_id, $campaign_id), ARRAY_A);
 
         if (!$revision) {
-            return new WP_Error('not_found', 'Revision not found', ['status' => 404]);
+            return new WP_Error('not_found', __('Revision not found', 'mailerpress'), ['status' => 404]);
         }
 
         return $revision;
@@ -167,7 +167,7 @@ class CampaignRevisions
         ", $revision_id, $campaign_id), ARRAY_A);
 
         if (!$revision) {
-            return new WP_Error('not_found', 'Revision not found', ['status' => 404]);
+            return new WP_Error('not_found', __('Revision not found', 'mailerpress'), ['status' => 404]);
         }
 
         // Update campaign JSON with revision

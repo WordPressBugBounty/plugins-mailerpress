@@ -30,7 +30,7 @@ class AbandonedCart
         if (!$cart) {
             return new \WP_REST_Response([
                 'cart' => null,
-                'message' => 'No active cart found',
+                'message' => __('No active cart found', 'mailerpress'),
             ], 200);
         }
 

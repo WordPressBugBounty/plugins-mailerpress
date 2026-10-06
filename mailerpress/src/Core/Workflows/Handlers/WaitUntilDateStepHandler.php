@@ -131,8 +131,10 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 			] );
 		}
 
-		$targetTimestamp = strtotime( $targetDateString );
-		if ( false === $targetTimestamp ) {
+		try {
+			// Dates without an explicit timezone use the WordPress site timezone.
+			$targetTimestamp = ( new \DateTimeImmutable( $targetDateString, wp_timezone() ) )->getTimestamp();
+		} catch ( \Exception $exception ) {
 			return StepResult::failed(
 				sprintf(
 					/* translators: %s: the invalid date string */
@@ -169,7 +171,7 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 			return StepResult::success( $step->getNextStepId(), [
 				'wait_until_date_skipped' => true,
 				'wait_until_date_reason' => 'date_in_past',
-				'wait_until_date_target' => gmdate( 'Y-m-d H:i:s', $targetTimestamp ),
+				'wait_until_date_target' => wp_date( 'Y-m-d H:i:s', $targetTimestamp ),
 			] );
 		}
 
@@ -183,7 +185,7 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 		$job->setNextStepId( $step->getNextStepId() );
 
 		return StepResult::success( $step->getNextStepId(), [
-			'wait_until_date' => gmdate( 'Y-m-d H:i:s', $targetTimestamp ),
+			'wait_until_date' => wp_date( 'Y-m-d H:i:s', $targetTimestamp ),
 			'wait_until_date_source' => $dateSource,
 			'wait_until_date_original' => $targetDateString,
 			'wait_until_date_offset' => $offsetValue > 0

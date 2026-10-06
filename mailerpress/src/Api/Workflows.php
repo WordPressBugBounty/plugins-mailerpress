@@ -231,19 +231,19 @@ class Workflows
         ];
 
         $fields = [
-            ['key' => 'user_email', 'label' => 'User Email', 'type' => 'string', 'category' => 'user'],
-            ['key' => 'user_login', 'label' => 'User Login', 'type' => 'string', 'category' => 'user'],
-            ['key' => 'user_role', 'label' => 'User Role', 'type' => 'string', 'category' => 'user'],
-            ['key' => 'user.meta:ANY', 'label' => 'User Meta (key)', 'type' => 'any', 'category' => 'user'],
-            ['key' => 'mp_subscription_status', 'label' => 'Subscription Status', 'type' => 'string', 'category' => 'mailerpress', 'valueType' => 'select', 'valueOptions' => [
-                ['label' => 'Subscribed', 'value' => 'subscribed'],
-                ['label' => 'Unsubscribed', 'value' => 'unsubscribed'],
-                ['label' => 'Pending', 'value' => 'pending'],
+            ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'string', 'category' => 'user'],
+            ['key' => 'user_login', 'label' => __('User Login', 'mailerpress'), 'type' => 'string', 'category' => 'user'],
+            ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'category' => 'user'],
+            ['key' => 'user.meta:ANY', 'label' => __('User Meta (key)', 'mailerpress'), 'type' => 'any', 'category' => 'user'],
+            ['key' => 'mp_subscription_status', 'label' => __('Subscription Status', 'mailerpress'), 'type' => 'string', 'category' => 'mailerpress', 'valueType' => 'select', 'valueOptions' => [
+                ['label' => __('Subscribed', 'mailerpress'), 'value' => 'subscribed'],
+                ['label' => __('Unsubscribed', 'mailerpress'), 'value' => 'unsubscribed'],
+                ['label' => __('Pending', 'mailerpress'), 'value' => 'pending'],
             ]],
-            ['key' => 'mp_has_tag', 'label' => __('Tag', 'mailerpress'), 'type' => 'array|bool', 'category' => 'mailerpress', 'valueType' => 'token', 'description' => 'Check if contact has specific tags', 'operators' => ['==', '!=', 'in', 'not_in']],
-            ['key' => 'mp_in_list', 'label' => __('List', 'mailerpress'), 'type' => 'array|bool', 'category' => 'mailerpress', 'valueType' => 'token', 'description' => 'Check if contact is in specific lists', 'operators' => ['==', '!=', 'in', 'not_in']],
-            ['key' => 'mp_email_opened', 'label' => __('Email Opened', 'mailerpress'), 'type' => 'boolean', 'category' => 'mailerpress', 'valueType' => 'select', 'description' => 'Check if a contact has opened a specific email campaign'],
-            ['key' => 'mp_email_clicked', 'label' => __('Email Clicked', 'mailerpress'), 'type' => 'boolean', 'category' => 'mailerpress', 'valueType' => 'select', 'description' => 'Check if a contact has clicked a link in a specific email campaign'],
+            ['key' => 'mp_has_tag', 'label' => __('Tag', 'mailerpress'), 'type' => 'array|bool', 'category' => 'mailerpress', 'valueType' => 'token', 'description' => __('Check if contact has specific tags', 'mailerpress'), 'operators' => ['==', '!=', 'in', 'not_in']],
+            ['key' => 'mp_in_list', 'label' => __('List', 'mailerpress'), 'type' => 'array|bool', 'category' => 'mailerpress', 'valueType' => 'token', 'description' => __('Check if contact is in specific lists', 'mailerpress'), 'operators' => ['==', '!=', 'in', 'not_in']],
+            ['key' => 'mp_email_opened', 'label' => __('Email Opened', 'mailerpress'), 'type' => 'boolean', 'category' => 'mailerpress', 'valueType' => 'select', 'description' => __('Check if a contact has opened a specific email campaign', 'mailerpress')],
+            ['key' => 'mp_email_clicked', 'label' => __('Email Clicked', 'mailerpress'), 'type' => 'boolean', 'category' => 'mailerpress', 'valueType' => 'select', 'description' => __('Check if a contact has clicked a link in a specific email campaign', 'mailerpress')],
         ];
 
         // Add MailerPress custom fields
@@ -259,7 +259,8 @@ class Workflows
 
             $fieldConfig = [
                 'key' => 'mp_custom_field:' . $customField->field_key,
-                'label' => $customField->label . ' (Custom Field)',
+                /* translators: %s: custom field label */
+                'label' => sprintf(__('%s (Custom Field)', 'mailerpress'), $customField->label),
                 'type' => $fieldType,
                 'category' => 'mailerpress',
                 'description' => __('MailerPress custom field', 'mailerpress'),
@@ -289,14 +290,14 @@ class Workflows
 
         if ($this->isWooCommerceActiveForAi()) {
             $fields = array_merge($fields, [
-                ['key' => 'wc_total_spent', 'label' => 'Total Spent', 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => 'Total amount spent by the customer'],
-                ['key' => 'wc_order_count', 'label' => 'Order Count', 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => 'Number of orders placed by the customer'],
-                ['key' => 'wc_last_order_status', 'label' => 'Last Order Status', 'type' => 'string', 'category' => 'woocommerce', 'valueType' => 'select'],
-                ['key' => 'wc_has_purchased_product', 'label' => 'Has Purchased Product', 'type' => 'array|bool', 'category' => 'woocommerce', 'valueType' => 'token', 'description' => 'Check if customer has purchased specific products'],
-                ['key' => 'wc_purchased_in_category', 'label' => 'Purchased in Category', 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => 'Check if customer has purchased a product in a specific category'],
-                ['key' => 'wc_order_created', 'label' => 'Order Created', 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => 'Check if an order_id exists in the workflow context (useful for abandoned cart recovery)'],
-                ['key' => 'wc_has_reviewed_order', 'label' => 'Has Reviewed Order', 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => 'Check if customer has left a product review for products in the current order'],
-                ['key' => 'order_total', 'label' => 'Order Total', 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => 'Total amount of the current order from workflow context'],
+                ['key' => 'wc_total_spent', 'label' => __('Total Spent', 'mailerpress'), 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => __('Total amount spent by the customer', 'mailerpress')],
+                ['key' => 'wc_order_count', 'label' => __('Order Count', 'mailerpress'), 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => __('Number of orders placed by the customer', 'mailerpress')],
+                ['key' => 'wc_last_order_status', 'label' => __('Last Order Status', 'mailerpress'), 'type' => 'string', 'category' => 'woocommerce', 'valueType' => 'select'],
+                ['key' => 'wc_has_purchased_product', 'label' => __('Has Purchased Product', 'mailerpress'), 'type' => 'array|bool', 'category' => 'woocommerce', 'valueType' => 'token', 'description' => __('Check if customer has purchased specific products', 'mailerpress')],
+                ['key' => 'wc_purchased_in_category', 'label' => __('Purchased in Category', 'mailerpress'), 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => __('Check if customer has purchased a product in a specific category', 'mailerpress')],
+                ['key' => 'wc_order_created', 'label' => __('Order Created', 'mailerpress'), 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => __('Check if an order_id exists in the workflow context (useful for abandoned cart recovery)', 'mailerpress')],
+                ['key' => 'wc_has_reviewed_order', 'label' => __('Has Reviewed Order', 'mailerpress'), 'type' => 'boolean', 'category' => 'woocommerce', 'valueType' => 'select', 'description' => __('Check if customer has left a product review for products in the current order', 'mailerpress')],
+                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'category' => 'woocommerce', 'valueType' => 'number', 'description' => __('Total amount of the current order from workflow context', 'mailerpress')],
             ]);
         }
 
@@ -863,7 +864,7 @@ class Workflows
         if (!isset($body['automation']) || !isset($body['nodes'])) {
             return new \WP_Error(
                 'invalid_data',
-                'Missing automation or nodes data',
+                __('Missing automation or nodes data', 'mailerpress'),
                 ['status' => 400]
             );
         }
@@ -935,7 +936,7 @@ class Workflows
 
         // Create automation
         $automationId = $automationRepo->create([
-            'name' => $automationData['name'] ?? 'New Workflow',
+            'name' => $automationData['name'] ?? __('New Workflow', 'mailerpress'),
             'status' => $automationData['status'] ?? 'DRAFT',
             'run_once_per_subscriber' => $automationData['run_once_per_subscriber'] ?? false,
             'author' => get_current_user_id() ?: null,
@@ -944,7 +945,7 @@ class Workflows
         if (!$automationId) {
             return new \WP_Error(
                 'create_failed',
-                'Failed to create automation',
+                __('Failed to create automation', 'mailerpress'),
                 ['status' => 500]
             );
         }
@@ -1353,7 +1354,7 @@ class Workflows
         $automation = (new AutomationRepository())->find($automationId);
 
         if (!$automation) {
-            return new \WP_Error('not_found', 'Automation not found', ['status' => 404]);
+            return new \WP_Error('not_found', __('Automation not found', 'mailerpress'), ['status' => 404]);
         }
 
         $stats = (new GoalRepository())->getStatsByAutomation($automationId);
@@ -3260,7 +3261,7 @@ PROMPT;
         $automationId = (int) $request->get_param('automationId');
 
         if (!$automationId) {
-            return new \WP_Error('invalid_automation', 'Automation ID is required', ['status' => 400]);
+            return new \WP_Error('invalid_automation', __('Automation ID is required', 'mailerpress'), ['status' => 400]);
         }
 
         $testTable = $wpdb->prefix . 'mailerpress_ab_tests';
@@ -3390,7 +3391,7 @@ PROMPT;
         if (!isset($body['automation']) || !isset($body['nodes'])) {
             return new \WP_Error(
                 'invalid_data',
-                'Missing automation or nodes data',
+                __('Missing automation or nodes data', 'mailerpress'),
                 ['status' => 400]
             );
         }
@@ -3400,7 +3401,7 @@ PROMPT;
         if (!$existingAutomation) {
             return new \WP_Error(
                 'not_found',
-                'Automation not found',
+                __('Automation not found', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -3672,7 +3673,7 @@ PROMPT;
         if (!$automation) {
             return new \WP_Error(
                 'not_found',
-                'Automation not found',
+                __('Automation not found', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -3723,7 +3724,7 @@ PROMPT;
         if (!$existingAutomation) {
             return new \WP_Error(
                 'not_found',
-                'Automation not found',
+                __('Automation not found', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -3740,7 +3741,7 @@ PROMPT;
         if (!$deleted) {
             return new \WP_Error(
                 'delete_failed',
-                'Failed to delete automation',
+                __('Failed to delete automation', 'mailerpress'),
                 ['status' => 500]
             );
         }
@@ -3988,7 +3989,7 @@ PROMPT;
         if (!$automation) {
             return new \WP_Error(
                 'not_found',
-                'Automation not found',
+                __('Automation not found', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -5016,7 +5017,7 @@ PROMPT;
         if (!$automation) {
             return new \WP_Error(
                 'not_found',
-                'Automation not found',
+                __('Automation not found', 'mailerpress'),
                 ['status' => 404]
             );
         }

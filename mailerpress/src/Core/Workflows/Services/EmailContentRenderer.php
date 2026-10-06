@@ -462,7 +462,7 @@ class EmailContentRenderer
             }
 
             $productName = $item['product_name'] ?? '';
-            $thumbnailUrl = $item['thumbnail_url'] ?? 'https://placehold.co/120x120/f0f0f0/999999?text=No+image';
+            $thumbnailUrl = $item['thumbnail_url'] ?? MAILERPRESS_PLUGIN_DIR_URL . 'build/public/images/placeholders/no-image.png';
 
             $html .= '<!-- ITEM_START -->';
             $html .= '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:' . \esc_attr($cardBackgroundColor) . ';border-radius:' . \esc_attr($cardBorderRadius) . ';"><tbody><tr>';
@@ -745,7 +745,7 @@ class EmailContentRenderer
 
             $config = $this->extractBlockConfig($configJson, [
                 'couponCode' => 'WELCOME20',
-                'label' => 'Your exclusive code',
+                'label' => __('Your exclusive code', 'mailerpress'),
                 'expirationText' => '',
                 'background-color' => '#f7f7f7',
                 'border' => '2px dashed #cccccc',
@@ -1414,7 +1414,7 @@ class EmailContentRenderer
             $endComment = $block[5];
 
             $config = $this->extractBlockConfig($configJson, [
-                'buttonText' => 'Complete your order',
+                'buttonText' => __('Complete your order', 'mailerpress'),
                 'bgColor' => '#0073aa',
                 'textColor' => '#ffffff',
                 'borderRadius' => '4px',
@@ -1635,7 +1635,7 @@ class EmailContentRenderer
                 'descriptionFontSize' => '14px',
                 'priceColor' => '#0073aa',
                 'priceFontSize' => '24px',
-                'buttonText' => 'Shop now',
+                'buttonText' => __('Shop now', 'mailerpress'),
                 'buttonBgColor' => '#0073aa',
                 'buttonTextColor' => '#ffffff',
                 'buttonBorderRadius' => '4px',

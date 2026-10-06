@@ -105,7 +105,7 @@ $style_attr = static function (string $style): string {
 
         <!-- Honeypot field for bot protection - hidden from users -->
         <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" aria-hidden="true">
-            <label for="mailerpress-website">Website</label>
+            <label for="mailerpress-website"><?php esc_html_e('Website', 'mailerpress'); ?></label>
             <input
                 type="text"
                 id="mailerpress-website"

@@ -28,7 +28,7 @@ class RemoveTagStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'tag',
-                    'label' => 'Tag',
+                    'label' => __('Tag', 'mailerpress'),
                     'type' => 'text',
                     'required' => true,
                 ],

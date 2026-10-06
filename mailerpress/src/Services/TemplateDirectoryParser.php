@@ -77,7 +77,7 @@ class TemplateDirectoryParser
         $category_id = $this->get_or_create_category($category_name);
 
         $json_version = $data['version'] ?? '1.0.0';
-        $content = $this->normalizeContent($data['json'] ?? '');
+        $content = $this->replacePluginUrlToken($this->normalizeContent($data['json'] ?? ''), $file_path);
 
         // Get usage_type from JSON data, default to 'newsletter' for backward compatibility
         $usage_type = $data['usage_type'] ?? 'newsletter';
@@ -175,5 +175,27 @@ class TemplateDirectoryParser
         }
 
         return is_string($content) ? $content : '';
+    }
+
+    /**
+     * Replace the {{plugin_url}} token with the URL of the plugin shipping the template file,
+     * so bundled templates can reference images packaged with that plugin.
+     */
+    private function replacePluginUrlToken(string $content, string $file_path): string
+    {
+        if (false === strpos($content, '{{plugin_url}}')) {
+            return $content;
+        }
+
+        $pluginsDir = \trailingslashit(\wp_normalize_path(WP_PLUGIN_DIR));
+        $filePath = \wp_normalize_path($file_path);
+
+        if (0 !== strpos($filePath, $pluginsDir)) {
+            return $content;
+        }
+
+        $slug = strtok(substr($filePath, strlen($pluginsDir)), '/');
+
+        return str_replace('{{plugin_url}}', \trailingslashit(\plugins_url($slug)), $content);
     }
 }

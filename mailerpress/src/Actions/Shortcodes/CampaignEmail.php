@@ -63,6 +63,7 @@ class CampaignEmail
             status_header(404);
             nocache_headers();
             wp_die(
+                /* translators: %s: campaign status */
                 sprintf(__('Campaign not available (status: %s).', 'mailerpress'), esc_html($campaign['status'])),
                 __('Not Found', 'mailerpress'),
                 ['response' => 404]

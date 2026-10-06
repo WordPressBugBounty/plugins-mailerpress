@@ -118,7 +118,7 @@ class Tags
         $new_tag_name = sanitize_text_field($request->get_param('name'));
 
         if (empty($new_tag_name)) {
-            return new \WP_Error('invalid_input', 'The tag name cannot be empty.', ['status' => 400]);
+            return new \WP_Error('invalid_input', __('The tag name cannot be empty.', 'mailerpress'), ['status' => 400]);
         }
 
         // Check if a tag with the same name already exists
@@ -130,7 +130,7 @@ class Tags
         );
 
         if ($existing_tag) {
-            return new \WP_Error('duplicate_tag', 'A tag with this name already exists.', ['status' => 409]);
+            return new \WP_Error('duplicate_tag', __('A tag with this name already exists.', 'mailerpress'), ['status' => 409]);
         }
 
         // Insert the tag
@@ -141,7 +141,7 @@ class Tags
         );
 
         if (false === $inserted) {
-            return new \WP_Error('db_error', 'Failed to create the tag.', ['status' => 500]);
+            return new \WP_Error('db_error', __('Failed to create the tag.', 'mailerpress'), ['status' => 500]);
         }
 
         $new_tag_id = $wpdb->insert_id;

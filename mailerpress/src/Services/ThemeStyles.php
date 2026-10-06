@@ -35,7 +35,7 @@ class ThemeStyles
 
         $result['Core'] = array_merge(
             [
-                'title' => 'Default',
+                'title' => __('Default', 'mailerpress'),
                 '_mailerpress' => ['variationType' => 'style'],
             ],
             $baseThemeData

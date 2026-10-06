@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name: MailerPress
  * Plugin URI: https://mailerpress.com/
  * Description: Create beautiful emails simply inside WordPress connected to your favorite Email Service Provider
- * Version: 2.1
+ * Version: 2.1.2
  * Author: Team MailerPress
  * Author URI: https://mailerpress.com/
  * License: GPLv3 or later
@@ -42,9 +42,10 @@ use MailerPress\Core\Workflows\Handlers\SendEmailStepHandler;
 use MailerPress\Core\Workflows\WorkflowSystem;
 use MailerPress\Services\Activation;
 use MailerPress\Services\DeactivatePro;
+use MailerPress\Services\TranslationUpdates;
 
 // Define constants
-define('MAILERPRESS_VERSION', '2.1');
+define('MAILERPRESS_VERSION', '2.1.2');
 define('MAILERPRESS_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 define('MAILERPRESS_PLUGIN_DIR_URL', plugin_dir_url(__FILE__));
 define('MAILERPRESS_ASSETS_DIR', MAILERPRESS_PLUGIN_DIR_URL . 'assets');
@@ -63,6 +64,9 @@ if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
 }
 
 require_once __DIR__ . '/vendor/autoload.php';
+
+add_filter('pre_set_site_transient_update_plugins', [TranslationUpdates::class, 'useLatestAvailable']);
+add_action('mailerpress_refresh_translation_updates', [TranslationUpdates::class, 'refresh'], 10, 2);
 
 try {
     if (

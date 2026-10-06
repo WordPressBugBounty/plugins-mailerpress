@@ -254,7 +254,7 @@ class Dashboard
             $endDateFormatted = $endDate->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return rest_ensure_response([
-                'message' => 'Invalid date format provided.',
+                'message' => __('Invalid date format provided.', 'mailerpress'),
                 'error' => $e->getMessage(),
             ]);
         }

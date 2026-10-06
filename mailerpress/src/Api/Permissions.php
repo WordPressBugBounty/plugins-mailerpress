@@ -83,7 +83,7 @@ class Permissions
 
         // API auth returned false (no API key headers), try WordPress authentication
         if (!is_user_logged_in()) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 401]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 401]);
         }
 
         // Verify nonce for cookie-based auth (not for Application Passwords)
@@ -94,13 +94,13 @@ class Permissions
         if (!$is_application_password) {
             // Cookie-based auth requires a valid nonce to prevent CSRF
             if (empty($nonce) || !wp_verify_nonce($nonce, 'wp_rest')) {
-                return new \WP_Error('rest_cookie_invalid_nonce', 'Cookie nonce verification failed.', ['status' => 403]);
+                return new \WP_Error('rest_cookie_invalid_nonce', __('Cookie nonce verification failed.', 'mailerpress'), ['status' => 403]);
             }
         }
 
         // If a specific capability is required, check it
         if ($capability !== null && !current_user_can($capability)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         return true;
@@ -151,7 +151,7 @@ class Permissions
             }
         }
 
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
     }
 
     private static function checkPrivilegedAuth(\WP_REST_Request $request, string $capability, string $requiredWpCapability = 'manage_options'): bool|\WP_Error
@@ -167,7 +167,7 @@ class Permissions
         }
 
         if (!current_user_can($requiredWpCapability)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         return true;
@@ -260,7 +260,7 @@ class Permissions
 
         $campaignIds = self::getCampaignRequestIds($request);
         if (empty($campaignIds)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         $campaigns = self::getCampaignAccessRows($campaignIds);
@@ -289,7 +289,7 @@ class Permissions
                     );
                 }
             } elseif (!current_user_can($capability)) {
-                return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+                return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
             }
         }
 
@@ -315,7 +315,7 @@ class Permissions
                 : current_user_can(Capabilities::EDIT_OTHERS_CAMPAIGNS);
 
             if (!$canEditOthers) {
-                return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+                return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
             }
         }
 
@@ -403,7 +403,7 @@ class Permissions
             return true;
         }
 
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
     }
 
     public static function canReadContactImportStatus($request): bool|\WP_Error
@@ -585,12 +585,12 @@ class Permissions
         }
 
         if ($ids === null || $ids === '') {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         $campaignIds = self::normalizeIds($ids);
         if (empty($campaignIds)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         return self::canAccessCampaignOwners($campaignIds);
@@ -696,7 +696,7 @@ class Permissions
 
         $userId = get_current_user_id();
         if (!$userId) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         $placeholders = implode(',', array_fill(0, count($campaignIds), '%d'));
@@ -715,7 +715,7 @@ class Permissions
 
         foreach ($rows as $row) {
             if ((int) $row['user_id'] !== $userId) {
-                return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+                return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
             }
         }
 
@@ -762,7 +762,7 @@ class Permissions
             return true;
         }
 
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
     }
 
     private static function canAccessAutomationOwner(int $automationId): bool|\WP_Error
@@ -772,7 +772,7 @@ class Permissions
         }
 
         if ($automationId <= 0) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         $automation = (new AutomationRepository())->find($automationId);
@@ -788,7 +788,7 @@ class Permissions
             return true;
         }
 
-        return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+        return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
     }
 
     private static function getAutomationRequestId(\WP_REST_Request $request): int
@@ -856,7 +856,7 @@ class Permissions
         }
 
         if (!current_user_can(Capabilities::USE_AI)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         return true;
@@ -877,7 +877,7 @@ class Permissions
         $ids = $request->get_param('ids');
 
         if ($ids === 'all' || $ids === null) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         if (!is_array($ids)) {
@@ -887,7 +887,7 @@ class Permissions
         $ids = array_filter(array_map('intval', $ids));
 
         if (empty($ids)) {
-            return new \WP_Error('rest_forbidden', 'Sorry, you are not allowed to do that.', ['status' => 403]);
+            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
         }
 
         foreach ($ids as $automationId) {

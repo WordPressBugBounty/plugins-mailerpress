@@ -32,7 +32,7 @@ class OpenApiSpec
 
         if (!file_exists($spec_file)) {
             return new \WP_REST_Response([
-                'error' => 'OpenAPI specification file not found'
+                'error' => __('OpenAPI specification file not found', 'mailerpress')
             ], 404);
         }
 
@@ -41,7 +41,7 @@ class OpenApiSpec
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             return new \WP_REST_Response([
-                'error' => 'Invalid OpenAPI specification format'
+                'error' => __('Invalid OpenAPI specification format', 'mailerpress')
             ], 500);
         }
 

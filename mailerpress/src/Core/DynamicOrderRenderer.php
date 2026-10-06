@@ -350,7 +350,7 @@ class DynamicOrderRenderer
 
             $thumbnailUrl = $item['thumbnail_url'] ?? '';
             if (empty($thumbnailUrl)) {
-                $thumbnailUrl = 'https://placehold.co/120x120/f0f0f0/999999?text=No+image';
+                $thumbnailUrl = MAILERPRESS_PLUGIN_DIR_URL . 'build/public/images/placeholders/no-image.png';
             }
             $thumbnailUrl = \esc_url($thumbnailUrl);
 
@@ -1908,7 +1908,7 @@ class DynamicOrderRenderer
                     \esc_attr($productName)
                 );
             } else {
-                $thumbnailUrl = 'https://placehold.co/120x120/f0f0f0/999999?text=No+image';
+                $thumbnailUrl = MAILERPRESS_PLUGIN_DIR_URL . 'build/public/images/placeholders/no-image.png';
                 $thumbnailHtml = sprintf(
                     '<img src="%s" alt="%s" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; display: block;" />',
                     \esc_url($thumbnailUrl),

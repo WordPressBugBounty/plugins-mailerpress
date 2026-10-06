@@ -4,4 +4,4 @@ defined('ABSPATH') || exit;
 
 ?>
 
-<p>Hello</p>
+<p><?php esc_html_e('Hello', 'mailerpress'); ?></p>

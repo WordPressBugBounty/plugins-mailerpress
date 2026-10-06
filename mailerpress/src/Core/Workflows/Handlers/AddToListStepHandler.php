@@ -28,7 +28,7 @@ class AddToListStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'list',
-                    'label' => 'List',
+                    'label' => __('List', 'mailerpress'),
                     'type' => 'select_dynamic',
                     'data_source' => 'lists',
                     'required' => true,

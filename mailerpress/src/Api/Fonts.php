@@ -23,7 +23,7 @@ class Fonts
         $fonts = get_option('mailerpress_fonts');
 
         if (!is_array($font)) {
-            return new \WP_Error('invalid_font', 'Font data must be an array.', ['status' => 400]);
+            return new \WP_Error('invalid_font', __('Font data must be an array.', 'mailerpress'), ['status' => 400]);
         }
 
         if (empty($fonts)) {

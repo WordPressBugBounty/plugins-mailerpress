@@ -461,12 +461,12 @@ class Templates
         $deleted = $wpdb->delete($table, ['id' => $id], ['%d']);
 
         if ($deleted === false) {
-            return new WP_Error('db_error', 'Could not delete the template.', ['status' => 500]);
+            return new WP_Error('db_error', __('Could not delete the template.', 'mailerpress'), ['status' => 500]);
         } elseif ($deleted === 0) {
-            return new WP_Error('not_found', 'Template not found.', ['status' => 404]);
+            return new WP_Error('not_found', __('Template not found.', 'mailerpress'), ['status' => 404]);
         }
 
-        return new WP_REST_Response(['message' => 'Template deleted successfully.'], 200);
+        return new WP_REST_Response(['message' => __('Template deleted successfully.', 'mailerpress')], 200);
     }
 
     #[Endpoint(

@@ -78,6 +78,11 @@ class Init
                 'apiUrl' => rest_url('mailerpress/v1/contact'),
                 'nonce' => wp_create_nonce('wp_rest'),
                 'ajaxUrl' => admin_url('admin-ajax.php'),
+                'i18n' => [
+                    'success' => __('Successfully subscribed!', 'mailerpress'),
+                    'error' => __('An error occurred. Please try again.', 'mailerpress'),
+                    'unexpected' => __('Unexpected error. Please try again later.', 'mailerpress'),
+                ],
             ],
             JSON_HEX_TAG | JSON_HEX_AMP
         ) . ';</script>' . "\n";

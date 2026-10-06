@@ -1326,7 +1326,7 @@ function mailerpress_get_confirm_email_starter_template(string $emailContent = '
                             [
                                 'type' => 'image',
                                 'data' => ['width' => 120, 'size' => 'full'],
-                                'attributes' => ['width' => '120px', 'align' => 'center', 'src' => 'https://placehold.co/120x40/2c2c2c/ffffff?text=LOGO', 'href' => '', 'fluid-on-mobile' => false, 'padding-top' => '10px', 'padding-bottom' => '10px', 'padding-left' => '10px', 'padding-right' => '10px'],
+                                'attributes' => ['width' => '120px', 'align' => 'center', 'src' => MAILERPRESS_PLUGIN_DIR_URL . 'build/public/images/placeholders/logo.png', 'href' => '', 'fluid-on-mobile' => false, 'padding-top' => '10px', 'padding-bottom' => '10px', 'padding-left' => '10px', 'padding-right' => '10px'],
                                 'children' => [],
                                 'clientId' => $uid(),
                             ],

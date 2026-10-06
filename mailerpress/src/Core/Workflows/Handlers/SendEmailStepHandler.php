@@ -44,7 +44,7 @@ class SendEmailStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'template_id',
-                    'label' => 'Email Template',
+                    'label' => __('Email Template', 'mailerpress'),
                     'type' => 'select_dynamic',
                     'data_source' => 'campaigns',
                     'hidden' => true,
@@ -53,7 +53,7 @@ class SendEmailStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'name',
-                    'label' => 'Email Name *',
+                    'label' => __('Email Name *', 'mailerpress'),
                     'type' => 'text',
                     'required' => true,
                     'help' => __('Give this email a name to identify it in conditions (e.g., "Welcome Email", "Order Confirmation")', 'mailerpress'),
@@ -68,7 +68,7 @@ class SendEmailStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'subject',
-                    'label' => 'Subject *',
+                    'label' => __('Subject *', 'mailerpress'),
                     'type' => 'text',
                     'required' => true,
                     'help' => __('Override template subject (leave empty to use template default)', 'mailerpress'),
@@ -274,7 +274,7 @@ class SendEmailStepHandler implements StepHandlerInterface
         }
 
         try {
-            $sent = $mailer->sendEmail([
+            $emailPayload = [
                 'to' => $contactResult->email,
                 'html' => true,
                 'body' => $parsedHtml,
@@ -282,7 +282,21 @@ class SendEmailStepHandler implements StepHandlerInterface
                 'sender_name' => $config['conf']['default_name'] ?? '',
                 'sender_to' => $config['conf']['default_email'] ?? '',
                 'apiKey' => $config['conf']['api_key'] ?? '',
-            ]);
+            ];
+
+            $unsubToken = $contactResult->contact->unsubscribe_token ?? '';
+            if ( ! empty( $unsubToken ) ) {
+                $unsubUrl = get_rest_url( null, sprintf(
+                    'mailerpress/v1/one-click-unsubscribe?token=%s',
+                    urlencode( $unsubToken )
+                ) );
+                $emailPayload['custom_headers'] = [
+                    'List-Unsubscribe'      => '<' . $unsubUrl . '>',
+                    'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+                ];
+            }
+
+            $sent = $mailer->sendEmail($emailPayload);
 
             if (!$sent) {
                 return StepResult::failed('Failed to send email via MailerPress service');

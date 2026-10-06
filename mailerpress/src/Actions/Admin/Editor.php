@@ -23,6 +23,7 @@ use MailerPress\Models\Patterns as PatternModel;
 use MailerPress\Models\Posts;
 use MailerPress\Models\Tags;
 use MailerPress\Services\ThemeStyles;
+use MailerPress\Services\ScriptTranslations;
 use function MailerPress\Helpers\formatPatternsForEditor;
 use function MailerPress\Helpers\formatPostForApi;
 
@@ -72,10 +73,7 @@ class Editor
                 ['in_footer' => true]
             );
 
-            wp_set_script_translations(
-                'mail-editor', // must match enqueued handle
-                'mailerpress'
-            );
+            ScriptTranslations::enqueue('mail-editor', 'mailerpress', Kernel::$config['root'] . '/languages');
 
             wp_enqueue_script('mail-editor');
 

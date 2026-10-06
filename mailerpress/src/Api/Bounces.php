@@ -56,7 +56,7 @@ class Bounces
 
         return rest_ensure_response([
             'success' => true,
-            'message' => 'Logs cleared successfully'
+            'message' => __('Logs cleared successfully', 'mailerpress')
         ]);
     }
 
@@ -77,7 +77,7 @@ class Bounces
 
         return rest_ensure_response([
             'success' => true,
-            'message' => 'Bounce check completed',
+            'message' => __('Bounce check completed', 'mailerpress'),
             'logs' => $logs
         ]);
     }

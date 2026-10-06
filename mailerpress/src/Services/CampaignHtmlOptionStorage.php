@@ -385,16 +385,51 @@ class CampaignHtmlOptionStorage
             );
         };
 
+        // safecss_filter_attr() drops rgb()/rgba() values, which browsers emit for editor text colors.
+        $protectedColors = [];
+        $html = self::protectEmailColorFunctions($html, $protectedColors);
+
         add_filter('safe_style_css', $cssFilter);
         try {
-            return wp_kses(
-                $html,
-                $allowedHtml,
-                self::getEmailAllowedProtocols()
+            return strtr(
+                wp_kses(
+                    $html,
+                    $allowedHtml,
+                    self::getEmailAllowedProtocols()
+                ),
+                $protectedColors
             );
         } finally {
             remove_filter('safe_style_css', $cssFilter);
         }
+    }
+
+    private static function protectEmailColorFunctions(string $html, array &$protectedColors): string
+    {
+        $result = preg_replace_callback(
+            '/(^|[\s<])style\s*=\s*(["\'])(.*?)\2/is',
+            static function (array $matches) use (&$protectedColors): string {
+                $updatedStyle = preg_replace_callback(
+                    '/\brgba?\(\s*[\d.%\s,\/+-]+\)/i',
+                    static function (array $colorMatches) use (&$protectedColors): string {
+                        $token = 'var(--mailerpress-email-color-' . count($protectedColors) . ')';
+                        $protectedColors[$token] = $colorMatches[0];
+
+                        return $token;
+                    },
+                    $matches[3]
+                );
+
+                if (null === $updatedStyle) {
+                    return $matches[0];
+                }
+
+                return $matches[1] . 'style=' . $matches[2] . $updatedStyle . $matches[2];
+            },
+            $html
+        );
+
+        return $result ?? $html;
     }
 
     private static function protectEmailBackgroundStyles(string $html, array &$protectedStyles): string

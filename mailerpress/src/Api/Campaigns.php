@@ -1800,14 +1800,14 @@ class Campaigns
             ];
         } elseif (!is_array($campaign_types)) {
             return new \WP_REST_Response([
-                'message' => 'campaign_type parameter must be an array.'
+                'message' => __('campaign_type parameter must be an array.', 'mailerpress')
             ], 400);
         }
 
         $campaign_type_ids = array_map(fn($ct) => $ct['id'], $campaign_types);
 
         if (empty($campaign_type_ids)) {
-            return new \WP_REST_Response(['message' => 'No campaign_type IDs found.'], 400);
+            return new \WP_REST_Response(['message' => __('No campaign_type IDs found.', 'mailerpress')], 400);
         }
 
         $placeholders = implode(',', array_fill(0, count($campaign_type_ids), '%s'));
@@ -1843,14 +1843,15 @@ class Campaigns
         $deleted_campaigns = $wpdb->query($delete_campaigns_query_prepared);
 
         if ($deleted_batches === false || $deleted_campaigns === false) {
-            return new \WP_REST_Response(['message' => 'Failed to delete campaigns or batches.'], 500);
+            return new \WP_REST_Response(['message' => __('Failed to delete campaigns or batches.', 'mailerpress')], 500);
         }
 
         return new \WP_REST_Response(
             [
-                'message' => "Deleted campaigns and related batches for campaign_type IDs (trash only): " . implode(
-                    ', ',
-                    $campaign_type_ids
+                'message' => sprintf(
+                    /* translators: %s: comma-separated list of campaign IDs */
+                    __('Deleted campaigns and related batches for campaign_type IDs (trash only): %s', 'mailerpress'),
+                    implode(', ', $campaign_type_ids)
                 ),
                 'deleted_campaigns' => $deleted_campaigns,
                 'deleted_batches' => $deleted_batches,
@@ -2623,7 +2624,7 @@ class Campaigns
     public function getContactConditionalData( \WP_REST_Request $request ): \WP_REST_Response {
         $contactId = absint( $request->get_param( 'id' ) );
         if ( 0 === $contactId ) {
-            return new \WP_REST_Response( [ 'error' => 'Invalid contact ID' ], 400 );
+            return new \WP_REST_Response( [ 'error' => __('Invalid contact ID', 'mailerpress') ], 400 );
         }
 
         $data = apply_filters( 'mailerpress/contact/conditional_data', [], $contactId );
@@ -3109,7 +3110,7 @@ class Campaigns
         if (!$campaignId || empty($html)) {
             return new \WP_Error(
                 'invalid_parameters',
-                'Missing or invalid campaignId or html',
+                __('Missing or invalid campaignId or html', 'mailerpress'),
                 ['status' => 400]
             );
         }
@@ -3125,7 +3126,7 @@ class Campaigns
         if (!$campaign) {
             return new \WP_Error(
                 'campaign_not_found',
-                'Campaign not found',
+                __('Campaign not found', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -3142,7 +3143,7 @@ class Campaigns
         if ($updated === false) {
             return new \WP_Error(
                 'update_failed',
-                'Failed to update campaign HTML content',
+                __('Failed to update campaign HTML content', 'mailerpress'),
                 ['status' => 500]
             );
         }
@@ -3176,7 +3177,7 @@ class Campaigns
 
         return new \WP_REST_Response([
             'success' => true,
-            'message' => 'Campaign HTML content and option updated successfully',
+            'message' => __('Campaign HTML content and option updated successfully', 'mailerpress'),
         ]);
     }
 
@@ -3613,7 +3614,7 @@ class Campaigns
             'campaignId' => $campaign_id,
             'status' => 'inactive',
             'scheduledActionsCancelled' => $cancelled_actions,
-            'message' => 'Campaign deactivated successfully',
+            'message' => __('Campaign deactivated successfully', 'mailerpress'),
         ], 200);
     }
 
@@ -3658,7 +3659,7 @@ class Campaigns
 
         // Optional: Only allow activation if not already active
         if ($campaign['status'] === 'active') {
-            return new \WP_REST_Response(['message' => 'Campaign is already active'], 200);
+            return new \WP_REST_Response(['message' => __('Campaign is already active', 'mailerpress')], 200);
         }
 
         $config = json_decode($campaign['config'] ?? '', true) ?: [];
@@ -3693,7 +3694,7 @@ class Campaigns
         return new \WP_REST_Response([
             'campaignId' => $campaign_id,
             'status' => 'active',
-            'message' => 'Campaign activated successfully',
+            'message' => __('Campaign activated successfully', 'mailerpress'),
         ], 200);
     }
 
@@ -4078,14 +4079,14 @@ class Campaigns
 
         // Decode token to get tracking information
         if (empty($token)) {
-            return new \WP_Error('invalid_input', 'Token is required.', ['status' => 400]);
+            return new \WP_Error('invalid_input', __('Token is required.', 'mailerpress'), ['status' => 400]);
         }
 
         $data = \MailerPress\Core\HtmlParser::decodeTrackingToken($token);
 
         // Note: cid can be 0 for anonymous tracking, so we use isset() instead of empty()
         if (!$data || !isset($data['cid']) || empty($data['cmp'])) {
-            return new \WP_Error('invalid_token', 'Invalid or corrupted tracking token.', ['status' => 400]);
+            return new \WP_Error('invalid_token', __('Invalid or corrupted tracking token.', 'mailerpress'), ['status' => 400]);
         }
 
         // Extract data from token
@@ -4101,7 +4102,7 @@ class Campaigns
             $batch_id = null;
         }
         if ($campaign_id <= 0) {
-            return new \WP_Error('invalid_token', 'Invalid campaign ID in token.', ['status' => 400]);
+            return new \WP_Error('invalid_token', __('Invalid campaign ID in token.', 'mailerpress'), ['status' => 400]);
         }
 
         // Determine if this is anonymous tracking (contact_id = 0)
@@ -4125,7 +4126,7 @@ class Campaigns
         // For transactional emails without job_id, we need a valid contact_id
         // For campaign emails (with batch_id), anonymous tracking is allowed
         if ($contact_id <= 0 && empty($batch_id)) {
-            return new \WP_Error('invalid_token', 'Could not determine contact ID from token.', ['status' => 400]);
+            return new \WP_Error('invalid_token', __('Could not determine contact ID from token.', 'mailerpress'), ['status' => 400]);
         }
 
         // Determine if this is a transactional email (workflow) or campaign email
@@ -4138,7 +4139,7 @@ class Campaigns
 
             // For transactional emails, campaign_id is required
             if (empty($campaign_id)) {
-                return new \WP_Error('invalid_input', 'Campaign ID is required for transactional emails.', ['status' => 400]);
+                return new \WP_Error('invalid_input', __('Campaign ID is required for transactional emails.', 'mailerpress'), ['status' => 400]);
             }
 
             // For transactional emails, we need to:
@@ -4248,7 +4249,7 @@ class Campaigns
             }
 
             if (empty($campaign_id)) {
-                return new \WP_Error('invalid_input', 'Campaign ID could not be determined from batch.', ['status' => 400]);
+                return new \WP_Error('invalid_input', __('Campaign ID could not be determined from batch.', 'mailerpress'), ['status' => 400]);
             }
 
             // Update email_tracking table
@@ -4480,7 +4481,7 @@ class Campaigns
             if (strtotime($lock->editing_started_at) > $lock_timeout) {
                 return new WP_REST_Response([
                     'success' => false,
-                    'message' => 'Cette campagne est en cours d’édition par un autre utilisateur.'
+                    'message' => __('This campaign is currently being edited by another user.', 'mailerpress')
                 ], 423); // 423 Locked
             }
         }
@@ -4888,7 +4889,7 @@ class Campaigns
         if (!$campaign) {
             return new \WP_Error(
                 'not_found',
-                'Campaign not found',
+                __('Campaign not found', 'mailerpress'),
                 ['status' => 404]
             );
         }

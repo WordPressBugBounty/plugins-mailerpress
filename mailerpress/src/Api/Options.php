@@ -245,7 +245,7 @@ class Options
     {
         $theme = $request->get_param('name');
         if (empty($theme)) {
-            return new \WP_Error('invalid_theme', 'Theme name is required.', ['status' => 400]);
+            return new \WP_Error('invalid_theme', __('Theme name is required.', 'mailerpress'), ['status' => 400]);
         }
         update_option('mailerpress_theme', sanitize_text_field($theme), 'Core');
         return rest_ensure_response([]);
@@ -289,12 +289,12 @@ class Options
         $optionName = $request->get_param('name');
         $optionValue = $request->get_param('value');
         if (empty($optionName)) {
-            return new \WP_Error('invalid_option', 'Option name is required.', ['status' => 400]);
+            return new \WP_Error('invalid_option', __('Option name is required.', 'mailerpress'), ['status' => 400]);
         }
         $optionName = sanitize_key($optionName);
 
         if (!self::isAllowedOption($optionName)) {
-            return new \WP_Error('forbidden_option', 'Only mailerpress options can be created or updated.', ['status' => 403]);
+            return new \WP_Error('forbidden_option', __('Only mailerpress options can be created or updated.', 'mailerpress'), ['status' => 403]);
         }
 
         // Options that need native PHP array storage (for WPML compatibility)
@@ -465,13 +465,13 @@ class Options
         $option_name = $request->get_param('name');
 
         if (!self::isAllowedOption($option_name)) {
-            return new \WP_Error('forbidden_option', 'Only mailerpress options can be read.', ['status' => 403]);
+            return new \WP_Error('forbidden_option', __('Only mailerpress options can be read.', 'mailerpress'), ['status' => 403]);
         }
 
         $option_value = get_option($option_name);
 
         if (is_null($option_value)) {
-            return new \WP_Error('no_option', 'Option not found', ['status' => 404]);
+            return new \WP_Error('no_option', __('Option not found', 'mailerpress'), ['status' => 404]);
         }
 
         if ('mailerpress_ai_model_settings' === $option_name) {
@@ -501,13 +501,13 @@ class Options
     {
         $optionName = $request->get_param('name');
         if (empty($optionName)) {
-            return new \WP_Error('invalid_option', 'Option name is required.', ['status' => 400]);
+            return new \WP_Error('invalid_option', __('Option name is required.', 'mailerpress'), ['status' => 400]);
         }
 
         $optionName = sanitize_key($optionName);
 
         if (!self::isAllowedOption($optionName)) {
-            return new \WP_Error('forbidden_option', 'Only mailerpress options can be deleted.', ['status' => 403]);
+            return new \WP_Error('forbidden_option', __('Only mailerpress options can be deleted.', 'mailerpress'), ['status' => 403]);
         }
 
         $deleted = delete_option($optionName);
@@ -526,13 +526,13 @@ class Options
         $userId = get_current_user_id();
 
         if (!$userId) {
-            return new \WP_Error('no_user', 'User not authenticated.', ['status' => 401]);
+            return new \WP_Error('no_user', __('User not authenticated.', 'mailerpress'), ['status' => 401]);
         }
 
         $completed = $request->get_param('completed');
 
         if (!in_array($completed, ['yes', 'no'], true)) {
-            return new \WP_Error('invalid_param', 'The completed value must be "yes" or "no".', ['status' => 400]);
+            return new \WP_Error('invalid_param', __('The completed value must be "yes" or "no".', 'mailerpress'), ['status' => 400]);
         }
 
         update_user_meta($userId, 'mailerpress_setup_completed', $completed);

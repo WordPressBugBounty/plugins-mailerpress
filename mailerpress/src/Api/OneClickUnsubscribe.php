@@ -13,7 +13,7 @@ class OneClickUnsubscribe
 {
 	#[Endpoint(
 		'one-click-unsubscribe',
-		methods: 'POST',
+		methods: [ 'GET', 'POST' ],
 		permissionCallback: '__return_true',
 	)]
 	public function handle(\WP_REST_Request $request): \WP_REST_Response
@@ -29,6 +29,18 @@ class OneClickUnsubscribe
 
 		if ( ! $contact ) {
 			return new \WP_REST_Response( null, 200 );
+		}
+
+		if ( 'GET' === $request->get_method() ) {
+			$url = add_query_arg(
+				[
+					'data' => $token,
+					'cid'  => $contact->access_token ?? '',
+				],
+				mailerpress_get_page( 'unsub_page' )
+			);
+
+			return new \WP_REST_Response( null, 302, [ 'Location' => esc_url_raw( $url ) ] );
 		}
 
 		if ( 'unsubscribed' === $contact->subscription_status ) {

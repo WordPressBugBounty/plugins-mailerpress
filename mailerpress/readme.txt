@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.1
-Stable tag: 2.1
+Stable tag: 2.1.2
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -260,6 +260,20 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.1.2 =
+* IMPROVEMENT: Contact synchronization field mapping with MailerPress Pro is faster to set up: search long field lists and create a new MailerPress custom field on the fly, mapped automatically.
+* FIX: Date-based automation steps now follow your WordPress timezone, keeping your email journeys on schedule and activity logs easier to understand.
+* FIX: Automation emails now include one-click unsubscribe support for compatible inboxes, and opening the unsubscribe link in a browser leads to the expected unsubscribe page.
+* FIX: Article previews in Query blocks now update cleanly without showing duplicate posts while you edit your email.
+* FIX: Emails sent with ToSend now use your chosen reply-to address and include unsubscribe information, making it easier for subscribers to reply or opt out from compatible inboxes.
+* FIX: Subjects and sender names containing accents, dashes or curly quotes now display correctly in emails sent with Gmail or Amazon SES with MailerPress Pro, including test emails.
+* FIX: ACF and ACPT user fields now appear in the WordPress users synchronization field mapping with MailerPress Pro, even before any user has saved a value.
+* FIX: Text and link colors set in the email editor are now kept in sent campaigns, so links no longer show up in default blue in Outlook or Android mail apps.
+
+= 2.1.1 =
+* FIX: Restore access to A/B testing for Pro users.
+* FIX: Newsletter signup forms now work smoothly inside Bricks popups, helping you grow your audience without interruption.
+
 = 2.1 <a href="https://mailerpress.com/mailerpress-2-1/">Read the blog post update</a> =
 * NEW: Conditional Block Display — Personalize email blocks using contact data, engagement, and WooCommerce purchase history.
 * NEW: A/B Testing with MailerPress Pro — Test up to five campaign variations and choose a winner based on opens or clicks.

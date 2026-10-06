@@ -140,7 +140,7 @@ class Recovery
         if (!$batch_id) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Invalid batch_id',
+                'message' => __('Invalid batch_id', 'mailerpress'),
             ], 400);
         }
 
@@ -155,7 +155,7 @@ class Recovery
         if (empty($failed_chunks)) {
             return new WP_REST_Response([
                 'success' => true,
-                'message' => 'No failed or stuck chunks to retry',
+                'message' => __('No failed or stuck chunks to retry', 'mailerpress'),
                 'chunks_retried' => 0,
             ], 200);
         }
@@ -182,7 +182,11 @@ class Recovery
 
         return new WP_REST_Response([
             'success' => true,
-            'message' => sprintf('%d chunk(s) scheduled for retry', $retried_count),
+            'message' => sprintf(
+                /* translators: %d: number of chunks scheduled for retry */
+                _n('%d chunk scheduled for retry', '%d chunks scheduled for retry', $retried_count, 'mailerpress'),
+                $retried_count
+            ),
             'chunks_retried' => $retried_count,
         ], 200);
     }
@@ -204,7 +208,7 @@ class Recovery
         if (!$chunk_id) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Invalid chunk_id',
+                'message' => __('Invalid chunk_id', 'mailerpress'),
             ], 400);
         }
 
@@ -218,7 +222,7 @@ class Recovery
         if (!$chunk) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Chunk not found',
+                'message' => __('Chunk not found', 'mailerpress'),
             ], 404);
         }
 
@@ -239,7 +243,7 @@ class Recovery
 
         return new WP_REST_Response([
             'success' => true,
-            'message' => 'Chunk scheduled for retry',
+            'message' => __('Chunk scheduled for retry', 'mailerpress'),
             'chunk_id' => $chunk_id,
             'batch_id' => (int) $chunk->batch_id,
         ], 200);
@@ -321,7 +325,7 @@ class Recovery
         if (!$batch_id) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Invalid batch_id',
+                'message' => __('Invalid batch_id', 'mailerpress'),
             ], 400);
         }
 
@@ -337,7 +341,7 @@ class Recovery
         if (!$batch) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => 'Batch not found',
+                'message' => __('Batch not found', 'mailerpress'),
             ], 404);
         }
 
@@ -378,7 +382,7 @@ class Recovery
 
         return new WP_REST_Response([
             'success' => true,
-            'message' => 'Batch reset successfully',
+            'message' => __('Batch reset successfully', 'mailerpress'),
             'batch_id' => $batch_id,
             'chunks_rescheduled' => (int) $chunks_count,
         ], 200);

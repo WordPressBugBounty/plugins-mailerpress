@@ -74,7 +74,7 @@ class Notifications
         if (empty($notification_id)) {
             return rest_ensure_response([
                 'success' => false,
-                'message' => 'Missing notification_id',
+                'message' => __('Missing notification_id', 'mailerpress'),
             ]);
         }
 
@@ -83,7 +83,7 @@ class Notifications
 
         return rest_ensure_response([
             'success' => $success,
-            'message' => $success ? 'Notification dismissed' : 'Failed to dismiss notification',
+            'message' => $success ? __('Notification dismissed', 'mailerpress') : __('Failed to dismiss notification', 'mailerpress'),
             'dismissed_id' => $notification_id,
         ]);
     }
@@ -112,7 +112,7 @@ class Notifications
 
         return rest_ensure_response([
             'success' => $success,
-            'message' => $success ? 'All notifications dismissed' : 'Failed to dismiss notifications',
+            'message' => $success ? __('All notifications dismissed', 'mailerpress') : __('Failed to dismiss notifications', 'mailerpress'),
             'count' => count($notification_ids),
         ]);
     }

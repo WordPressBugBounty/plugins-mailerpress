@@ -572,7 +572,7 @@ class Frontend
 
         if (!$data || empty($data['url'])) {
             // Log for debugging (remove in production if needed)
-            wp_die('Invalid tracking link', 'MailerPress', ['response' => 400]);
+            wp_die(esc_html__('Invalid tracking link', 'mailerpress'), 'MailerPress', ['response' => 400]);
         }
 
         $contactId = (int)($data['cid'] ?? 0);
@@ -583,7 +583,7 @@ class Frontend
 
         // Validate that we have required IDs
         if ($campaignId <= 0) {
-            wp_die('Invalid tracking link', 'MailerPress', ['response' => 400]);
+            wp_die(esc_html__('Invalid tracking link', 'mailerpress'), 'MailerPress', ['response' => 400]);
         }
 
         // Check if this is anonymous tracking (contact_id = 0)

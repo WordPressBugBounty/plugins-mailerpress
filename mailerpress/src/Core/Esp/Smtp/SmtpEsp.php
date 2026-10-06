@@ -34,7 +34,7 @@ class SmtpEsp implements EmailServiceInterface
     public function config(): array
     {
         return [
-            'name' => 'External service (SMTP)',
+            'name' => __('External service (SMTP)', 'mailerpress'),
             'link' => 'https://www.brevo.com/fr/pricing/',
             'createAccountLink' => 'https://onboarding.brevo.com/account/register',
             'linkApiKey' => 'https://app.brevo.com/settings/keys/api',

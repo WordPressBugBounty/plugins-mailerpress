@@ -97,23 +97,23 @@ class PluginRow
     function plugin_row($actions)
     {
         // plugin_action_links can be called before init hook
-        // Use hardcoded strings to avoid WordPress 6.7.0+ translation loading warnings
-        // These strings are simple and don't require translation at this early stage
+        // Only translate once init has fired to avoid WordPress 6.7.0+ translation loading warnings
+        $canTranslate = did_action('init') > 0;
+        $docLabel = $canTranslate ? esc_html__('Documentation', 'mailerpress') : 'Documentation';
+        $goProLabel = $canTranslate ? esc_html__('Go Pro', 'mailerpress') : 'Go Pro';
         $options = apply_filters('mailerpress_white_label_options', []);
 
         if (
             (isset($options['white_label_active']) && false === $options['white_label_active']) ||
             count($options) === 0
         ) {
-            // Use hardcoded English strings to avoid early translation loading
-            // These will be displayed in English only on the plugin list page
-            $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('docs')) . '" target="_blank">Documentation</a>';
+            $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('docs')) . '" target="_blank">' . $docLabel . '</a>';
 
             if (!is_plugin_active('mailerpress-pro/mailerpress-pro.php')) {
-                $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('pricing')) . '" target="_blank">Go Pro</a>';
+                $actions[] = '<a href="' . esc_url(\MailerPress\Core\ExternalLinks::get('pricing')) . '" target="_blank">' . $goProLabel . '</a>';
             }
         } elseif (!empty($options['custom_documentation_url'])) {
-            $actions[] = '<a href="' . esc_url($options['custom_documentation_url']) . '" target="_blank">Documentation</a>';
+            $actions[] = '<a href="' . esc_url($options['custom_documentation_url']) . '" target="_blank">' . $docLabel . '</a>';
         }
 
         return $actions;
