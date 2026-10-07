@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.1
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -260,6 +260,10 @@ Paid plan users: Priority support via the <a href="https://mailerpress.com/suppo
 15. Outgoing webhooks configuration
 
 == Changelog ==
+= 2.1.3 =
+* FIX: Emails sent with EmailIt work again, including campaigns, automations and test emails, after EmailIt retired its previous API. Bounce tracking with EmailIt is also updated.
+* FIX: Test emails sent from Preview & Send for Raw HTML and classic editor campaigns now include your email content instead of arriving empty.
+
 = 2.1.2 =
 * IMPROVEMENT: Contact synchronization field mapping with MailerPress Pro is faster to set up: search long field lists and create a new MailerPress custom field on the fly, mapped automatically.
 * FIX: Date-based automation steps now follow your WordPress timezone, keeping your email journeys on schedule and activity logs easier to understand.

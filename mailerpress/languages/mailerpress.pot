@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.1.2\n"
+"Project-Id-Version: MailerPress 2.1.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T13:21:42+00:00\n"
+"POT-Creation-Date: 2026-10-07T12:29:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mailerpress\n"
@@ -79,7 +79,7 @@ msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:311
 #: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:467
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 #: build/screen-DashboardView.977be50bab1be32082bb.js:6
@@ -126,7 +126,7 @@ msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:235
 #: src/Actions/Widgets/Overview.php:282
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:1
@@ -136,7 +136,7 @@ msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:236
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:115
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:2
@@ -155,13 +155,13 @@ msgid "Webhooks"
 msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:239
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:3
 msgid "Tools"
 msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:240
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:14
@@ -482,7 +482,7 @@ msgid "Confirm unsubscribe"
 msgstr ""
 
 #: src/Actions/Pages/Pages.php:310
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 msgid "Manage subscription"
@@ -641,7 +641,7 @@ msgstr ""
 #: src/Actions/Shortcodes/MyLists.php:75
 #: src/Actions/Shortcodes/MyLists.php:638
 #: templates/manage-subscription.php:200
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:10
@@ -977,14 +977,14 @@ msgstr ""
 #: src/Actions/Widgets/Overview.php:609
 #: src/Actions/Workflows/RegisterWorkflowGoals.php:53
 #: src/Actions/Workflows/RegisterWorkflowGoals.php:98
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Campaign"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:610
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:67
 #: src/Blocks/TemplatesCategories.php:148
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Newsletter"
 msgstr ""
 
@@ -1221,7 +1221,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:47
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:68
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:180
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Order Status"
@@ -1361,7 +1361,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:176
 #: src/Api/Workflows.php:300
 #: src/Api/Workflows.php:312
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/dist/js/mail-editor.js:14
 msgid "Order Total"
@@ -1400,7 +1400,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:85
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:67
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:178
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Order Date"
 msgstr ""
@@ -1446,7 +1446,7 @@ msgstr ""
 
 #: src/Actions/Workflows/FluentCart/OrderPaid.php:51
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:77
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Billing Address"
 msgstr ""
@@ -1770,14 +1770,14 @@ msgid "Campaign Type"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:68
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:3
 msgid "Automated"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:69
 #: src/Actions/Workflows/RegisterWorkflowGoals.php:271
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/screen-WorkflowListing.0f2514e93e1bbbfaf8c1.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:10
@@ -1960,8 +1960,8 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:136
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:87
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/editor-blocks.js:1
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:5
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:7
@@ -2214,7 +2214,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:82
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:64
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:175
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/dist/js/mail-editor.js:14
 msgid "Order Number"
@@ -2436,7 +2436,7 @@ msgid "Shipping Last Name"
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:85
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Shipping Address"
 msgstr ""
@@ -2691,7 +2691,7 @@ msgstr ""
 #: src/Api/Campaigns.php:3653
 #: src/Api/Campaigns.php:4892
 #: src/Api/Campaigns.php:5099
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Campaign not found"
 msgstr ""
 
@@ -4793,7 +4793,7 @@ msgid "Payment method:"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:2138
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-InactiveContactsSettings.1c288e936695459f8c8a.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
@@ -5268,7 +5268,7 @@ msgid "LiteSpeed Cache plugin detected. Some REST API endpoints used by MailerPr
 msgstr ""
 
 #: src/Core/Notifications/Messages/LiteSpeedActivatedNotification.php:65
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Fix it"
 msgstr ""
 
@@ -5350,7 +5350,7 @@ msgid "Claim 30% off now"
 msgstr ""
 
 #: src/Core/Promotions/PromotionRegistry.php:144
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Recommended"
 msgstr ""
@@ -5716,7 +5716,7 @@ msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:36
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:67
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Unit"
@@ -5724,7 +5724,7 @@ msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:41
 #: src/Core/Workflows/Services/GoalRegistry.php:162
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
@@ -5734,7 +5734,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:42
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:72
 #: src/Core/Workflows/Services/GoalRegistry.php:163
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
@@ -5744,7 +5744,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:43
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:73
 #: src/Core/Workflows/Services/GoalRegistry.php:164
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-InactiveContactsSettings.1c288e936695459f8c8a.js:1
@@ -6818,7 +6818,7 @@ msgid "Invalid API response"
 msgstr ""
 
 #: src/Services/ThemeStyles.php:38
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:12
 #: build/dist/js/mail-editor.js:13
 #: build/dist/js/mail-editor.js:14
@@ -6880,7 +6880,7 @@ msgid "No mailing lists available."
 msgstr ""
 
 #: templates/manage-subscription.php:128
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:2
@@ -7026,7 +7026,7 @@ msgid "Create WordPress user"
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-SendingFrequency.720235a593372a6fa53a.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
@@ -7034,7 +7034,7 @@ msgid "minutes"
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-SendingFrequency.720235a593372a6fa53a.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
@@ -7042,7 +7042,7 @@ msgid "hours"
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-InactiveContactsSettings.1c288e936695459f8c8a.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
@@ -7225,7 +7225,7 @@ msgid "When a contact gets tagged as a webinar attendee, wait 1 hour, send repla
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-WorkflowTemplates.af24f54df598cfdccf50.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
@@ -7493,7 +7493,7 @@ msgid "Workflow created successfully!"
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-WorkflowDashboard.9962221242c41bd591cc.js:1
 #: build/screen-WorkflowListing.0f2514e93e1bbbfaf8c1.js:1
@@ -7507,8 +7507,8 @@ msgid "Create workflow"
 msgstr ""
 
 #: build/1008.86f7e470db6ae497f7ea.js:1
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:10
 #: build/email-editor.f464c313dfe98ae327ab.js:1
@@ -7571,76 +7571,76 @@ msgstr ""
 msgid "Apply"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "The campaign name is only visible from the WordPress administration interface."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Campaign name *"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "This text will be displayed in the title of the email your recipients will receive."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Campaign subject *"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start composing email"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Failed to fetch categories."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Template Name"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:14
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Category"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Template Type"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Newsletter templates are for manual campaigns. Automation templates are for automated workflows."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Failed to update template."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Template name cannot be empty."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Create Template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Failed to sync templates"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Sync Templates"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "No templates match your current filters."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:5
 #: build/screen-ApiKeysSettings.38c2a996b2598d0f02a5.js:1
 #: build/screen-ContactListsView.23ca35899ccba6022345.js:1
@@ -7651,43 +7651,43 @@ msgstr ""
 msgid "Reset all filters"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "No templates available"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "It looks like you don't have any templates yet. Create one to get started."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Campaign name"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start with this template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "More template actions"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Edit template details"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Edit template content"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Are you sure you want to delete this item?"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:4
 #: build/dist/js/mail-editor.js:5
 #: build/dist/js/mail-editor.js:10
@@ -7696,16 +7696,16 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Uncategorized"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Pre-designed layouts for your emails."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:14
@@ -7720,16 +7720,16 @@ msgstr ""
 msgid "All"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Premium"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Your templates"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 #: build/screen-ApiKeysSettings.38c2a996b2598d0f02a5.js:1
@@ -7741,7 +7741,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-ContactListsView.23ca35899ccba6022345.js:1
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:5
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:1
@@ -7749,96 +7749,96 @@ msgstr ""
 msgid "Created at"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:5
 #: build/screen-WorkflowListing.0f2514e93e1bbbfaf8c1.js:1
 msgid "Updated at"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/screen-WorkflowTemplates.af24f54df598cfdccf50.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:3
 msgid "Template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Your template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Premium template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Preview device"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Desktop"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Mobile"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "This template cannot be previewed."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Select a template to preview it."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Search blocks..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "ACF Field Block - Pro Feature"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "ACF fields are only available for Pro users. "
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Upgrade to unlock ACF fields and create custom content."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Columns"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "No blocks found"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Browse all"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Add block"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:1
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/editor-blocks.js:1
 #: build/screen-DashboardView.977be50bab1be32082bb.js:1
 #: build/screen-DashboardView.977be50bab1be32082bb.js:6
@@ -7851,124 +7851,124 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #, js-format
 msgid "Moving %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:3
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Select"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start from draft"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start from a previous campaign"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "About this campaign"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Campaign details"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid ""
 "This name is only visible to you in your WordPress dashboard.\n"
 ""
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid ""
 "This will appear as the email’s subject line for your recipients.\n"
 ""
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Who should receive this email?"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Choose your recipients"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "List *"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start composing your email"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "You have no campaigns to duplicate"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Start from this campaign"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Template name *"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Give your template a descriptive name."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Category *"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Create template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "<strong>Welcome to MailerPress!</strong><br>Let’s get started by exploring the Blocks Sidebar. Here, you can easily drag and drop blocks or patterns to build your emails."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "<strong>Add a Block</strong><br>Simply drag a block from this area and drop it into the editor to include it in your email design."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "<strong>Manage Your Blocks</strong><br>Click this button to view all your blocks in a list. From here, you can easily hide, move, or reorder blocks in your email design."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "<strong>Email Preview</strong><br>This is the main editor view, where you can see your email as it will appear to your recipients. You can drag and drop new blocks here to build and design your email."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "<strong>Preview Your Email</strong><br>Here, you can preview how your email looks on both Desktop and Mobile before sending it."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Review & Send"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Finally, you can review your email and send it when you’re ready."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "For more details, check out the full documentation."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Previous"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:9
 #: build/screen-DashboardView.977be50bab1be32082bb.js:1
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:1
@@ -7977,848 +7977,848 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Finish"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Next Step"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Skip Tour"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:13
 msgid "SVG images are not supported, please try another image."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Media library"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Insert from URL"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Image URL"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "https://example.com/image.jpg"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Insert"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:5
 #: build/dist/js/mail-editor.js:13
 msgid "Generate image with AI"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:13
 msgid "AI image generation is available only in the Pro version of MailerPress. "
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:5
 #: build/dist/js/mail-editor.js:13
 msgid "Upgrade to unlock AI image generation and create custom images."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "AI generation"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:13
 msgid "Video URL"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "https://www.youtube.com/watch?v=dDq0v-wdSUk"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "YouTube, Vimeo or Dailymotion URL"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Customer Name"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Order Items"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Subscription Details"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Choose a model"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Create my own template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Return"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Order Summary"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "With Customer"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Full Details"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "2 Columns Layout"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Addresses Only"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Create your custom order template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/dist/js/mail-editor.js:13
 msgid "Column"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "No blocks added yet"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Available blocks"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Add column"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:10
 msgid "Insert this template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Type / to choose a block"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/dist/js/mail-editor.js:14
 msgid "Write with AI"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Close block inserter"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Add block to column"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "This block has no content"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 msgid "Resize image"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:1
+#: build/4932.89ef259177b8df9932b2.js:1
 #, js-format
 msgid "Resize columns %1$d and %2$d"
 msgstr ""
 
 #. translators: 1: control label, 2: column widths
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "%1$s: %2$s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This email was sent to you because you opted in to receive our newsletter"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 msgid "Made with MailerPress"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 msgid "You are receiving this email because it contains information related to your account, activity, or request."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:14
 msgid "Company name - Company address"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 msgid "Email Preview"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Choose a template for \"%s\", or start from a blank canvas."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Available merge tags:"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Use this template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Empty canvas"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Start blank"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Start from a blank email"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Please choose a layout below to begin:"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Or select a default design to start with"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Browse all template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Open template library"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Use this starter"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "%d missing font detected (%s)."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:9
 msgid "Install"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Add an Unsubscribe or Manage Subscription link to comply with GDPR."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "You can include a footer in this email. If the recipient is not a subscribed contact in your MailerPress audience, it will be removed automatically."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Add footer"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This is a child A/B variation. You can generate a new copy and CTA variation while keeping the same design, colors, images, layout, and footer."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Generate Variation %s with AI"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Generate variation with AI"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
 msgid "Generating..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:5
 #: build/dist/js/mail-editor.js:13
 msgid "Generate with AI"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Your email should display correctly, but some MJML issues were found. Reviewing them is recommended for best safety."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Review code"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-ProvidersScreen.1ef77267a9c342af9ce8.js:2
 msgid "Your primary provider is disabled."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-ProvidersScreen.1ef77267a9c342af9ce8.js:2
 msgid "MailerPress will therefore not be able to send your emails correctly. Please activate your default sending email or choose another active primary service."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:3
 msgid "Go to sending options"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "AI returned an invalid variation response."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "AI did not return usable variation changes."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "AI variation generated. Review it before sending."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Unable to generate this variation."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Choose a template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Create a new template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Back to list"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Before we begin..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Please setup the plugin before starting"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This content is displayed based on the current query and may change if new posts are published."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Hidden"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "1 variant"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "variants"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Editing %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Editing default"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Default value for tag"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Leave empty if none"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/dist/js/mail-editor.js:10
 msgid "Update"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Email size: %s KB"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Template not found"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This email template no longer exists. You can create a new one from the settings."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This campaign no longer exists or has been deleted."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Back to email settings"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Back to campaigns"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "SandBox"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "%1$s — %2$s default"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Invalid date selected. Date set to minimum future time."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Cannot schedule in the past. Date set to minimum future time."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Current site time:"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Schedule for later"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Pick a date"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "(%d contact)"
 msgid_plural "(%d contacts)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Cannot save settings: campaign ID is missing"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Draft saved."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-InactiveContactsSettings.1c288e936695459f8c8a.js:1
 #: build/screen-RateLimitingSettings.3b1b930696d3a488c1b5.js:1
 #: build/screen-SendingFrequency.720235a593372a6fa53a.js:1
 msgid "Failed to save settings"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "The scheduled date must be in the future. Please update the date and try again."
 msgstr ""
 
 #. translators: %s is the scheduled date and time formatted as "DD/MM/YYYY at HH:mm:ss"
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Your newsletter has been scheduled for %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Your newsletter is on it's way"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Failed to send campaign"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Failed to save settings before sending"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Your campaign is now scheduled to send automatically"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Filter by"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Lists & Tags"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Segment"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Contact lists"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Select at least one list or tag"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Custom segments are available only in the Pro version of MailerPress. "
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Upgrade to create advanced targeting rules and reuse your saved segments."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:2
 msgid "Search segments"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Select a segment"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "%d contact matched"
 msgid_plural "%d contacts matched"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "No contacts match the selected segment. Try choosing a different segment."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "No contacts in your selected list(s) have the selected tag(s). Try removing the tag filter."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "No contacts have the selected tag(s). Try a different tag or select a list first."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "The selected list(s) have no contacts yet."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:7
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:1
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:10
 msgid "Details"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:1
 msgid "Recipients"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-SettingView.f25aeacc49d3b808b344.js:1
 msgid "Sending"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Send a test"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "via"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Your test email has been sent to your recipients"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:14
 msgid "Unable to send the test email."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Send Test"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:1
 msgid "From"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Subject line"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "A subject line is required"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Preview text"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:2
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Snippet shown in email clients below the subject line"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:3
 msgid "Tracking"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Track opens"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Anonymously (GDPR)"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Track clicks"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "%d contact will receive this campaign"
 msgid_plural "%d contacts will receive this campaign"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Schedule at recommended time"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Best time to send today: %s — Based on your audience's open history."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Each published post creates a separate newsletter in Campaigns, using this design and audience. Recipient subscriptions, delivery and statistics follow the normal newsletter process."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "When a post is published"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Send newsletter"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Create draft"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Send mode"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Live"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Automated campaigns can only be used with dynamic content. Please include a Query block in your email to automatically send to new matching contacts when new content is published. Static content alone will not trigger automated sending."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "This automated campaign sends emails based on the content retrieved by your Query block. When new matching content (e.g., published posts or products) appears, an email will be automatically sent following the frequency you have set, using the template you designed."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Frequency"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Every day"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Every week"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Every month"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "At"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 #, js-format
 msgid "Recommended: %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Monday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Tuesday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Wednesday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Thursday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Friday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Saturday"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:2
+#: build/4932.89ef259177b8df9932b2.js:2
 msgid "Sunday"
 msgstr ""
 
 #. translators: %s: day of the week
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "%s — Best day"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Days of the month"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Add one day at a time (1-31)"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Will be sent on"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This matches your best performing time slot."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Tip: Your audience tends to open more around %s on this day."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Tip: Best send time today is around %s."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Sending in %ds…"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "← Back"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Save draft"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Next"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Newsletter setup saved. Each published post will create its own campaign."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Could not save the newsletter setup."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Save setup"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Publish automation"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Send now"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Schedule sending"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Select at least one recipient list to send."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "The scheduled date must be in the future."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
@@ -8827,145 +8827,145 @@ msgstr ""
 msgid "Variation %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "(no subject)"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Sender name"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to load the selected variation."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This variation does not have saved content yet."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Loading selected variation..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Loading email preview..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to generate the email preview."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Variation settings saved."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to save variation settings."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Variation %s has no rendered HTML. Save it before launching."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A/B test setup saved."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to save the A/B test setup."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Your test email has been sent."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A/B test scheduled."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A/B test launched."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to launch the A/B test."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Variation to preview"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Simulate the rendering that one of your contacts will receive"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ContactView.995d269fe0d3f6c1a6f7.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Select a value"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:7
 msgid "Winner"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "All variations are sent at the same time, each to its share of the audience. You compare the results afterwards."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "%1$d%% of your audience receives the variations. After %2$s, the best performing one is sent automatically to the remaining %3$d%%."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "%1$d%% of your audience receives the variations. After %2$s, you pick the winner and send it to the remaining %3$d%%."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #, js-format
 msgid "%d %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
 msgid "minute"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 #: build/workflow-editor.bb9afbc71bea9a13638e.js:1
 msgid "hour"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:14
 msgid "Content"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Method"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Launch"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Select an audience before launching."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Traffic for variation %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:4
 #: build/dist/js/mail-editor.js:13
 #: build/screen-ApiKeysSettings.38c2a996b2598d0f02a5.js:1
@@ -8973,142 +8973,142 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Send a test of %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This campaign is not linked to an A/B test."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Unable to load the A/B test configuration."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This A/B test is scheduled. Its setup can no longer be changed."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This A/B test has already been launched. Its setup can no longer be changed."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Variation to edit"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Each variation has its own sender, subject line and preview text. The preview on the left follows your selection."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ProvidersScreen.1ef77267a9c342af9ce8.js:2
 msgid "Send to"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Audience mode"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Counting recipients..."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "%d recipient selected for this A/B test."
 msgid_plural "%d recipients selected for this A/B test."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Select at least one list, tag or segment to continue."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "How should the variations be sent?"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Test, then send the winner"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A small part of your audience receives the variations first. The best performing one is then sent to everyone else."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Split the whole audience"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Everyone receives a variation right away. Useful to compare results on your full audience."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Who receives what"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Test group size"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Share of your audience used to test the variations."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Pick the winner after"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Wait time"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "The winner is the variation with the best score, combining opens and clicks (clicks count more)."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Send the winner automatically"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "The winner is sent without any action from you."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "You will choose when to send the winner from the A/B test report."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Share per variation"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Advanced settings"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Split of the test group"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "If there is no data"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Variation sent to the remaining audience when no opens or clicks are recorded."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 #: build/html-email-editor.7f3d8cb2d1b2abcb2d40.js:1
 msgid "Variations"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-DashboardView.977be50bab1be32082bb.js:6
 #, js-format
 msgid "%d recipient"
@@ -9116,138 +9116,138 @@ msgid_plural "%d recipients"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Schedule A/B test"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:8
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:10
 msgid "Launch A/B test"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A/B test scheduled"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "A/B test already launched"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Shift Command %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #, js-format
 msgid "Control Shift %s"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Importing this template will replace your current content. Changes will not be saved until you save the draft. Are you sure you want to continue?"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:2
 msgid "Convert to A/B test"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-ListingCampaignsView.d622538d93e4cfa4a067.js:10
 msgid "View"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Show and hide the WordPress admin interface"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Fullscreen mode"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Access all block and email tools in a single place"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Top toolbar"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Build your email with drag-and-drop blocks"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Edit mode"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Edit content directly in the email preview"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Live mode"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/screen-CreateCampaign.80a683e582e6f4c2b829.js:1
 msgid "Editor"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Code editor (MJML)"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:13
 #: build/email-editor.f464c313dfe98ae327ab.js:7
 msgid "Fonts"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Font manager"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:7
 msgid "Browse all templates"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/email-editor.f464c313dfe98ae327ab.js:7
 msgid "Save as template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Export email as JSON"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Invalid email JSON format."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Failed to parse JSON file."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Import email from JSON"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "This will replace your current content with the default WooCommerce template. Are you sure?"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Template reset to default."
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 msgid "Reset to default template"
 msgstr ""
 
-#: build/4932.39fd509cc585bdca74f7.js:3
+#: build/4932.89ef259177b8df9932b2.js:3
 #: build/dist/js/mail-editor.js:3
 msgid "Help"
 msgstr ""

@@ -152,7 +152,7 @@ class MigrationValidator
         $versionProperty = $reflection->getProperty('version');
         $expectedVersion = $versionProperty->getValue($manager);
 
-        if ($expectedVersion && $expectedVersion !== '2.1.2') {
+        if ($expectedVersion && $expectedVersion !== '2.1.3') {
             $versionOptionName = 'custom_table_' . sanitize_key(str_replace($wpdb->prefix, '', $tableName)) . '_version';
             $actualVersion = get_option($versionOptionName);
 
