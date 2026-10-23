@@ -18,7 +18,7 @@ MailerPress is a free email marketing and newsletter plugin for WordPress. Build
 
 Whether you're a blogger sending a weekly newsletter, an online store owner looking to customize WooCommerce emails (paid plan required), or a marketer running large-scale email campaigns, MailerPress gives you everything you need — with no subscriber limits and no sending restrictions.
 
-[youtube https://youtu.be/dDq0v-wdSUk]
+[youtube https://www.youtube.com/watch?v=1oyHBOjQy1k]
 
 = Drag-and-Drop Email Editor =
 

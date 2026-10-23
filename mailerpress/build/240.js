@@ -1,1 +1,0 @@
-(globalThis.webpackChunkmailerpress=globalThis.webpackChunkmailerpress||[]).push([[240],{10240:()=>{}}]);
