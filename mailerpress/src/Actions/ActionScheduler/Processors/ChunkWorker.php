@@ -9,7 +9,6 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
-use MailerPress\Services\Logger;
 
 /**
  * Worker récurrent qui traite les chunks en attente
@@ -65,26 +64,13 @@ class ChunkWorker
             return;
         }
 
-        Logger::info('ChunkWorker: Processing pending chunks', [
-            'count' => count($pending_chunks),
-            'max_per_run' => self::MAX_CHUNKS_PER_RUN,
-        ]);
-
         // Traiter chaque chunk
-        $processed = 0;
-        $errors = 0;
-
         foreach ($pending_chunks as $chunk) {
             try {
                 $this->processChunk((int) $chunk->batch_id, (int) $chunk->id);
-                $processed++;
             } catch (\Throwable $e) {
-                $errors++;
-                Logger::error('ChunkWorker: Error processing chunk', [
-                    'chunk_id' => $chunk->id,
-                    'batch_id' => $chunk->batch_id,
-                    'error' => $e->getMessage(),
-                ]);
+                // A failing chunk must not stop the other chunks of this run.
+                continue;
             }
         }
 
@@ -109,13 +95,6 @@ class ChunkWorker
             $contactEmailChunk->mailerpress_process_contact_chunk($batch_id, $chunk_id);
 
         } catch (\Throwable $e) {
-            Logger::error('ChunkWorker: Error processing chunk', [
-                'batch_id' => $batch_id,
-                'chunk_id' => $chunk_id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             throw $e; // Re-throw pour que le catch du parent le capture
         }
     }
@@ -170,7 +149,6 @@ class ChunkWorker
     {
         if (\function_exists('as_unschedule_all_actions')) {
             as_unschedule_all_actions('mailerpress_process_pending_chunks', [], 'mailerpress');
-            Logger::info('ChunkWorker: Worker stopped — no pending chunks');
         }
     }
 
@@ -252,7 +230,6 @@ class ChunkWorker
                 [],
                 'mailerpress'
             );
-            Logger::info('ChunkWorker: Worker activated — pending chunks detected');
         }
     }
 }

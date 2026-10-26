@@ -7,7 +7,6 @@ namespace MailerPress\Actions\Cron;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Attributes\Action;
-use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\Enums\Tables;
 
 class Cleanup
@@ -164,14 +163,5 @@ class Cleanup
             LIMIT 1000",
             $cleanup_threshold
         ));
-    }
-
-    /**
-     * Log message to file for debugging
-     */
-    private function log(string $message, array $context = []): void
-    {
-        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
-        DebugFileLogger::write('cleanup.log', $message, $context);
     }
 }

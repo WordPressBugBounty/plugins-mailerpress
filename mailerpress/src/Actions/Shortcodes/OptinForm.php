@@ -41,8 +41,8 @@ class OptinForm
             'error_message' => __('Oops! Something went wrong. Please try again.', 'mailerpress'),
             'show_first_name' => 'false',
             'show_last_name' => 'false',
-            'first_name_label' => __('First Name', 'mailerpress'),
-            'last_name_label' => __('Last Name', 'mailerpress'),
+            'first_name_label' => __('First name', 'mailerpress'),
+            'last_name_label' => __('Last name', 'mailerpress'),
             'email_label' => __('Email', 'mailerpress'),
             'email_placeholder' => __('Enter your email', 'mailerpress'),
             'first_name_placeholder' => __('Enter your first name', 'mailerpress'),
@@ -295,15 +295,23 @@ class OptinForm
             true // In footer
         );
 
+		/** Lets add-ons enqueue the front-end assets they need for MailerPress forms. */
+		do_action('mailerpress_form_assets', 'native_forms');
+
         // Localize script with REST API URL
         wp_localize_script(
             'mailerpress-optin-form-js',
             'mailerpressOptin',
-            [
-                'apiUrl' => rest_url('mailerpress/v1/contact'),
-                'nonce' => wp_create_nonce('wp_rest'),
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-            ]
+            /** Lets add-ons extend the public configuration read by MailerPress forms. */
+            apply_filters(
+                'mailerpress_public_form_config',
+                [
+                    'apiUrl' => rest_url('mailerpress/v1/contact'),
+                    'nonce' => wp_create_nonce('wp_rest'),
+                    'ajaxUrl' => admin_url('admin-ajax.php'),
+                ],
+                'native_forms'
+            )
         );
 
         wp_enqueue_script('mailerpress-optin-form-js');

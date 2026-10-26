@@ -16,7 +16,7 @@ class MergeTagBuilder
         $variables = $this->buildBaseVariables($contactResult, $step, $job, $templateId);
 
         if ($contactResult->isContact && $contactResult->contactId) {
-            $this->addCustomFields($variables, $contactResult->contactId);
+            $this->addExtraVariables($variables, $contactResult->contactId);
         }
 
         if (isset($context['order_id'])) {
@@ -114,20 +114,12 @@ class MergeTagBuilder
         );
     }
 
-    private function addCustomFields(array &$variables, int $contactId): void
+    /** Extra merge tag variables of the contact, e.g. the custom fields added by MailerPress Pro. */
+    private function addExtraVariables(array &$variables, int $contactId): void
     {
-        global $wpdb;
-
-        $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
-        $customFields = $wpdb->get_results($wpdb->prepare(
-            "SELECT field_key, field_value FROM {$customFieldsTable} WHERE contact_id = %d",
-            $contactId
-        ));
-
-        if ($customFields) {
-            foreach ($customFields as $customField) {
-                $variables[$customField->field_key] = \esc_html($customField->field_value ?? '');
-            }
+        $extraVariables = (array) \apply_filters('mailerpress_contact_merge_variables', [], [$contactId]);
+        foreach ((array) ($extraVariables[$contactId] ?? []) as $key => $value) {
+            $variables[$key] = \esc_html((string) ($value ?? ''));
         }
     }
 
@@ -136,17 +128,6 @@ class MergeTagBuilder
         $orderId = (int) ($context['order_id'] ?? 0);
         $userId = $job->getUserId();
         $userEmail = $contactResult->email;
-
-        $logMessage = function ($message) use ($orderId) {
-            if (function_exists('wc_get_logger')) {
-                $logger = \call_user_func('wc_get_logger');
-                $logger->info($message, ['source' => 'mailerpress-workflow']);
-            } else {
-                \MailerPress\Services\Logger::info($message, ['order_id' => $orderId]);
-            }
-        };
-
-        $logMessage("SendEmailStepHandler: Order ID found in context: {$orderId}");
 
         // Verify order_id matches the job's user email
         if ($orderId > 0 && function_exists('wc_get_order')) {
@@ -159,8 +140,6 @@ class MergeTagBuilder
                 $customerIdMatches = ($orderCustomerId > 0 && $orderCustomerId == $userId) || ($orderCustomerId == 0 && $userId < 0);
 
                 if (!$emailMatches && !$customerIdMatches) {
-                    $logMessage("SendEmailStepHandler: WARNING - Order #{$orderId} email ({$orderEmail}) does not match job user email ({$userEmail})");
-
                     if (function_exists('wc_get_orders')) {
                         $orders = \call_user_func('wc_get_orders', [
                             'limit' => 1,
@@ -174,7 +153,6 @@ class MergeTagBuilder
                             $correctOrder = $orders[0];
                             $orderId = $correctOrder->get_id();
                             $order = $correctOrder;
-                            $logMessage("SendEmailStepHandler: Found correct order #{$orderId} for user email {$userEmail}");
                         }
                     }
                 }
@@ -192,12 +170,12 @@ class MergeTagBuilder
         $variables['customer_email'] = \esc_html($context['customer_email'] ?? '');
 
         // Fetch order items
-        $orderItems = $this->fetchOrderItems($orderId, $context, $logMessage);
+        $orderItems = $this->fetchOrderItems($orderId, $context);
 
         if (!empty($orderItems) && is_array($orderItems)) {
             $context['order_items'] = $orderItems;
             $variables['order_items'] = $this->buildOrderItemsTableHtml($orderItems, $context['order_currency'] ?? 'EUR');
-            $this->buildProductReviewLinks($variables, $orderItems, $orderId, $logMessage);
+            $this->buildProductReviewLinks($variables, $orderItems, $orderId);
         } else {
             $variables['product_review_links'] = '';
             $variables['first_product_review_link'] = '';
@@ -238,10 +216,9 @@ class MergeTagBuilder
         }
     }
 
-    private function fetchOrderItems(int $orderId, array $context, callable $logMessage): ?array
+    private function fetchOrderItems(int $orderId, array $context): ?array
     {
         if ($orderId > 0 && function_exists('wc_get_order')) {
-            $logMessage("SendEmailStepHandler: Fetching order items directly from WooCommerce order #{$orderId}");
             $order = \call_user_func('wc_get_order', $orderId);
 
             if ($order) {
@@ -271,11 +248,8 @@ class MergeTagBuilder
                         'thumbnail_url' => $thumbnailUrl,
                     ];
                 }
-                $logMessage("SendEmailStepHandler: Successfully fetched " . count($orderItems) . " items from WooCommerce order #{$orderId}");
                 return $orderItems;
             }
-
-            $logMessage("SendEmailStepHandler: ERROR - Could not fetch WooCommerce order #{$orderId}");
         }
 
         return $context['order_items'] ?? null;
@@ -329,7 +303,7 @@ class MergeTagBuilder
         return $tableRows;
     }
 
-    private function buildProductReviewLinks(array &$variables, array $orderItems, int $orderId, callable $logMessage): void
+    private function buildProductReviewLinks(array &$variables, array $orderItems, int $orderId): void
     {
         $productReviewLinks = [];
         $firstProductReviewLink = '';

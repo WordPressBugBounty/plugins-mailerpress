@@ -44,7 +44,7 @@ class OrderStatusChanged
             'settings_schema' => [
                 [
                     'key' => 'order_status',
-                    'label' => __('Order Status', 'mailerpress'),
+                    'label' => __('Order status', 'mailerpress'),
                     'type' => 'select',
                     'required' => false,
                     'options' => $statusOptions,
@@ -54,7 +54,7 @@ class OrderStatusChanged
             // Output fields available in context for mapping in actions
             'output_fields' => [
                 // Customer fields
-                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                 ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_id', 'label' => __('Customer ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
@@ -62,10 +62,10 @@ class OrderStatusChanged
                 // Order fields
                 ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_number', 'label' => __('Order Number', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
-                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'order_date', 'label' => __('Order Date', 'mailerpress'), 'type' => 'date', 'group' => 'order'],
-                ['key' => 'order_status', 'label' => __('Order Status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'order_status', 'label' => __('Order status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'payment_method', 'label' => __('Payment Method', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'payment_method_title', 'label' => __('Payment Method Title', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 // Billing address (nested)

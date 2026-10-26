@@ -38,6 +38,9 @@
     "placeholder": {
       "type": "string",
       "default": ""
+    },
+    "inputPadding": {
+      "type": "object"
     }
   },
   "supports": {

@@ -3,11 +3,10 @@
     "dist/js/editor-blocks.js"
   ],
   "dist/js/mail-editor": [
-    "2161.js",
-    "8708.js",
-    "4025.js",
-    "mailerpress-mjml-browser.js",
-    "1295.js",
+    "2519.js",
+    "602.js",
+    "2520.js",
+    "4661.js",
     "dist/js/mail-editor.js"
   ],
   "dist/css/mail-editor": [

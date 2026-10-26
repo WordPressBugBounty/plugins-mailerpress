@@ -14,10 +14,10 @@ use MailerPress\Core\Kernel;
 class CampaignEmail
 {
     /**
-     * Handle campaign URL early - before WordPress routing
-     * Using wp_loaded hook to intercept before template loading
+     * Handle campaign URLs after WordPress has created the main query.
+     * This lets unavailable campaigns use the site's 404 template.
      */
-    #[Action('wp_loaded', priority: 1)]
+    #[Action('template_redirect', priority: 1)]
     public function handleCampaignRequest(): void
     {
         // Only run on frontend
@@ -50,24 +50,18 @@ class CampaignEmail
 
         $allowedStatuses = ['sent', 'pending', 'scheduled', 'in_progress'];
         if (!$campaign) {
-            status_header(404);
-            nocache_headers();
-            wp_die(
-                __('Campaign not found.', 'mailerpress'),
-                __('Not Found', 'mailerpress'),
-                ['response' => 404]
-            );
+            $this->sendNotFound();
+            return;
+        }
+
+        if (self::isPrivate((int) $campaign['campaign_id'], $campaign['config'] ?? null)) {
+            $this->sendNotFound();
+            return;
         }
 
         if (!in_array($campaign['status'], $allowedStatuses, true)) {
-            status_header(404);
-            nocache_headers();
-            wp_die(
-                /* translators: %s: campaign status */
-                sprintf(__('Campaign not available (status: %s).', 'mailerpress'), esc_html($campaign['status'])),
-                __('Not Found', 'mailerpress'),
-                ['response' => 404]
-            );
+            $this->sendNotFound();
+            return;
         }
 
         if (!empty($campaign['_canonical_public_url'])) {
@@ -81,18 +75,24 @@ class CampaignEmail
         $html = get_option('mailerpress_batch_' . $campaign_id . '_html', '');
 
         if (empty($html)) {
-            status_header(404);
-            nocache_headers();
-            wp_die(
-                __('Campaign content not available.', 'mailerpress'),
-                __('Not Found', 'mailerpress'),
-                ['response' => 404]
-            );
+            $this->sendNotFound();
+            return;
         }
 
         // Output raw HTML directly
+        status_header(200);
         $this->outputRawHtml($html, $campaign_id);
         exit;
+    }
+
+    private function sendNotFound(): void
+    {
+        global $wp_query;
+
+        $wp_query->set_404();
+        status_header(404);
+        nocache_headers();
+        remove_action('template_redirect', 'redirect_canonical');
     }
 
     /**
@@ -269,5 +269,23 @@ class CampaignEmail
 
         $slug = $campaign_id . '-' . sanitize_title($campaign_title);
         return home_url('/mp-email/' . $slug . '/');
+    }
+
+    public static function isPrivate(int $campaign_id, array|string|null $config = null): bool
+    {
+        $settings = get_option('mailerpress_default_settings', []);
+        $settings = is_string($settings) ? json_decode($settings, true) : $settings;
+        if (is_array($settings) && !empty($settings['privateCampaigns'])) {
+            return true;
+        }
+
+        if (null === $config) {
+            global $wpdb;
+            $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
+            $config = $wpdb->get_var($wpdb->prepare("SELECT config FROM {$table} WHERE campaign_id = %d", $campaign_id));
+        }
+
+        $config = is_string($config) ? json_decode($config, true) : $config;
+        return is_array($config) && !empty($config['privateCampaign']);
     }
 }

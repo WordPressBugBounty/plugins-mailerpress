@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkmailerpress||=[]).push([[5062],{65062(n,r,a){function s(){return s=Object.assign?Object.assign.bind():function(n){for(var r=1;r<arguments.length;r++){var a=arguments[r];for(var s in a)({}).hasOwnProperty.call(a,s)&&(n[s]=a[s])}return n},s.apply(null,arguments)}a.d(r,{A:()=>s})}}]);

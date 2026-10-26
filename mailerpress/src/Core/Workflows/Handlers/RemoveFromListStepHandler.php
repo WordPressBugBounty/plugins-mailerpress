@@ -20,9 +20,9 @@ class RemoveFromListStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'remove_from_list',
-            'label' => __('Remove from List', 'mailerpress'),
+            'label' => __('Remove from list', 'mailerpress'),
             'description' => __('Remove the contact from an email list. This helps you manage list membership and targeting.', 'mailerpress'),
-            'icon' => 'list',
+            'icon' => 'mailerpress',
             'category' => 'contact',
             'type' => 'ACTION',
             'settings_schema' => [

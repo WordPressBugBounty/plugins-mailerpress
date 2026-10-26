@@ -59,7 +59,7 @@ class WooCommerceSubscriptionsConditionProvider
 
 		$fields[] = [
 			'key' => 'wcs_subscription_status',
-			'label' => __('Subscription Status', 'mailerpress'),
+			'label' => __('Subscription status', 'mailerpress'),
 			'type' => 'string',
 			'category' => 'woocommerce_subscriptions',
 			'description' => __('Check the status of the WooCommerce subscription', 'mailerpress'),
@@ -70,7 +70,7 @@ class WooCommerceSubscriptionsConditionProvider
 
 		$fields[] = [
 			'key' => 'wcs_subscription_next_payment_date',
-			'label' => __('Next Payment Date', 'mailerpress'),
+			'label' => __('Next payment date', 'mailerpress'),
 			'type' => 'date',
 			'category' => 'woocommerce_subscriptions',
 			'description' => __('Check the next payment date of the subscription', 'mailerpress'),

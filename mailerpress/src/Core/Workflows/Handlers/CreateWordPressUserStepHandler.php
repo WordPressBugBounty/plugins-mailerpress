@@ -79,7 +79,7 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key'         => 'first_name',
-                    'label'       => __('First Name', 'mailerpress'),
+                    'label'       => __('First name', 'mailerpress'),
                     'type'        => 'trigger_mapping',
                     'target_type' => 'string',
                     'required'    => false,
@@ -87,7 +87,7 @@ class CreateWordPressUserStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key'         => 'last_name',
-                    'label'       => __('Last Name', 'mailerpress'),
+                    'label'       => __('Last name', 'mailerpress'),
                     'type'        => 'trigger_mapping',
                     'target_type' => 'string',
                     'required'    => false,

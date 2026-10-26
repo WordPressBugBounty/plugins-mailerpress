@@ -15,22 +15,13 @@ class CampaignHtmlOptionStorage
 
     public static function store(int $campaignId, mixed $html, array $context = []): array
     {
-        global $wpdb;
-
         $optionKey = self::getOptionKey($campaignId);
-        $baseContext = array_merge(
-            $context,
-            [
-                'campaign_id' => $campaignId,
-                'option_key' => $optionKey,
-            ]
-        );
 
         if ($campaignId <= 0) {
             return self::fail(
                 'invalid_campaign_id',
                 'Campaign HTML option storage failed: invalid campaign id.',
-                $baseContext,
+                $optionKey,
                 422
             );
         }
@@ -39,25 +30,18 @@ class CampaignHtmlOptionStorage
             return self::fail(
                 'invalid_html_type',
                 'Campaign HTML option storage failed: HTML payload is not a string.',
-                array_merge($baseContext, ['html_type' => get_debug_type($html)]),
+                $optionKey,
                 422
             );
         }
 
         $rawLength = strlen($html);
-        $rawFourByteCount = self::countFourByteCharacters($html);
-        $rawFourByteSamples = self::getFourByteCodepointSamples($html);
 
         if (trim($html) === '') {
             return self::fail(
                 'empty_html',
                 'Campaign HTML option storage failed: HTML payload is empty.',
-                array_merge(
-                    $baseContext,
-                    [
-                        'raw_length' => $rawLength,
-                    ]
-                ),
+                $optionKey,
                 422
             );
         }
@@ -65,25 +49,12 @@ class CampaignHtmlOptionStorage
         try {
             $sanitizedHtml = self::sanitize($html);
         } catch (\Throwable $e) {
-            Logger::exception(
-                $e,
-                array_merge(
-                    $baseContext,
-                    [
-                        'raw_length' => $rawLength,
-                        'raw_four_byte_count' => $rawFourByteCount,
-                        'raw_four_byte_samples' => $rawFourByteSamples,
-                    ]
-                )
+            return self::fail(
+                'sanitize_failed',
+                'Campaign HTML sanitization failed.',
+                $optionKey,
+                500
             );
-
-            return [
-                'success' => false,
-                'code' => 'sanitize_failed',
-                'message' => 'Campaign HTML sanitization failed.',
-                'status' => 500,
-                'option_key' => $optionKey,
-            ];
         }
 
         $sanitizedLength = strlen($sanitizedHtml);
@@ -93,58 +64,23 @@ class CampaignHtmlOptionStorage
             return self::fail(
                 'sanitized_html_empty',
                 'Campaign HTML option storage failed: sanitized HTML is empty.',
-                array_merge(
-                    $baseContext,
-                    [
-                        'raw_length' => $rawLength,
-                        'sanitized_length' => $sanitizedLength,
-                        'raw_four_byte_count' => $rawFourByteCount,
-                        'raw_four_byte_samples' => $rawFourByteSamples,
-                    ]
-                ),
+                $optionKey,
                 422
             );
         }
 
         $storedHtml = self::encodeFourByteCharacters($sanitizedHtml);
         $storedLength = strlen($storedHtml);
-        $storedFourByteCount = self::countFourByteCharacters($storedHtml);
 
-        $updateResult = update_option($optionKey, $storedHtml, false);
-        $lastError = (string)($wpdb->last_error ?? '');
+        update_option($optionKey, $storedHtml, false);
         $readBack = get_option($optionKey, null);
-        $storageVerified = is_string($readBack) && $readBack === $storedHtml;
 
-        $storageContext = array_merge(
-            $baseContext,
-            [
-                'raw_length' => $rawLength,
-                'sanitized_length' => $sanitizedLength,
-                'stored_length' => $storedLength,
-                'read_back_length' => is_string($readBack) ? strlen($readBack) : null,
-                'raw_four_byte_count' => $rawFourByteCount,
-                'sanitized_four_byte_count' => $sanitizedFourByteCount,
-                'stored_four_byte_count' => $storedFourByteCount,
-                'raw_four_byte_samples' => $rawFourByteSamples,
-                'update_result' => $updateResult,
-                'wpdb_last_error' => $lastError,
-                'database' => self::getDatabaseContext(),
-            ]
-        );
-
-        if (!$storageVerified) {
+        if (!is_string($readBack) || $readBack !== $storedHtml) {
             return self::fail(
                 'option_write_failed',
                 'Campaign HTML option storage failed: stored value could not be verified.',
-                $storageContext,
+                $optionKey,
                 500
-            );
-        }
-
-        if ($rawFourByteCount > 0 || $sanitizedFourByteCount > 0) {
-            Logger::info(
-                'Campaign HTML option stored after encoding four-byte characters.',
-                $storageContext
             );
         }
 
@@ -272,29 +208,6 @@ class CampaignHtmlOptionStorage
         return false === $matched ? 0 : (int)$matched;
     }
 
-    private static function getFourByteCodepointSamples(string $html, int $limit = 5): array
-    {
-        $matched = preg_match_all('/[\x{10000}-\x{10FFFF}]/u', $html, $matches);
-        if (false === $matched || empty($matches[0])) {
-            return [];
-        }
-
-        $samples = [];
-        foreach ($matches[0] as $character) {
-            $codepoint = self::getUnicodeCodepoint($character);
-            if ($codepoint <= 0) {
-                continue;
-            }
-
-            $samples['U+' . strtoupper(dechex($codepoint))] = true;
-            if (count($samples) >= $limit) {
-                break;
-            }
-        }
-
-        return array_keys($samples);
-    }
-
     private static function getUnicodeCodepoint(string $character): int
     {
         if (function_exists('mb_ord')) {
@@ -323,39 +236,15 @@ class CampaignHtmlOptionStorage
         return 0;
     }
 
-    private static function fail(string $code, string $message, array $context, int $status): array
+    private static function fail(string $code, string $message, string $optionKey, int $status): array
     {
-        Logger::error($message, array_merge($context, ['code' => $code, 'status' => $status]));
-
         return [
             'success' => false,
             'code' => $code,
             'message' => $message,
             'status' => $status,
-            'option_key' => $context['option_key'] ?? '',
+            'option_key' => $optionKey,
         ];
-    }
-
-    private static function getDatabaseContext(): array
-    {
-        global $wpdb;
-
-        $context = [
-            'options_table' => $wpdb->options ?? '',
-        ];
-
-        if (empty($wpdb->options)) {
-            return $context;
-        }
-
-        $table = esc_sql($wpdb->options);
-        $column = $wpdb->get_row("SHOW FULL COLUMNS FROM `{$table}` LIKE 'option_value'", ARRAY_A);
-        if (is_array($column)) {
-            $context['option_value_type'] = $column['Type'] ?? null;
-            $context['option_value_collation'] = $column['Collation'] ?? null;
-        }
-
-        return $context;
     }
 
     private static function sanitizeEmailHtmlFragment(string $html, array $allowedHtml): string

@@ -26,8 +26,7 @@
       "default": []
     },
     "double_optin": {
-      "type": "boolean",
-      "default": true
+      "type": "boolean"
     },
     "buttonAndBorderColor": {
       "type": "string",

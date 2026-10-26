@@ -5,7 +5,6 @@ namespace MailerPress\Core\Workflows\Services;
 class ActionSchedulerManager
 {
     public const HOOK_CONTINUE = 'mailerpress_continue_workflow';
-    public const HOOK_GOAL_TIMEOUT = 'mailerpress_workflow_goal_timeout';
     public const GROUP = 'mailerpress_workflows';
 
     private WorkflowExecutor $executor;
@@ -79,23 +78,6 @@ class ActionSchedulerManager
     }
 
     /**
-     * Schedule the expiry of an essential goal.
-     */
-    public static function scheduleGoalTimeout(int $timestamp, int $jobId, string $stepId): void
-    {
-        if (!function_exists('as_schedule_single_action')) {
-            return;
-        }
-
-        as_schedule_single_action(
-            $timestamp,
-            self::HOOK_GOAL_TIMEOUT,
-            [self::buildJobArgs($jobId, null, ['step_id' => $stepId])],
-            self::GROUP
-        );
-    }
-
-    /**
      * Cancel every pending workflow action belonging to a job.
      *
      * as_unschedule_all_actions() matches arguments by exact JSON equality, so
@@ -106,14 +88,6 @@ class ActionSchedulerManager
     public function cancelJobActions(int $jobId, string $hook = self::HOOK_CONTINUE): void
     {
         self::cancelActionsForJob($jobId, $hook);
-    }
-
-    /**
-     * Cancel the pending timeout action of a goal step for a given job.
-     */
-    public function cancelGoalTimeout(int $jobId): void
-    {
-        self::cancelActionsForJob($jobId, self::HOOK_GOAL_TIMEOUT);
     }
 
     /**

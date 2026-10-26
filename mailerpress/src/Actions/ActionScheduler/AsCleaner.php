@@ -8,6 +8,15 @@ use MailerPress\Core\Attributes\Action;
 
 class AsCleaner
 {
+    private const FINISHED_STATUSES = [
+        \ActionScheduler_Store::STATUS_COMPLETE,
+        \ActionScheduler_Store::STATUS_FAILED,
+        \ActionScheduler_Store::STATUS_CANCELED,
+    ];
+
+    private const BATCH_SIZE = 500;
+    private const MAX_BATCHES = 20;
+
     #[Action('mailerpress_as_clean')]
     public function clean(): void
     {
@@ -18,6 +27,13 @@ class AsCleaner
         $this->cleanEntries('mailerpress_workflows', 3 * DAY_IN_SECONDS);
     }
 
+    /**
+     * Delete finished actions (and their logs) of a group last attempted more than $seconds ago.
+     *
+     * Rows must be old enough: deleting a freshly completed recurring action races with the
+     * queue runner, which reads its status in schedule_next_instance() outside any try/catch
+     * and dies with "Invalid action ID. No status found." if the row is gone.
+     */
     private function cleanEntries(string $group, int $seconds = 86400): void
     {
         // If there's no group specified, we're done.
@@ -30,42 +46,42 @@ class AsCleaner
             return;
         }
 
-
-        // time() returns the current Unix timestamp (GMT)
-        $time_to_check = time() - $seconds; // Current time minus number of seconds
-
-
-        // @link https://actionscheduler.org/api/
-        $args = array(
-            'group' => $group,
-            'per_page' => -1,  // default is 5; -1 for all results
-        );
-
-        // Action Scheduler function that returns an array of ids
-        $actions_to_delete = as_get_scheduled_actions($args, 'ids');
-        // Cast all IDs to int for extra safety
-        $actions_to_delete = array_map('intval', $actions_to_delete);
-        // Need to implode the array to use with SQL
-        $actions_to_delete = implode(', ', $actions_to_delete);
-
-        if (empty($actions_to_delete)) {
-            return;
-        }
-
         global $wpdb;
 
-        $sql_actions = "DELETE FROM $wpdb->actionscheduler_actions
-					WHERE status
-					IN ( 'complete','failed','canceled' )
-					AND action_id
-					IN ( $actions_to_delete )";
+        $cutoff = time() - $seconds;
 
-        $wpdb->query($sql_actions);
+        foreach (self::FINISHED_STATUSES as $status) {
+            for ($batch = 0; $batch < self::MAX_BATCHES; $batch++) {
+                // 'modified' filters on last_attempt_gmt, like Action Scheduler's own QueueCleaner.
+                $ids = as_get_scheduled_actions([
+                    'group'            => $group,
+                    'status'           => $status,
+                    'modified'         => $cutoff,
+                    'modified_compare' => '<=',
+                    'per_page'         => self::BATCH_SIZE,
+                    'orderby'          => 'none',
+                ], 'ids');
 
-        $sql_logs = "DELETE FROM $wpdb->actionscheduler_logs
-				 WHERE action_id
-				 IN ( $actions_to_delete )";
+                $ids = array_filter(array_map('intval', $ids));
+                if (empty($ids)) {
+                    break;
+                }
 
-        $wpdb->query($sql_logs);
+                $idList = implode(', ', $ids);
+
+                $wpdb->query($wpdb->prepare(
+                    "DELETE FROM {$wpdb->actionscheduler_actions} WHERE status = %s AND action_id IN ( {$idList} )",
+                    $status
+                ));
+
+                $wpdb->query(
+                    "DELETE FROM {$wpdb->actionscheduler_logs} WHERE action_id IN ( {$idList} )"
+                );
+
+                if (count($ids) < self::BATCH_SIZE) {
+                    break;
+                }
+            }
+        }
     }
 }

@@ -12,7 +12,7 @@ import {
   CheckboxControl,
   BoxControl,
 } from "@wordpress/components";
-import "./editor.scss";
+import { getInputPaddingStyle } from "./save";
 
 export default function Edit({ attributes, setAttributes }) {
   const {
@@ -21,6 +21,7 @@ export default function Edit({ attributes, setAttributes }) {
     required,
     borderRadius,
     placeholder = "",
+    inputPadding,
   } = attributes; // Fallbacks for missing data
 
   const classes = [
@@ -64,11 +65,11 @@ export default function Edit({ attributes, setAttributes }) {
             onChange={(newType) => setAttributes({ type: newType })}
             options={[
               {
-                label: __("First Name", "mailerpress"),
+                label: __("First name", "mailerpress"),
                 value: "contactFirstName",
               },
               {
-                label: __("Last Name", "mailerpress"),
+                label: __("Last name", "mailerpress"),
                 value: "contactLastName",
               },
               { label: __("Email", "mailerpress"), value: "contactEmail" },
@@ -94,7 +95,8 @@ export default function Edit({ attributes, setAttributes }) {
             <BoxControl
               __next40pxDefaultSize
               label={__("Input padding", "mailerpress")}
-              onChange={() => {}}
+              values={inputPadding}
+              onChange={(value) => setAttributes({ inputPadding: value })}
             />
             <BorderRadiusControl
               values={borderRadius}
@@ -118,6 +120,7 @@ export default function Edit({ attributes, setAttributes }) {
           name={label.toLowerCase()}
           placeholder={placeholder}
           aria-label={label}
+          style={getInputPaddingStyle(inputPadding)}
         />
       </div>
     </>

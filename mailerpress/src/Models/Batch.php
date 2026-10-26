@@ -93,8 +93,7 @@ class Batch
                 $wpdb->prepare(
                     "
                 SELECT
-                    total_click AS campaign_total_click,
-                    total_revenue AS campaign_total_revenue
+                    total_click AS campaign_total_click
                 FROM
                     {$campaignStatsTable}
                 WHERE
@@ -114,44 +113,14 @@ class Batch
                 'total_clicks' => 0,
                 'total_unsubscribes' => 0,
                 'campaign_total_click' => 0,
-                'campaign_total_revenue' => 0,
             ],
             (array)$baseStats,
             (array)$campaignStats
         );
 
-        // 5️⃣ Format revenue using WooCommerce settings
-        $revenue = (float)$stats['campaign_total_revenue'];
-        $revenue = (float)$stats['campaign_total_revenue'];
-        // Before using WooCommerce functions
-        if (function_exists('WC')) {
-            $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8');
-            $formatted_number = number_format(
-                $revenue,
-                wc_get_price_decimals(),
-                wc_get_price_decimal_separator(),
-                wc_get_price_thousand_separator()
-            );
+        // 5️⃣ Metrics added by extensions
+        $stats = apply_filters('mailerpress_campaign_statistics', $stats, (int) $campaignId);
 
-            switch (get_option('woocommerce_currency_pos', 'left')) {
-                case 'right':
-                    $stats['campaign_total_revenue'] = $formatted_number . ' ' . $currency_symbol;
-                    break;
-                case 'left_space':
-                    $stats['campaign_total_revenue'] = $currency_symbol . ' ' . $formatted_number;
-                    break;
-                case 'right_space':
-                    $stats['campaign_total_revenue'] = $formatted_number . ' ' . $currency_symbol;
-                    break;
-                case 'left': // default
-                default:
-                    $stats['campaign_total_revenue'] = $currency_symbol . $formatted_number;
-                    break;
-            }
-        } else {
-            // Fallback if WooCommerce not installed
-            $stats['campaign_total_revenue'] = number_format($revenue, 2);
-        }
         return (object)$stats;
     }
 
@@ -168,8 +137,7 @@ class Batch
                 COUNT(*) AS total_contacts,
                 SUM(opened) AS total_opens,
                 SUM(clicked) AS total_clicks,
-                SUM(click_count) AS total_click_count,
-                SUM(revenue) AS total_revenue
+                SUM(click_count) AS total_click_count
             FROM {$table}
             WHERE campaign_id = %d
             ",
@@ -185,16 +153,9 @@ class Batch
         $total = (int)$stats['total_contacts'];
         $openRate = $stats['total_opens'] / $total;
         $clickRate = $stats['total_clicks'] / $total;
-        $revenuePerContact = $stats['total_revenue'] / $total;
 
         // Weighted score: openers = 70%, clicks = 30%
         $score = ($openRate * 0.7) + ($clickRate * 0.3);
-
-        // Optional: boost if revenue is positive
-        if ($revenuePerContact > 0) {
-            $score += min($revenuePerContact / 100, 0.1); // small bonus
-            $score = min($score, 1); // cap at 1
-        }
 
         // Classification thresholds
         if ($score >= 0.8) {

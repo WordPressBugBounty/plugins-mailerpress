@@ -9,6 +9,7 @@ class StepResult
     private array $data;
     private ?string $error;
     private bool $retryable;
+    private ?string $missingFeature = null;
 
     public function __construct(
         bool $success,
@@ -34,9 +35,22 @@ class StepResult
         return new self(false, null, [], $error, $retryable);
     }
 
+    /**
+     * Pauses the contact on the step because its settings need a feature an extension provides (e.g. a
+     * MailerPress Pro option while Pro is inactive). The contact resumes once the feature is available.
+     */
+    public static function paused(string $feature): self
+    {
+        $result = new self(true);
+        $result->missingFeature = $feature;
+
+        return $result;
+    }
+
     public function isSuccess(): bool { return $this->success; }
     public function getNextStepId(): ?string { return $this->nextStepId; }
     public function getData(): array { return $this->data; }
     public function getError(): ?string { return $this->error; }
     public function isRetryable(): bool { return $this->retryable; }
+    public function getMissingFeature(): ?string { return $this->missingFeature; }
 }

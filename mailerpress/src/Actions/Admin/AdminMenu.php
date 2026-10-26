@@ -9,9 +9,48 @@ use MailerPress\Core\Capabilities;
 
 class AdminMenu
 {
-    private const SHOW_ADDONS_MENU = false;
-
     private array|string $options = [];
+
+	/**
+	 * Redirect bookmarks to removed admin screens to their current destinations.
+	 */
+	#[Action( 'admin_init' )]
+	public function redirect_legacy_admin_screens(): void {
+		// Navigation only; no form data or settings are changed.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		$page = isset( $_GET['page'] ) ? rawurldecode( sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) : '';
+		$path = isset( $_GET['path'] ) ? rawurldecode( sanitize_text_field( wp_unslash( $_GET['path'] ) ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( wp_doing_ajax() || 'mailerpress/campaigns.php' !== $page ) {
+			return;
+		}
+
+		$destinations = array(
+			'/home/getting-started' => '/home',
+			'/home/patterns'        => '/home/integrations',
+			'/home/addons'          => '/home',
+		);
+		if ( ! isset( $destinations[ $path ] ) ) {
+			return;
+		}
+
+		$args = array(
+			'page' => 'mailerpress/campaigns.php',
+			'path' => $destinations[ $path ],
+		);
+		if ( '/home/getting-started' === $path ) {
+			$args['setupGuide'] = '1';
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				$args,
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
 
     private static function adminMenuIcon(): string
     {
@@ -166,11 +205,7 @@ class AdminMenu
             .mailerpress-initial-loader {
                 align-items: center;
                 background: #1f1f1f;
-                color: #ffffff;
                 display: flex;
-                flex-direction: column;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                gap: 16px;
                 inset: 0;
                 justify-content: center;
                 min-height: 100vh;
@@ -178,33 +213,38 @@ class AdminMenu
                 z-index: 1;
             }
 
-            .mailerpress-initial-loader__spinner {
-                animation: mailerpress-initial-loader-spin 0.9s linear infinite;
-                border: 3px solid rgba(255, 255, 255, 0.2);
-                border-top-color: #ffffff;
-                border-radius: 999px;
-                height: 36px;
-                width: 36px;
+            /* Mirrors the indeterminate Gutenberg ProgressBar shown once React has mounted. */
+            .mailerpress-initial-loader__track {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 9999px;
+                height: 1.5px;
+                overflow: hidden;
+                position: relative;
+                width: 160px;
             }
 
-            .mailerpress-initial-loader__label {
-                font-size: 13px;
-                font-weight: 500;
-                line-height: 1.4;
-                opacity: 0.82;
+            .mailerpress-initial-loader__indicator {
+                animation: mailerpress-initial-loader-progress 1.5s ease-in-out infinite;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 9999px;
+                height: 100%;
+                inset-inline-start: -50%;
+                position: absolute;
+                top: 0;
+                width: 50%;
             }
 
-            @keyframes mailerpress-initial-loader-spin {
+            @keyframes mailerpress-initial-loader-progress {
                 to {
-                    transform: rotate(360deg);
+                    inset-inline-start: 100%;
                 }
             }
         </style>
-        <div class="mailerpress-initial-loader" role="status" aria-live="polite">
-            <div class="mailerpress-initial-loader__spinner" aria-hidden="true"></div>
-            <div class="mailerpress-initial-loader__label">
-                <?php esc_html_e('Loading MailerPress...', 'mailerpress'); ?>
+        <div class="mailerpress-initial-loader" role="status">
+            <div class="mailerpress-initial-loader__track" aria-hidden="true">
+                <div class="mailerpress-initial-loader__indicator"></div>
             </div>
+            <span class="screen-reader-text"><?php esc_html_e('Loading...', 'mailerpress'); ?></span>
         </div>
         <?php
     }
@@ -238,7 +278,7 @@ class AdminMenu
             'webhooks' => __('Webhooks', 'mailerpress'),
             'tools' => __('Tools', 'mailerpress'),
             'settings' => __('Settings', 'mailerpress'),
-            'licence' => __('License', 'mailerpress'),
+            'licence' => __('Licence', 'mailerpress'),
             'workflow' => __('Automations', 'mailerpress'),
         ];
 
@@ -280,8 +320,8 @@ class AdminMenu
                 'cap' => self::getMenuCapability(),
             ],
             [
-                'title' => __('New Campaign', 'mailerpress'),
-                'menu_title' => __('New Campaign', 'mailerpress'),
+                'title' => __('New campaign', 'mailerpress'),
+                'menu_title' => __('New campaign', 'mailerpress'),
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome&view=create-campaign',
                 'cap' => Capabilities::MANAGE_CAMPAIGNS,
             ],
@@ -342,12 +382,6 @@ class AdminMenu
                 'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftools',
                 'cap' => Capabilities::MANAGE_SETTINGS,
             ],
-            // [
-            //     'title' => __('Add-ons', 'mailerpress'),
-            //     'menu_title' => __('Add-ons', 'mailerpress'),
-            //     'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
-            //     'cap' => 'edit_posts',
-            // ],
             [
                 'title' => $labels['settings'],
                 'menu_title' => $labels['settings'],
@@ -355,18 +389,6 @@ class AdminMenu
                 'cap' => Capabilities::MANAGE_SETTINGS,
 
             ],
-            self::SHOW_ADDONS_MENU ? [
-                'title' => __('Add-ons', 'mailerpress'),
-                'menu_title' => __('Add-ons', 'mailerpress'),
-                'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
-                'cap' => 'edit_posts',
-            ] : null,
-            // [
-            //     'title' => __('Getting Started', 'mailerpress'),
-            //     'menu_title' => __('Getting Started', 'mailerpress'),
-            //     'slug' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fgetting-started',
-            //     'cap' => 'edit_posts',
-            // ],
             // [
             //     'title' => __('Documentation', 'mailerpress'),
             //     'menu_title' => __('Documentation', 'mailerpress'),
@@ -538,8 +560,6 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home/webhooks',
             'mailerpress/campaigns.php&path=/home/tools',
             'mailerpress/campaigns.php&path=/home/settings',
-            'mailerpress/campaigns.php&path=/home/getting-started',
-            'mailerpress/campaigns.php&path=/home/addons',
         ];
 
         if (in_array($page, $mailerpress_submenus, true)) {
@@ -582,8 +602,6 @@ class AdminMenu
             'mailerpress/campaigns.php&path=/home/webhooks' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fwebhooks',
             'mailerpress/campaigns.php&path=/home/tools' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Ftools',
             'mailerpress/campaigns.php&path=/home/settings' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings',
-            'mailerpress/campaigns.php&path=/home/getting-started' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Fgetting-started',
-            'mailerpress/campaigns.php&path=/home/addons' => 'mailerpress%2Fcampaigns.php&path=%2Fhome%2Faddons',
         ];
 
         $current_view = isset($_GET['view']) ? rawurldecode(sanitize_text_field(wp_unslash($_GET['view']))) : '';

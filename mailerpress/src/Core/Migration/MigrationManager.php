@@ -224,6 +224,22 @@ class MigrationManager
         return $this->formatRun($this->repository->getRun($runId));
     }
 
+    /**
+     * Hand an open foreground run over to the scheduled chunk processor.
+     */
+    public function continueInBackground(int $runId): array|\WP_Error
+    {
+        $run = $this->repository->getRun($runId);
+
+        if (!$run) {
+            return new \WP_Error('migration_run_not_found', __('Migration run not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        $this->scheduleNextPendingChunk($runId);
+
+        return $this->formatRun($this->repository->getRun($runId));
+    }
+
     public function getRun(int $runId): array|\WP_Error
     {
         $run = $this->repository->getRun($runId);

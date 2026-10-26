@@ -20,9 +20,9 @@ class RemoveTagStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'remove_tag',
-            'label' => __('Remove Tag', 'mailerpress'),
+            'label' => __('Remove tag', 'mailerpress'),
             'description' => __('Remove a tag from the contact. This helps you manage contact segmentation and organization.', 'mailerpress'),
-            'icon' => 'tag',
+            'icon' => 'mailerpress',
             'category' => 'contact',
             'type' => 'ACTION',
             'settings_schema' => [

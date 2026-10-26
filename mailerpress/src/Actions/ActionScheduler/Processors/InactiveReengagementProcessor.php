@@ -10,7 +10,6 @@ use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Kernel;
 use MailerPress\Services\InactiveContactManager;
-use MailerPress\Services\Logger;
 
 class InactiveReengagementProcessor
 {
@@ -96,12 +95,8 @@ class InactiveReengagementProcessor
             return;
         }
 
-        $frequency = get_option('mailerpress_frequency_sending', []);
-        if (is_string($frequency)) {
-            $frequency = json_decode($frequency, true);
-        }
-        $frequency = is_array($frequency) ? $frequency : [];
-        $config = $frequency['effectiveConfig'] ?? $frequency['settings'] ?? [];
+        $frequency = \MailerPress\Services\SendingFrequencyConfig::get();
+        $config = $frequency['effectiveConfig'];
         $numberEmail = max(1, (int) ($config['numberEmail'] ?? 25));
         $period = $config['frequency'] ?? $config['config'] ?? ['value' => 5, 'unit' => 'minutes'];
         $multipliers = ['seconds' => 1, 'minutes' => MINUTE_IN_SECONDS, 'hours' => HOUR_IN_SECONDS];
@@ -121,8 +116,6 @@ class InactiveReengagementProcessor
                 );
             }
         }
-
-        Logger::info('Inactive re-engagement chunks scheduled', ['candidates' => count($contacts)]);
     }
 
     #[Action(self::CHUNK_HOOK, acceptedArgs: 3)]
@@ -136,8 +129,6 @@ class InactiveReengagementProcessor
         }
 
         $settings = $this->inactiveContactManager->getSettings();
-        $sent = 0;
-        $failed = 0;
 
         foreach ($contactIds as $index => $contactId) {
             $contact = $this->inactiveContactManager->findReengagementCandidate((int) $contactId);
@@ -149,22 +140,23 @@ class InactiveReengagementProcessor
                 usleep((int) (1000000 / $rateLimit));
             }
 
-            if ($this->sendReengagementEmail($contact, $settings)) {
+            $result = $this->sendReengagementEmail($contact, $settings);
+            if (is_wp_error($result) && 'mailerpress_sending_deferred' === $result->get_error_code()) {
+                as_schedule_single_action(
+                    time() + (int) $result->get_error_data()['retry_after'],
+                    self::CHUNK_HOOK,
+                    [array_slice($contactIds, $index), $enabledAt, $rateLimit],
+                    self::GROUP
+                );
+                break;
+            }
+            if (true === $result) {
                 $this->inactiveContactManager->markReengagementSent((int) $contact->contact_id);
-                $sent++;
-            } else {
-                $failed++;
             }
         }
-
-        Logger::info('Inactive re-engagement chunk completed', [
-            'sent' => $sent,
-            'failed' => $failed,
-            'candidates' => count($contactIds),
-        ]);
     }
 
-    private function sendReengagementEmail(object $contact, array $settings): bool
+    private function sendReengagementEmail(object $contact, array $settings): bool|\WP_Error
     {
         $confirmationUrl = $this->inactiveContactManager->buildReengagementConfirmationUrl($contact);
         $unsubscribeToken = (string) ($contact->unsubscribe_token ?? '');
@@ -191,7 +183,7 @@ class InactiveReengagementProcessor
         $body = $this->ensureUnsubscribeLink($body, $unsubscribeUrl);
         $subject = $this->replaceVariables((string) $settings['reengagement_subject'], $contact, $confirmationUrl, $unsubscribeUrl, false);
 
-        $result = $mailer->sendEmail([
+        $result = \MailerPress\Services\SendingFrequencyLimiter::send($mailer, [
             'to' => sanitize_email((string) $contact->email),
             'html' => true,
             'body' => $body,
@@ -207,7 +199,7 @@ class InactiveReengagementProcessor
             ],
         ]);
 
-        return !is_wp_error($result) && false !== $result;
+        return $result;
     }
 
     private function senderConfig(array $config): array

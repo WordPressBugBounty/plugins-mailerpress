@@ -298,7 +298,7 @@ class Lists
 
         return new \WP_Error(
             'delete_failed',
-            __('Failed to delete the lists.', 'mailerpress'),
+            __('Failed to delete lists.', 'mailerpress'),
             ['status' => 500]
         );
     }

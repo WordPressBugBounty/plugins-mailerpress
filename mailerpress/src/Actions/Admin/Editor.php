@@ -16,6 +16,7 @@ use MailerPress\Core\Attributes\Filter;
 use MailerPress\Core\EmailManager\EmailServiceInterface;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Kernel;
+use MailerPress\Core\Promotions\PromotionStorage;
 use MailerPress\Models\Campaigns;
 use MailerPress\Models\Contacts;
 use MailerPress\Models\Lists;
@@ -52,8 +53,24 @@ class Editor
 
         global $post;
 
-        wp_enqueue_style('wp-editor');
-        wp_enqueue_media();
+        global $plugin_page;
+        $isEmailEditor = $this->isEmailEditorScreen();
+
+        // Only the email editor renders block editor components.
+        if ($isEmailEditor) {
+            wp_enqueue_style('wp-editor');
+        }
+
+        /**
+         * Whether this MailerPress screen loads the WordPress media library (wp.media).
+         * The email editor needs it; extensions return true for the screens that open it.
+         *
+         * @param bool   $enqueue    Default: true on the email editor only.
+         * @param string $pluginPage Current MailerPress admin page slug.
+         */
+        if (apply_filters('mailerpress_admin_enqueue_media', $isEmailEditor, (string) $plugin_page)) {
+            wp_enqueue_media();
+        }
         remove_action('admin_print_styles', 'wp_print_font_faces', 50);
         remove_action('admin_print_styles', 'wp_print_font_faces_from_style_variations', 50);
         // load editor assets
@@ -102,25 +119,30 @@ class Editor
                 $globalTypographySettings = json_decode($globalTypographySettings, true);
             }
 
-            $themeStyles = Kernel::getContainer()->get(ThemeStyles::class)->getThemeStyles();
+            // Only the email editor lists every theme style; other screens preview the active one.
+            $themeStyles = Kernel::getContainer()->get(ThemeStyles::class)->getThemeStylesForScripts();
             $activeTheme = get_option('mailerpress_theme', 'Core');
             if (!is_string($activeTheme) || !isset($themeStyles[$activeTheme])) {
                 $activeTheme = 'Core';
+            }
+            $activePalette = get_option('mailerpress_theme_palette', '');
+            if (!is_string($activePalette) || !isset($themeStyles[$activePalette])) {
+                $activePalette = '';
+            }
+            if (!$isEmailEditor) {
+                $themeStyles = array_intersect_key($themeStyles, array_flip(array_filter(['Core', $activeTheme, $activePalette])));
             }
             $isBlockTheme = function_exists('wp_is_block_theme') && wp_is_block_theme();
             $hasThemeJson = $isBlockTheme
                 && function_exists('wp_theme_has_theme_json')
                 && wp_theme_has_theme_json();
 
-            wp_localize_script('mail-editor', 'jsVars', [
+            $scriptData = [
                 'mergeTagGroups' => Kernel::getContainer()->get(\MailerPress\Core\MergeTags::class)->getEditorGroups(),
                 'licenceActivated' => get_option('mailerpress_license_activated', false),
                 'autoSave' => apply_filters('mailerpress_editor_auto_save', MINUTE_IN_SECONDS),
                 'userCaps' => CapabilitiesManager::getCurrentUserCaps(),
                 'canManageRoleAccess' => current_user_can('manage_options') && current_user_can('promote_users'),
-                'bounceConfig' => current_user_can(Capabilities::MANAGE_SETTINGS)
-                    ? get_option('mailerpress_bounce_config')
-                    : [],
                 'hasCompletedSetup' => get_user_meta(
                     get_current_user_id(),
                     'mailerpress_setup_completed',
@@ -135,22 +157,21 @@ class Editor
                 ], $userPreferences),
                 'home' => home_url(),
                 'activeTheme' => $activeTheme,
+                'activePalette' => $activePalette,
+                'paletteColors' => (object) (get_option('mailerpress_palette_colors', []) ?: []),
+                'fontSizes' => (object) (get_option('mailerpress_font_sizes', []) ?: []),
                 'frequencySending' => get_option('mailerpress_frequency_sending', false),
+                'phpMemoryLimit' => ini_get('memory_limit'),
+                'phpMaxExecutionTime' => (int) ini_get('max_execution_time'),
                 'adminEmail' => get_bloginfo('admin_email'),
                 'campaign' => $post,
                 'patternCategories' => Kernel::getContainer()->get(PatternsCategories::class)->getCategories(),
                 'templateCategories' => Kernel::getContainer()->get(TemplatesCategories::class)->getCategories(),
                 'templatesMapping' => Kernel::getContainer()->get(TemplatesCategories::class)->getTemplatesGroupByCategories(),
-                'newsletterTemplateCategories' => Kernel::getContainer()->get(TemplatesCategories::class)->getCategories('newsletter'),
                 'newsletterTemplatesMapping' => Kernel::getContainer()->get(TemplatesCategories::class)->getTemplatesGroupByCategories('newsletter'),
                 'adminUrl' => admin_url('admin.php'),
                 'adminReturn' => admin_url(),
                 'pluginInited' => $this->checkPluginInit(),
-                'imagesSizes' => wp_get_registered_image_subsizes(),
-                'categories' => get_categories([
-                    'hide_empty' => true,
-                    'orderby' => 'name',
-                ]),
                 'esp' => $this->getPublicEmailServices(),
                 'defaultSettings' => get_option('mailerpress_default_settings', [
                     'fromAddress' => $globalSenderDecoded->fromAddress ?? '',
@@ -173,19 +194,35 @@ class Editor
                 'automationCount' => (int) Kernel::getContainer()->get(\MailerPress\Core\Workflows\Repositories\AutomationRepository::class)->count(),
 
                 'sender' => $globalSender,
-                'latestPosts' => formatPostForApi(Kernel::getContainer()->get(Posts::class)->getLatest()),
-                'savedPatterns' => formatPatternsForEditor(Kernel::getContainer()->get(PatternModel::class)->getAll()),
+                'latestPosts' => $isEmailEditor
+                    ? formatPostForApi(Kernel::getContainer()->get(Posts::class)->getLatest())
+                    : [],
+                'savedPatterns' => $isEmailEditor
+                    ? formatPatternsForEditor(Kernel::getContainer()->get(PatternModel::class)->getAll())
+                    : [],
                 'contactTags' => Kernel::getContainer()->get(Tags::class)->getAll(),
                 'endpointBase' => \sprintf('/%s/', esc_html(Kernel::getContainer()->get('rest_namespace'))),
                 'themeStyles' => $themeStyles,
-                'globalStyles' => wp_get_global_styles([], ['transforms' => ['resolve-variables']]),
-                'globalSettings' => wp_get_global_settings(),
                 'defaultBlocksSettings' => Kernel::getContainer()->get(ThemeStyles::class)->loadJsonSettings(),
                 'isBlockTheme' => $isBlockTheme,
                 'hasThemeJson' => $hasThemeJson,
                 'emailServiceConfiguration' => Options::redactEmailServicesForResponse(
                     Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations()
                 ),
+                'unavailableEspKey' => Kernel::getContainer()->get(EmailServiceManager::class)->getUnavailableServiceKey(),
+                // The provider fallback banner, once closed by the user for this provider.
+                'espFallbackDismissed' => PromotionStorage::isDismissed(
+                    'esp-fallback-' . sanitize_key((string) Kernel::getContainer()->get(EmailServiceManager::class)->getUnavailableServiceKey())
+                ),
+                // The disabled primary provider notice, once closed by the user for this provider.
+                'providerErrorDismissed' => PromotionStorage::isDismissed(
+                    'provider-disabled-' . sanitize_key((string) (Kernel::getContainer()->get(EmailServiceManager::class)->getConfigurations()['default_service'] ?? ''))
+                ),
+                // Email providers screen notices already closed by the user.
+                'dismissedProviderNotices' => array_values(array_filter(
+                    ['email-service-missing', 'php-mail-warning'],
+                    [PromotionStorage::class, 'isDismissed']
+                )),
                 'globalSender' => $globalSender,
                 'emailSenders' => $emailSenders,
                 'nonce' => wp_create_nonce('wp_rest'),
@@ -196,23 +233,7 @@ class Editor
                     mailerpress_get_signup_confirmation_option()['emailContent'] ?? ''
                 ),
                 'isPro' => is_plugin_active('mailerpress-pro/mailerpress-pro.php'),
-                'proEsp' => apply_filters('mailerpress_pro_esp_configs', []),
                 'isProPresent' => file_exists(WP_PLUGIN_DIR . '/mailerpress-pro/mailerpress-pro.php'),
-                'addonsStatus' => [
-                    'mailerpress-optin-forms' => [
-                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-optin/mailerpress-optin.php'),
-                        'active'    => is_plugin_active('mailerpress-optin/mailerpress-optin.php'),
-                    ],
-                    'mailerpress-turbo' => [
-                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-turbo/mailerpress-turbo.php'),
-                        'active'    => is_plugin_active('mailerpress-turbo/mailerpress-turbo.php'),
-                    ],
-                    'mailerpress-sms' => [
-                        'installed' => file_exists(WP_PLUGIN_DIR . '/mailerpress-sms/mailerpress-sms.php'),
-                        'active'    => is_plugin_active('mailerpress-sms/mailerpress-sms.php'),
-                    ],
-                ],
-                'acfActive' => function_exists('acf_get_field_groups'),
                 'dateFormat' => get_option( 'date_format', 'F j, Y' ),
                 'timeFormat' => get_option( 'time_format', 'g:i a' ),
                 'hasWooCommerce' => function_exists('wc_get_products'),
@@ -225,14 +246,8 @@ class Editor
                     'manage' => mailerpress_get_page('manage_page'),
                 ],
                 'currentUser' => wp_get_current_user()->ID,
+                'currentUserEmail' => wp_get_current_user()->user_email,
                 'typography' => $globalTypographySettings ?: '',
-
-                'wpEmailTypes' => apply_filters('mailerpress_wp_email_types_for_frontend', []),
-                'wpEmailTemplates' => json_decode(get_option('mailerpress_wp_email_templates', '{}'), true) ?: [],
-                'wcEmailTypes' => function_exists('wc_get_order')
-                    ? apply_filters('mailerpress_wc_email_types_for_frontend', [])
-                    : [],
-                'wcEmailTemplates' => json_decode(get_option('mailerpress_wc_email_templates', '{}'), true) ?: [],
                 'activeIntegrations' => [
                     'gravity_forms' => is_plugin_active('gravityforms/gravityforms.php'),
                     'cf7'           => is_plugin_active('contact-form-7/wp-contact-form-7.php'),
@@ -260,7 +275,28 @@ class Editor
                     'ottokit'       => is_plugin_active('suretriggers/suretriggers.php'),
                     'sure_forms'    => is_plugin_active('sureforms/sureforms.php'),
                 ],
-            ]);
+            ];
+
+            /**
+             * Filters the data MailerPress admin screens read from `window.jsVars`.
+             *
+             * Keep it to what screens need at startup: this data is inlined in every page.
+             *
+             * @param array $scriptData    Script data.
+             * @param bool  $isEmailEditor Whether the current screen is the email editor.
+             */
+            $scriptData = apply_filters('mailerpress_admin_script_data', $scriptData, $isEmailEditor);
+
+            // Lists download the editor in the background, so opening a campaign starts sooner.
+            if (!$isEmailEditor && current_user_can(Capabilities::MANAGE_CAMPAIGNS)) {
+                $scriptData['editorPrefetch'] = $this->editorPrefetchUrls();
+            }
+
+            wp_localize_script('mail-editor', 'jsVars', $scriptData);
+
+            if ($isEmailEditor) {
+                $this->preloadOpenedCampaign();
+            }
         }
 
         if (file_exists(Kernel::$config['root'] . '/build/dist/css/mail-editor.asset.php')) {
@@ -273,7 +309,10 @@ class Editor
             );
         }
 
-        if (file_exists(\MailerPress\Core\Kernel::$config['root'] . '/build/dist/js/mailerpress-pro-workflow.asset.php')) {
+        // The automation editor has its own page; other screens never mount it.
+        if ('mailerpress/workflow' === $plugin_page
+            && file_exists(\MailerPress\Core\Kernel::$config['root'] . '/build/dist/js/mailerpress-pro-workflow.asset.php')
+        ) {
             $asset_file_2 = include(Kernel::$config['root'] . '/build/dist/js/mailerpress-pro-workflow.asset.php');
             wp_enqueue_script(
                 'mailerpress-pro-workflow',
@@ -283,12 +322,68 @@ class Editor
                 ['in_footer' => true]
             );
         }
+    }
 
-        wp_enqueue_style(
-            'xyflow-react-style',
-            Kernel::$config['rootUrl'] . 'build/public/xyflow-react.css',
-            [], // no dependencies or add if needed
-            MAILERPRESS_VERSION
+    /** URLs of the email editor's deferred files, listed by the build. */
+    private function editorPrefetchUrls(): array
+    {
+        $manifestPath = Kernel::$config['root'] . '/build/editor-prefetch.json';
+        if (!file_exists($manifestPath)) {
+            return [];
+        }
+
+        $files = json_decode((string) file_get_contents($manifestPath), true);
+        if (!is_array($files)) {
+            return [];
+        }
+
+        $buildUrl = rtrim(Kernel::$config['rootUrl'], '/') . '/build/';
+
+        return array_values(array_map(
+            static fn(string $file): string => $buildUrl . ltrim($file, '/'),
+            array_filter($files, 'is_string')
+        ));
+    }
+
+    /**
+     * The editor reads the campaign it opens as soon as it starts: embed that response
+     * in the page, served to the first request by the WordPress preloading middleware.
+     */
+    private function preloadOpenedCampaign(): void
+    {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only editor parameters.
+        $campaignId = isset($_GET['edit']) ? absint(wp_unslash($_GET['edit'])) : 0;
+        $isTemplate = isset($_GET['template_edit']);
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+        if ($campaignId <= 0 || $isTemplate) {
+            return;
+        }
+
+        // Same permission checks as the REST request, which require the REST nonce.
+        $path = '/mailerpress/v1/campaign/' . $campaignId;
+        $request = new \WP_REST_Request('GET', $path);
+        $request->set_header('X-WP-Nonce', wp_create_nonce('wp_rest'));
+        $response = rest_do_request($request);
+        if (200 !== $response->get_status()) {
+            return;
+        }
+
+        // Same shape as rest_preload_api_request().
+        $preloaded = [
+            $path => [
+                'body' => rest_get_server()->response_to_data($response, false),
+                'headers' => $response->get_headers(),
+            ],
+        ];
+
+        wp_add_inline_script(
+            'wp-api-fetch',
+            sprintf(
+                'wp.apiFetch.use( wp.apiFetch.createPreloadingMiddleware( %s ) );',
+                wp_json_encode($preloaded, JSON_HEX_TAG | JSON_HEX_AMP)
+            ),
+            'after'
         );
     }
 
@@ -408,12 +503,23 @@ class Editor
         return str_contains($screen->id, 'mailerpress');
     }
 
+    /** Whether the current screen is the email editor (and not another MailerPress screen). */
+    private function isEmailEditorScreen(): bool
+    {
+        global $plugin_page;
+
+        return 'mailerpress/new' === $plugin_page;
+    }
+
     private function getPublicEmailServices(): array
     {
         $services = array_reduce(
             Kernel::getContainer()->get(EmailServiceManager::class)->getServices(),
             static function ($acc, EmailServiceInterface $service) {
-                $acc[] = $service->config();
+                $config = $service->config();
+                $config['supports_bounce_webhook'] = method_exists($service, 'supportsWebhookBounceDetection')
+                    && $service->supportsWebhookBounceDetection();
+                $acc[] = $config;
 
                 return $acc;
             },
@@ -489,10 +595,10 @@ class Editor
     {
         $sendersOption = get_option('mailerpress_global_email_senders');
         $data = get_option('mailerpress_email_services', [
-            'default_service' => 'php',
-            'activated' => ['php'],
+            'default_service' => 'wordpress',
+            'activated' => ['wordpress'],
             'services' => [
-                'php' => [
+                'wordpress' => [
                     'conf' => [
                         'default_email' => '',
                         'default_name' => '',

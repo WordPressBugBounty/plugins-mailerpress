@@ -12,6 +12,9 @@ use WPCF7_Submission;
 
 class Setup
 {
+    /** Panel settings owned by this integration; other keys belong to extensions. */
+    private const SETTINGS_KEYS = ['first-name', 'last-name', 'email', 'list', 'tag', 'confirm'];
+
     #[Filter('wpcf7_form_elements')]
     public function addHoneypotField(string $content): string
     {
@@ -49,13 +52,13 @@ class Setup
             return;
         }
 
-        // Sanitize recursively (preserving nested arrays)
-        $data = $this->sanitize_recursive($_POST['wpcf7-mailerpress']);
+        $data = $this->sanitize_recursive(
+                array_intersect_key($_POST['wpcf7-mailerpress'], array_flip(self::SETTINGS_KEYS))
+        );
 
-        // Ensure array shape consistency
-        if (!isset($data['custom_fields'])) {
-            $data['custom_fields'] = [];
-        }
+        // Keep the values saved by extensions such as MailerPress Pro.
+        $existing = (array) get_option('cf7_mailerpress_' . $contact_form->id(), []);
+        $data = array_merge(array_diff_key($existing, array_flip(self::SETTINGS_KEYS)), $data);
 
         update_option('cf7_mailerpress_' . $contact_form->id(), $data);
     }
@@ -134,32 +137,15 @@ class Setup
             $contact_data['tags'] = [['id' => $tag]];
         }
 
-        // --- Custom fields mapping ---
-        try {
-            $customFieldsModel = \MailerPress\Core\Kernel::getContainer()->get(\MailerPress\Models\CustomFields::class);
-            $custom_fields_defs = $customFieldsModel->all();
-        } catch (\Throwable $e) {
-            $custom_fields_defs = [];
-        }
-
-        if (!empty($custom_fields_defs)) {
-            foreach ($custom_fields_defs as $field_def) {
-                $field_key = $field_def->field_key;
-                $mapping = $cf7_mailerpress['custom_fields'][$field_key] ?? '';
-
-                if ('' === trim((string)$mapping)) {
-                    continue;
-                }
-
-                $value = $this->cf7_mch_tag_replace($regex, $mapping, $posted, false);
-
-                if ($value === $mapping || '' === $value) {
-                    continue;
-                }
-
-                $contact_data['custom_fields'][$field_key] = $value;
-            }
-        }
+        /**
+         * Lets extensions add data to the contact created from a Contact Form 7 submission.
+         *
+         * @param array             $contact_data    Contact passed to add_mailerpress_contact().
+         * @param \WPCF7_ContactForm $form            Submitted form.
+         * @param array             $cf7_mailerpress MailerPress settings saved for this form.
+         * @param array             $posted          Submitted form data.
+         */
+        $contact_data = apply_filters('mailerpress_cf7_contact_data', $contact_data, $form, (array) $cf7_mailerpress, (array) $posted);
 
         add_mailerpress_contact($contact_data);
     }
@@ -279,7 +265,7 @@ class Setup
                 <p class="mail-field">
                     <label><?php esc_html_e('Contact List', 'mailerpress'); ?></label><br/>
                     <select name="wpcf7-mailerpress[list]" class="wide">
-                        <option value=""><?php esc_html_e('-- Select a list --', 'mailerpress'); ?></option>
+                        <option value=""><?php esc_html_e('Select a list', 'mailerpress'); ?></option>
                         <?php foreach ($formattedLists as $list): ?>
                             <option value="<?php echo esc_attr($list['value']); ?>" <?php selected($cf7_mailerpress['list'] ?? '', $list['value']); ?>>
                                 <?php echo esc_html($list['label']); ?>
@@ -289,9 +275,9 @@ class Setup
                 </p>
 
                 <p class="mail-field">
-                    <label><?php esc_html_e('Contact Tag', 'mailerpress'); ?></label><br/>
+                    <label><?php esc_html_e('Contact tag', 'mailerpress'); ?></label><br/>
                     <select name="wpcf7-mailerpress[tag]" class="wide">
-                        <option value=""><?php esc_html_e('-- Select a tag --', 'mailerpress'); ?></option>
+                        <option value=""><?php esc_html_e('Select a tag', 'mailerpress'); ?></option>
                         <?php foreach ($formattedTags as $tag): ?>
                             <option value="<?php echo esc_attr($tag['value']); ?>" <?php selected($cf7_mailerpress['tag'] ?? '', $tag['value']); ?>>
                                 <?php echo esc_html($tag['label']); ?>
@@ -301,48 +287,31 @@ class Setup
                 </p>
 
                 <hr/>
-                <h3><?php echo esc_html__('Custom field mappings', 'mailerpress'); ?></h3>
-                <p class="description"><?php echo esc_html__('Map your MailerPress contact custom fields to CF7 form tags (e.g. [your-field]).', 'mailerpress'); ?></p>
-
-                <?php if (!is_plugin_active('mailerpress-pro/mailerpress-pro.php')): ?>
+                <?php if (has_action('mailerpress_cf7_panel_fields')): ?>
+                    <?php
+                    /**
+                     * Lets extensions render settings in the MailerPress panel of Contact Form 7.
+                     *
+                     * @param \WPCF7_ContactForm $contact_form    Edited form.
+                     * @param array             $cf7_mailerpress MailerPress settings saved for this form.
+                     */
+                    do_action('mailerpress_cf7_panel_fields', $contact_form, (array) $cf7_mailerpress);
+                    ?>
+                <?php else: ?>
+                    <h3><?php echo esc_html__('Custom field mappings', 'mailerpress'); ?></h3>
+                    <p class="description"><?php echo esc_html__('Map your MailerPress contact custom fields to CF7 form tags (e.g. [your-field]).', 'mailerpress'); ?></p>
                     <div class="pro-notice" style="margin: 10px 0; padding: 10px; background: #fff8e5; border-left: 4px solid #ffb900;">
                         <p>
                             <?php echo wp_kses_post(sprintf(__('Custom field mapping is available in <strong>MailerPress Pro</strong>. <a href="%s" target="_blank">Upgrade now</a> to unlock this feature.', 'mailerpress'), esc_url(\MailerPress\Core\ExternalLinks::get('pricing')))); ?>
                         </p>
                     </div>
-                <?php else: ?>
-                    <?php
-                    $customFieldsModel = \MailerPress\Core\Kernel::getContainer()->get(\MailerPress\Models\CustomFields::class);
-                    $custom_fields_defs = $customFieldsModel->all();
-
-                    if (!empty($custom_fields_defs)) :
-                        foreach ($custom_fields_defs as $cf_def) :
-                            $key = $cf_def->field_key;
-                            $label = $cf_def->label ?: $key;
-                            $mapped = $cf7_mailerpress['custom_fields'][$key] ?? '';
-                            ?>
-                            <p class="mail-field">
-                                <label><?php echo esc_html(sprintf('%s (%s):', $label, $key)); ?></label><br/>
-                                <input type="text"
-                                       name="wpcf7-mailerpress[custom_fields][<?php echo esc_attr($key); ?>]"
-                                       class="wide"
-                                       size="70"
-                                       placeholder="[your-field]"
-                                       value="<?php echo esc_attr($mapped); ?>"/>
-                            </p>
-                        <?php
-                        endforeach;
-                    else :
-                        ?>
-                        <p class="description"><?php echo esc_html__('No custom fields defined in MailerPress.', 'mailerpress'); ?></p>
-                    <?php endif; ?>
                 <?php endif; ?>
 
                 <p class="mail-field">
                     <label>
                         <input type="checkbox" name="wpcf7-mailerpress[confirm]" value="1"
                                 <?php checked(!empty($cf7_mailerpress['confirm'])); ?> />
-                        <strong><?php esc_html_e('Enable Double Opt-in', 'mailerpress'); ?></strong>
+                        <strong><?php esc_html_e('Enable double opt-in', 'mailerpress'); ?></strong>
                     </label>
                 </p>
             </fieldset>

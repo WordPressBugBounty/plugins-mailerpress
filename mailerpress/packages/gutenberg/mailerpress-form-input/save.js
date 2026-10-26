@@ -1,5 +1,24 @@
 import { useBlockProps } from "@wordpress/block-editor";
 
+/**
+ * Inline padding for the input, or undefined when unset so existing blocks keep their markup.
+ */
+export function getInputPaddingStyle(inputPadding) {
+  if (!inputPadding) {
+    return undefined;
+  }
+
+  const style = {
+    paddingTop: inputPadding.top,
+    paddingRight: inputPadding.right,
+    paddingBottom: inputPadding.bottom,
+    paddingLeft: inputPadding.left,
+  };
+  Object.keys(style).forEach((key) => !style[key] && delete style[key]);
+
+  return Object.keys(style).length ? style : undefined;
+}
+
 export default function save({ attributes }) {
   const {
     label = "",
@@ -8,6 +27,7 @@ export default function save({ attributes }) {
     borderRadius,
     fontSize,
     placeholder = "",
+    inputPadding,
   } = attributes;
 
   const inputId = `input-${label.replace(/\s+/g, "-").toLowerCase()}`;
@@ -47,6 +67,7 @@ export default function save({ attributes }) {
         name={type}
         placeholder={placeholder}
         aria-label={label}
+        style={getInputPaddingStyle(inputPadding)}
       />
     </div>
   );

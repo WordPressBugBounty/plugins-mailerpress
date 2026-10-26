@@ -45,7 +45,7 @@ class OrderRefunded
                 ],
             ],
             'output_fields' => [
-                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                 ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_name', 'label' => __('Customer Full Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
@@ -53,7 +53,7 @@ class OrderRefunded
                 ['key' => 'user_id', 'label' => __('WordPress User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
                 ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_number', 'label' => __('Receipt Number', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
-                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'refunded_amount', 'label' => __('Refunded Amount', 'mailerpress'), 'type' => 'number', 'group' => 'refund'],
                 ['key' => 'refund_type', 'label' => __('Refund Type', 'mailerpress'), 'type' => 'string', 'group' => 'refund'],

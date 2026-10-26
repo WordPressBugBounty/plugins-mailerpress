@@ -247,7 +247,7 @@ class ActionSchedulerDiagnostic
             ));
 
             if (!$campaign) {
-                return new \WP_Error('campaign_not_found', __('Campaign not found', 'mailerpress'), ['status' => 404]);
+                return new \WP_Error('campaign_not_found', __('Campaign not found.', 'mailerpress'), ['status' => 404]);
             }
 
             // Get batch IDs for this campaign

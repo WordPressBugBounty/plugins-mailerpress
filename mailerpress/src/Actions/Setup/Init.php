@@ -113,6 +113,24 @@ class Init
     }
 
     /**
+     * Rename stored capability grants before syncCap() refreshes the roles.
+     */
+    #[Action('init', priority: 5)]
+    public function migrateLegacyCapabilities(): void
+    {
+        \MailerPress\Core\CapabilitiesManager::migrateLegacyCapabilities();
+    }
+
+    /**
+     * Keep current_user_can() working with former capability names.
+     */
+    #[Filter('map_meta_cap', acceptedArgs: 2)]
+    public function mapLegacyCapability(array $caps, string $cap): array
+    {
+        return \MailerPress\Core\CapabilitiesManager::mapLegacyCapability($caps, $cap);
+    }
+
+    /**
      * One-shot hardening of files left on disk by previous versions. Keyed by its own marker,
      * NOT by the plugin version: it must also run when the same version is re-deployed with
      * this fix, and again whenever STORAGE_HARDENING_VERSION is bumped.
@@ -145,16 +163,18 @@ class Init
     #[Action('admin_init', priority: 5)]
     public function migrateJsonOptions(): void
     {
-        if (get_option('mailerpress_migrated_json_options_v2')) {
+        if (get_option('mailerpress_migrated_json_options_v3')) {
             return;
         }
 
         $optionNames = [
+            'mailerpress_default_settings',
             'mailerpress_signup_confirmation',
             'woocommerce_mailerpress_settings',
             'woocommerce_my_account_settings',
             'pmpro_mailerpress_settings',
             'pmpro_my_account_settings',
+            'mailerpress_edd_settings',
             'surecart_mailerpress_settings',
             'fluentcart_mailerpress_settings',
             'fluentcart_my_account_settings',
@@ -170,21 +190,24 @@ class Init
             }
         }
 
-        update_option('mailerpress_migrated_json_options_v2', true);
+        update_option('mailerpress_migrated_json_options_v3', true);
     }
 
     #[Action('admin_init', priority: 5)]
     public function syncThemeStylesheet(): void
     {
         $stylesheet = get_stylesheet();
+        $previousStylesheet = get_option(self::WP_THEME_STYLESHEET_OPTION);
 
-        if (get_option(self::WP_THEME_STYLESHEET_OPTION) === $stylesheet) {
+        if ($previousStylesheet === $stylesheet) {
             return;
         }
 
         update_option(self::WP_THEME_STYLESHEET_OPTION, $stylesheet, false);
 
-        if (!function_exists('wp_is_block_theme') || !wp_is_block_theme()) {
+        // A theme changed without switch_theme (e.g. while MailerPress was inactive).
+        // Before a theme was recorded, block theme email styles are kept.
+        if (false !== $previousStylesheet || !function_exists('wp_is_block_theme') || !wp_is_block_theme()) {
             $this->resetMailerPressThemeStyles();
         }
     }
@@ -232,15 +255,26 @@ class Init
             $newTheme->get_stylesheet(),
             false
         );
-        $this->resetMailerPressThemeStyles(!$newTheme->is_block_theme());
+        $this->resetMailerPressThemeStyles();
     }
 
-    private function resetMailerPressThemeStyles(bool $resetTypography = true): void
+    // The email styles taken from a theme belong to it: the next theme sets its own.
+    private function resetMailerPressThemeStyles(): void
     {
         update_option('mailerpress_theme', 'Core');
-        if ($resetTypography) {
-            delete_option('mailerpress_global_typography');
+        delete_option('mailerpress_theme_palette');
+        // Edited theme colors belong to the previous theme; custom colors stay.
+        $paletteColors = get_option('mailerpress_palette_colors');
+        if (\is_array($paletteColors) && isset($paletteColors['theme'])) {
+            unset($paletteColors['theme']);
+            update_option('mailerpress_palette_colors', $paletteColors, false);
         }
+        $fontSizes = get_option('mailerpress_font_sizes');
+        if (\is_array($fontSizes) && isset($fontSizes['theme'])) {
+            unset($fontSizes['theme']);
+            update_option('mailerpress_font_sizes', $fontSizes, false);
+        }
+        delete_option('mailerpress_global_typography');
     }
 
     private function registerDefaultTemplateCategories(): void
@@ -255,16 +289,5 @@ class Init
                 ],
             ]);
         }
-    }
-
-    #[Filter('mailerpress_patterns', priority: 10, acceptedArgs: 1)]
-    public function handle($patterns)
-    {
-        $patterns[] = [
-            'ID' => 'custom-pattern',
-            'post_title' => 'Welcome Header',
-            'post_content' => '{"type":"section","data":{"columnCount":1,"border-style":"solid","size":"full"},"attributes":{"padding-left":"10px","padding-right":"10px","padding-bottom":"0px","padding-top":"0px"},"children":[{"type":"column","data":{"border-style":"solid"},"attributes":{"vertical-align":"top","padding-top":"0px","padding-bottom":"0px","padding-right":"10px","padding-left":"10px"},"children":[{"type":"text","data":{"content":"Hello"},"attributes":{"padding-top":"10px","padding-bottom":"10px","padding-left":"25px","padding-right":"25px"},"children":[],"clientId":"d55fbe96-f614-4954-8053-cc14e99cfe77"},{"type":"button","data":{"content":"Click Me","border-style":"solid"},"attributes":{"align":"left","border-radius":"0px","padding-top":"10px","padding-bottom":"10px","padding-left":"25px","padding-right":"25px"},"children":[],"clientId":"181484fe-deac-47ea-9112-097f3a5a6c75","custom":false,"icon":"\n    <svg viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14.5 17.5H9.5V16H14.5V17.5Z M14.5 8H9.5V6.5H14.5V8Z M7 3.5H17C18.1046 3.5 19 4.39543 19 5.5V9C19 10.1046 18.1046 11 17 11H7C5.89543 11 5 10.1046 5 9V5.5C5 4.39543 5.89543 3.5 7 3.5ZM17 5H7C6.72386 5 6.5 5.22386 6.5 5.5V9C6.5 9.27614 6.72386 9.5 7 9.5H17C17.2761 9.5 17.5 9.27614 17.5 9V5.5C17.5 5.22386 17.2761 5 17 5Z M7 13H17C18.1046 13 19 13.8954 19 15V18.5C19 19.6046 18.1046 20.5 17 20.5H7C5.89543 20.5 5 19.6046 5 18.5V15C5 13.8954 5.89543 13 7 13ZM17 14.5H7C6.72386 14.5 6.5 14.7239 6.5 15V18.5C6.5 18.7761 6.72386 19 7 19H17C17.2761 19 17.5 18.7761 17.5 18.5V15C17.5 14.7239 17.2761 14.5 17 14.5Z\"></path></svg>\n    ","description":"Prompt visitors to take action with a button-style link.","disabledBlockType":[],"name":"Button","lock":false,"transforms":[{"type":"text"},{"type":"heading"}]}],"clientId":"6d787cbc-1947-4fe7-9201-1c14d090b7b6"}],"clientId":"f8ec502d-6acb-457f-bc6a-fbb0b211fdcf"}',
-        ];
-        return $patterns;
     }
 }

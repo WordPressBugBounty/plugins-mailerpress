@@ -20,9 +20,9 @@ class AddTagStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'add_tag',
-            'label' => __('Add Tag', 'mailerpress'),
+            'label' => __('Add tag', 'mailerpress'),
             'description' => __('Add a tag to the contact to categorize and segment them. Tags help organize your contacts and can be used to create conditions in your workflows.', 'mailerpress'),
-            'icon' => 'tag',
+            'icon' => 'mailerpress',
             'category' => 'contact',
             'type' => 'ACTION',
             'settings_schema' => [

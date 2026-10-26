@@ -291,9 +291,16 @@ class Pages
      *  - Elementor                   : ?elementor-preview=<post_id>
      *  - Bricks Builder              : ?bricks=run
      *  - Divi Visual Builder         : ?et_fb=1
+     *
+     * The preview fills the pages with site data (admin email, list names), so it is
+     * reserved to logged-in users who can edit content. Visitors get the normal pages.
      */
     private function isBuilderPreview(): bool
     {
+        if ( ! is_user_logged_in() || ! current_user_can( 'edit_posts' ) ) {
+            return false;
+        }
+
         return is_preview()
             || ! empty( $_GET['mp_preview'] )
             || ! empty( $_GET['elementor-preview'] )

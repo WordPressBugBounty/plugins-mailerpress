@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <wpml-config>
     <admin-texts>
+        <key name="mailerpress_default_settings">
+            <key name="fromName" />
+            <key name="replyToName" />
+        </key>
         <key name="mailerpress_signup_confirmation">
             <key name="emailSubject" />
             <key name="emailContent" />
@@ -47,6 +51,109 @@
             <key name="button_text" />
             <key name="success_message" />
             <key name="error_message" />
+        </key>
+        <key name="mailerpress_edd_settings">
+            <key name="subscribe_label" />
+        </key>
+        <key name="mailerpress_wc_email_templates">
+            <key name="customer_processing_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_completed_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_on_hold_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_refunded_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_invoice">
+                <key name="subject" />
+            </key>
+            <key name="customer_note">
+                <key name="subject" />
+            </key>
+            <key name="customer_new_account">
+                <key name="subject" />
+            </key>
+            <key name="customer_reset_password">
+                <key name="subject" />
+            </key>
+            <key name="new_order">
+                <key name="subject" />
+            </key>
+            <key name="cancelled_order">
+                <key name="subject" />
+            </key>
+            <key name="failed_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_renewal_invoice">
+                <key name="subject" />
+            </key>
+            <key name="customer_on_hold_renewal_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_processing_renewal_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_completed_renewal_order">
+                <key name="subject" />
+            </key>
+            <key name="customer_completed_switch_order">
+                <key name="subject" />
+            </key>
+            <key name="cancelled_subscription">
+                <key name="subject" />
+            </key>
+            <key name="expired_subscription">
+                <key name="subject" />
+            </key>
+            <key name="suspended_subscription">
+                <key name="subject" />
+            </key>
+            <key name="new_renewal_order">
+                <key name="subject" />
+            </key>
+            <key name="new_switch_order">
+                <key name="subject" />
+            </key>
+        </key>
+        <key name="mailerpress_wp_email_templates">
+            <key name="new_user">
+                <key name="subject" />
+            </key>
+            <key name="password_reset">
+                <key name="subject" />
+            </key>
+            <key name="password_changed">
+                <key name="subject" />
+            </key>
+            <key name="email_changed">
+                <key name="subject" />
+            </key>
+            <key name="new_user_admin">
+                <key name="subject" />
+            </key>
+            <key name="admin_email_changed">
+                <key name="subject" />
+            </key>
+            <key name="comment_moderation">
+                <key name="subject" />
+            </key>
+            <key name="comment_published">
+                <key name="subject" />
+            </key>
+            <key name="auto_plugin_update">
+                <key name="subject" />
+            </key>
+            <key name="auto_theme_update">
+                <key name="subject" />
+            </key>
+            <key name="auto_core_update">
+                <key name="subject" />
+            </key>
         </key>
     </admin-texts>
 </wpml-config>

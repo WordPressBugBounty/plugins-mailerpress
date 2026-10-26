@@ -13,6 +13,9 @@ use MailerPress\Models\Batch;
 
 class Dashboard
 {
+    /** Most dashboard requests a single batch call may run. */
+    private const MAX_BATCH_REQUESTS = 30;
+
     private function campaignOwnerWhere(\WP_REST_Request $request, string $alias = ''): string
     {
         if (
@@ -58,8 +61,10 @@ class Dashboard
         $interval = (int) $request->get_param('interval') ?: 30;
         $ownerWhere = $this->campaignOwnerWhere($request);
 
+        // Every column except the email content, which previews load from campaign/{id}.
         $query = $wpdb->prepare("
-        SELECT *
+        SELECT campaign_id, user_id, name, subject, status, email_type, config, created_at, updated_at,
+               batch_id, campaign_type, editing_user_id, editing_started_at, automation_id, step_id
         FROM $table
         WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
           AND (status IS NULL OR status != %s)
@@ -151,7 +156,7 @@ class Dashboard
                 $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids_for_stats), '%d'));
                 $campaign_stats = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT campaign_id, total_click AS campaign_total_click, total_revenue AS campaign_total_revenue
+                        "SELECT campaign_id, total_click AS campaign_total_click
                          FROM {$campaignStatsTable}
                          WHERE campaign_id IN ($campaign_placeholders)",
                         ...$campaign_ids_for_stats
@@ -187,11 +192,11 @@ class Dashboard
                     ],
                     $campaign_id && isset($campaign_stats_map[$campaign_id]) ? $campaign_stats_map[$campaign_id] : []
                 );
+                $statistics_map[$batch_id] = apply_filters('mailerpress_campaign_statistics', $statistics_map[$batch_id], (int) $campaign_id);
             }
 
             // Appliquer les données préchargées
             foreach ($results as &$result) {
-                $result->content_html = ! empty( $result->content_html ) ? json_decode( $result->content_html, true ) : null;
                 $result->config       = ! empty( $result->config ) ? json_decode( $result->config, true ) : null;
 
                 if (!empty($result->batch_id) && isset($batches_map[$result->batch_id])) {
@@ -208,7 +213,6 @@ class Dashboard
             }
         } else {
             foreach ($results as &$result) {
-                $result->content_html = ! empty( $result->content_html ) ? json_decode( $result->content_html, true ) : null;
                 $result->config       = ! empty( $result->config ) ? json_decode( $result->config, true ) : null;
                 $result->batch = null;
                 $result->statistics = null;
@@ -275,7 +279,6 @@ class Dashboard
         b.sender_to,
         b.subject,
         b.offset,
-        c.content_html,
         c.name,
         c.subject AS campaign_subject,
         c.status
@@ -373,7 +376,7 @@ class Dashboard
                 $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids_for_stats), '%d'));
                 $campaign_stats = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT campaign_id, total_click AS campaign_total_click, total_revenue AS campaign_total_revenue
+                        "SELECT campaign_id, total_click AS campaign_total_click
                          FROM {$campaignStatsTable}
                          WHERE campaign_id IN ($campaign_placeholders)",
                         ...$campaign_ids_for_stats
@@ -409,6 +412,7 @@ class Dashboard
                     ],
                     $campaign_id && isset($campaign_stats_map[$campaign_id]) ? $campaign_stats_map[$campaign_id] : []
                 );
+                $statistics_map[$batch_id] = apply_filters('mailerpress_campaign_statistics', $statistics_map[$batch_id], (int) $campaign_id);
             }
 
             // Appliquer les données préchargées
@@ -505,30 +509,9 @@ class Dashboard
     {
         global $wpdb;
 
-        $batchesTable = Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES);
         $clickTrackingTable = Tables::get(Tables::MAILERPRESS_CLICK_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $ownerWhere = $this->campaignOwnerWhere($request, 'c');
-
-        // Période actuelle : 30 derniers jours
-        $currentInterval = 30;
-        // Période précédente : 30 jours avant (jours 31-60)
-        $previousInterval = 30;
-
-        // Calcul pour la période actuelle (30 derniers jours)
-        // Total d'emails envoyés
-        $currentSent = (int)$wpdb->get_var(
-            $wpdb->prepare("
-                SELECT COALESCE(SUM(b.sent_emails), 0)
-                FROM {$batchesTable} b
-                INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
-                WHERE b.scheduled_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
-                  AND b.scheduled_at < NOW()
-                  AND c.status != 'draft'
-                  AND c.status != 'trash'
-                  {$ownerWhere}
-            ", $currentInterval)
-        );
 
         // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
         $currentClicks = (int)$wpdb->get_var("
@@ -568,27 +551,6 @@ class Dashboard
         $trackingTable = Tables::get(Tables::MAILERPRESS_EMAIL_TRACKING);
         $campaignsTable = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $ownerWhere = $this->campaignOwnerWhere($request, 'c');
-
-        // Période actuelle : 30 derniers jours
-        $currentInterval = 30;
-        // Période précédente : 30 jours avant (jours 31-60)
-        $previousInterval = 30;
-
-        // Calcul pour la période actuelle (30 derniers jours)
-        // Total d'emails envoyés (uniquement les campagnes avec sent_emails > 0)
-        $currentSent = (int)$wpdb->get_var(
-            $wpdb->prepare("
-                SELECT COALESCE(SUM(b.sent_emails), 0)
-                FROM {$batchesTable} b
-                INNER JOIN {$campaignsTable} c ON b.campaign_id = c.campaign_id
-                WHERE b.scheduled_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
-                  AND b.scheduled_at < NOW()
-                  AND b.sent_emails > 0
-                  AND c.status != 'draft'
-                  AND c.status != 'trash'
-                  {$ownerWhere}
-            ", $currentInterval)
-        );
 
         // Total d'ouvertures (compter les contacts distincts qui ont ouvert)
         // For anonymous users, count distinct anonymous_key; for identified users, count distinct contact_id
@@ -1844,4 +1806,63 @@ class Dashboard
         ]);
     }
 
+    /**
+     * Runs several dashboard GET requests in one HTTP round trip.
+     *
+     * Widgets load together, and each separate request would boot WordPress again.
+     * Every request keeps the permission check of its own route.
+     */
+    #[Endpoint(
+        'dashboard/batch',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canViewMailerPress'],
+    )]
+    public function batch(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
+    {
+        $paths = $request->get_param('paths');
+        if (!is_array($paths) || [] === $paths || count($paths) > self::MAX_BATCH_REQUESTS) {
+            return new \WP_Error('invalid_dashboard_batch', __('Invalid dashboard request.', 'mailerpress'), ['status' => 400]);
+        }
+
+        $prefix = '/' . Kernel::getContainer()->get('rest_namespace') . '/dashboard/';
+        $server = rest_get_server();
+        // Authenticate each request like this one (cookie nonce or API key), without the batch body headers.
+        $headers = $request->get_headers();
+        unset($headers['content_type'], $headers['content_length']);
+
+        $responses = [];
+        foreach (array_unique($paths) as $path) {
+            if (!is_string($path)) {
+                continue;
+            }
+
+            $parts = wp_parse_url($path);
+            $route = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
+            if (
+                1 !== preg_match('#^' . preg_quote($prefix, '#') . '[a-z0-9_-]+(?:/[a-z0-9_-]+)*$#', $route)
+                || $prefix . 'batch' === $route
+            ) {
+                $responses[$path] = [
+                    'status' => 400,
+                    'body' => ['code' => 'invalid_dashboard_path', 'message' => __('Invalid dashboard request.', 'mailerpress')],
+                ];
+                continue;
+            }
+
+            $subRequest = new \WP_REST_Request('GET', $route);
+            if (!empty($parts['query'])) {
+                parse_str($parts['query'], $query);
+                $subRequest->set_query_params($query);
+            }
+            $subRequest->set_headers($headers);
+
+            $response = rest_do_request($subRequest);
+            $responses[$path] = [
+                'status' => $response->get_status(),
+                'body' => $server->response_to_data($response, false),
+            ];
+        }
+
+        return new \WP_REST_Response(['responses' => $responses], 200);
+    }
 }

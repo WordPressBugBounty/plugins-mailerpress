@@ -28,7 +28,7 @@ $dateColor = $attributes['dateColor'] ?? '#666666';
 global $wpdb;
 $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
 
-$sql = "SELECT campaign_id, name, created_at, updated_at
+$sql = "SELECT campaign_id, name, created_at, updated_at, config
         FROM {$table}
         WHERE status = 'sent'";
 
@@ -38,11 +38,13 @@ if (!empty($year) && is_numeric($year)) {
 
 $sql .= " ORDER BY created_at {$order}";
 
-if ($limit > 0) {
-    $sql .= $wpdb->prepare(" LIMIT %d", $limit);
-}
-
 $campaigns = $wpdb->get_results($sql, ARRAY_A) ?: [];
+$campaigns = array_values(array_filter($campaigns, static fn(array $campaign): bool =>
+    !CampaignEmail::isPrivate((int) $campaign['campaign_id'], $campaign['config'])
+));
+if ($limit > 0) {
+    $campaigns = array_slice($campaigns, 0, $limit);
+}
 
 // Build wrapper attributes
 $wrapper_attributes = get_block_wrapper_attributes();

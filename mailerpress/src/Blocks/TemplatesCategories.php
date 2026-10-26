@@ -7,6 +7,7 @@ namespace MailerPress\Blocks;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Enums\Tables;
+use MailerPress\Services\TemplateVisibility;
 
 final class TemplatesCategories
 {
@@ -34,6 +35,7 @@ final class TemplatesCategories
             $usageWhere = $usage_type === 'newsletter'
                 ? '(t.usage_type = %s OR t.usage_type IS NULL)'
                 : 't.usage_type = %s';
+            $usageWhere .= ' AND t.internal IN (' . TemplateVisibility::sqlList() . ')';
 
             $categories = $wpdb->get_results(
                 $wpdb->prepare(
@@ -77,6 +79,8 @@ final class TemplatesCategories
 
         $templatesTable = Tables::get(Tables::MAILERPRESS_TEMPLATES);
         $categoriesTable = Tables::get(Tables::MAILERPRESS_CATEGORIES);
+        // Count only the templates this site may list (premium ones need the extension that ships them).
+        $visibleInternal = TemplateVisibility::sqlList();
 
         // Fetch all categories where type = 'template', optionally filtered by usage_type
         if (!empty($usage_type) && in_array($usage_type, ['newsletter', 'automation'], true)) {
@@ -86,6 +90,8 @@ final class TemplatesCategories
             $entryUsageWhere = $usage_type === 'newsletter'
                 ? '(usage_type = %s OR usage_type IS NULL)'
                 : 'usage_type = %s';
+            $usageWhere .= " AND t.internal IN ({$visibleInternal})";
+            $entryUsageWhere .= " AND internal IN ({$visibleInternal})";
 
             $categories = $wpdb->get_results(
                 $wpdb->prepare(
@@ -125,6 +131,7 @@ final class TemplatesCategories
             $entries = $wpdb->get_results(
                 "SELECT cat_id, COUNT(*) AS total_entries
                  FROM {$templatesTable}
+                 WHERE internal IN ({$visibleInternal})
                  GROUP BY cat_id",
                 OBJECT_K
             );

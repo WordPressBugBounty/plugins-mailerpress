@@ -4,6 +4,8 @@ namespace MailerPress\Core\Migrations;
 
 \defined('ABSPATH') || exit;
 
+use MailerPress\Core\Kernel;
+
 class Manager
 {
     protected string $migrationPath;
@@ -34,6 +36,40 @@ class Manager
         $this->tracker = new MigrationTracker();
         $this->validator = new MigrationValidator();
         $this->forceMode = $forceMode;
+    }
+
+    /**
+     * Migration directories: MailerPress first, then those registered by extensions.
+     *
+     * @return string[]
+     */
+    public static function getMigrationPaths(): array
+    {
+        $corePath = Kernel::$config['root'] . '/src/Core/Migrations/migrations';
+        $paths = apply_filters('mailerpress_migration_paths', [$corePath]);
+        $paths = is_array($paths) ? array_filter($paths, 'is_string') : [];
+
+        return array_values(array_unique(array_merge(
+            [$corePath],
+            array_filter(array_map('untrailingslashit', $paths), 'is_dir')
+        )));
+    }
+
+    /**
+     * Resets failed migrations once, then runs the migrations of every registered directory.
+     * Resetting per directory would hide a failure of a directory that already ran.
+     */
+    public static function runForceAllPaths(bool $forceMode = false): void
+    {
+        foreach (self::getMigrationPaths() as $index => $path) {
+            $manager = new self($path, [], $forceMode);
+
+            if (0 === $index) {
+                $manager->runForce();
+            } else {
+                $manager->run();
+            }
+        }
     }
 
     /**

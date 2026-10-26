@@ -13,6 +13,21 @@ use MailerPress\Models\Tags;
 class Init
 {
     private static bool $formBlockRendered = false;
+
+    /**
+     * Token rendered with forms whose block disables double opt-in.
+     * Lets the public contact endpoint honour a "subscribed" status chosen by the site owner.
+     */
+    public static function getSkipConfirmationToken(): string
+    {
+        return hash_hmac('sha256', 'mailerpress_form_skip_confirmation', wp_salt('nonce'));
+    }
+
+    public static function isValidSkipConfirmationToken(mixed $token): bool
+    {
+        return is_string($token) && '' !== $token && hash_equals(self::getSkipConfirmationToken(), $token);
+    }
+
     #[Action('init')]
     public function registerBlockType()
     {
@@ -26,6 +41,25 @@ class Init
         add_filter('render_block', static function ( string $blockContent, array $block ): string {
             if ( 'mailerpress/mailerpress-form' === ( $block['blockName'] ?? '' ) ) {
                 self::$formBlockRendered = true;
+				/** Lets add-ons enqueue the front-end assets they need for MailerPress forms. */
+				do_action('mailerpress_form_assets', 'native_forms');
+
+				if ( class_exists('WP_HTML_Tag_Processor') ) {
+					$processor = new \WP_HTML_Tag_Processor($blockContent);
+					if ( $processor->next_tag(['tag_name' => 'form', 'class_name' => 'mailerpress-optin-form']) ) {
+						// Legacy blocks saved data-double-optin="true" even without an explicit choice.
+						$doubleOptin = $block['attrs']['double_optin'] ?? null;
+						$mode = is_bool($doubleOptin) ? ( $doubleOptin ? 'enabled' : 'disabled' ) : 'global';
+						$processor->set_attribute('data-double-optin-mode', $mode);
+						if ( false === $doubleOptin ) {
+							// Sign the owner's opt-out so visitors cannot bypass global confirmation.
+							$processor->set_attribute('data-confirmation-token', self::getSkipConfirmationToken());
+						} else {
+							$processor->remove_attribute('data-confirmation-token');
+						}
+						$blockContent = $processor->get_updated_html();
+					}
+				}
             }
             return $blockContent;
         }, 10, 2 );
@@ -73,7 +107,9 @@ class Init
             return;
         }
 
-        echo '<script>window.mailerpressFormConfig=' . wp_json_encode(
+        /** Lets add-ons extend the public configuration read by MailerPress forms. */
+        $config = apply_filters(
+            'mailerpress_public_form_config',
             [
                 'apiUrl' => rest_url('mailerpress/v1/contact'),
                 'nonce' => wp_create_nonce('wp_rest'),
@@ -84,8 +120,10 @@ class Init
                     'unexpected' => __('Unexpected error. Please try again later.', 'mailerpress'),
                 ],
             ],
-            JSON_HEX_TAG | JSON_HEX_AMP
-        ) . ';</script>' . "\n";
+            'native_forms'
+        );
+
+        echo '<script>window.mailerpressFormConfig=' . wp_json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP) . ';</script>' . "\n";
     }
 
     #[Action('enqueue_block_assets')]

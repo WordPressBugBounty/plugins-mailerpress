@@ -52,6 +52,15 @@ class ConditionStepHandler implements StepHandlerInterface
         $settings = $step->getSettings();
         $condition = $settings['condition'] ?? [];
 
+        // A rule on a field of an inactive extension pauses the contact until the extension is back.
+        $missingFeature = $this->evaluator->findMissingFeature($condition);
+        foreach ($this->stepRepo->findBranchesByStepId($step->getId()) as $branch) {
+            $missingFeature ??= $this->evaluator->findMissingFeature($branch->getCondition());
+        }
+        if (null !== $missingFeature) {
+            return StepResult::paused($missingFeature);
+        }
+
         // Check if this is a re-evaluation of a waiting condition
         // IMPORTANT: We detect re-evaluation by checking if:
         // 1. The job is currently WAITING (meaning it was put in waiting state previously)

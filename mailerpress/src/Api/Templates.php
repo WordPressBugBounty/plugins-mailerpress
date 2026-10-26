@@ -12,6 +12,7 @@ use MailerPress\Blocks\TemplatesCategories;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
+use MailerPress\Services\TemplateVisibility;
 use WP_Error;
 use WP_REST_Response;
 
@@ -38,12 +39,6 @@ class Templates
         $internal = $request->get_param('internal');
         $usage_type = $request->get_param('usage_type'); // 'newsletter' or 'automation'
 
-        // When white-label hide_premium_templates is active, force internal=0 (user templates only)
-        $whiteLabel = apply_filters( 'mailerpress_white_label_options', [] );
-        if ( ! empty( $whiteLabel['white_label_active'] ) && ! empty( $whiteLabel['hide_premium_templates'] ) ) {
-            $internal = '0';
-        }
-
         // Base query
         $where = '1=1'; // Default condition to make concatenation easier
         $params = [];
@@ -68,22 +63,13 @@ class Templates
             $params[] = '%' . $wpdb->esc_like($search) . '%';
         }
 
-        if (isset($internal)) {
-            // Convert the comma-separated string into an array
-            $array = explode(',', $internal);
-
-            // Sanitize each value in the array
-            $array = array_map('intval', $array);
-
-            // Create placeholders for the array
-            $placeholders = implode(',', array_fill(0, \count($array), '%d'));
-
-            // Append the condition to the WHERE clause
-            $where .= " AND internal IN ({$placeholders})";
-
-            // Add the array values to the params
-            $params = array_merge($params, $array);
-        }
+        // Only list the templates this site may use: premium ones need the extension that ships them.
+        $allowedInternal = TemplateVisibility::internalValues();
+        $requestedInternal = isset($internal) ? array_map('intval', explode(',', (string) $internal)) : $allowedInternal;
+        $array = array_values(array_intersect($requestedInternal, $allowedInternal)) ?: [-1];
+        $placeholders = implode(',', array_fill(0, \count($array), '%d'));
+        $where .= " AND internal IN ({$placeholders})";
+        $params = array_merge($params, $array);
 
 
         // Add filtering by category if provided
@@ -110,6 +96,10 @@ class Templates
         $orderby = in_array($orderby_param, $allowed_orderby, true) ? $orderby_param : 'created_at';
         $order = in_array($order_param, $allowed_order, true) ? $order_param : 'ASC';
         $orderBy = "$orderby $order";
+        $favorite_ids = array_values(array_filter(array_unique(array_map('absint', (array) get_user_meta(get_current_user_id(), 'mailerpress_favorite_templates', true)))));
+        if ($favorite_ids) {
+            $orderBy = 'CASE WHEN id IN (' . implode(',', $favorite_ids) . ") THEN 0 ELSE 1 END, {$orderBy}";
+        }
 
         $query = $wpdb->prepare("
 		    SELECT
@@ -122,6 +112,10 @@ class Templates
 
         // Fetch templates from the database
         $templates = $wpdb->get_results($query, ARRAY_A);
+        foreach ($templates as &$template) {
+            $template['is_favorite'] = in_array((int) $template['id'], $favorite_ids, true);
+        }
+        unset($template);
 
         $total_query = $wpdb->prepare("
 		    SELECT COUNT(*)
@@ -141,6 +135,39 @@ class Templates
         ];
 
         return new \WP_REST_Response($response, 200);
+    }
+
+    #[Endpoint(
+        'templates/favorite',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canReadTemplates']
+    )]
+    public function favorite(\WP_REST_Request $request): \WP_Error|\WP_REST_Response
+    {
+        global $wpdb;
+
+        $user_id = get_current_user_id();
+        $template_id = absint($request->get_param('id'));
+        $favorite = rest_sanitize_boolean($request->get_param('favorite'));
+
+        if (!$user_id || !$template_id || null === $request->get_param('favorite')) {
+            return new \WP_Error('invalid_template_favorite', __('Invalid template favorite request.', 'mailerpress'), ['status' => 400]);
+        }
+
+        $table_name = Tables::get(Tables::MAILERPRESS_TEMPLATES);
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$table_name} WHERE id = %d", $template_id));
+        if (!$exists) {
+            return new \WP_Error('template_not_found', __('Template not found.', 'mailerpress'), ['status' => 404]);
+        }
+
+        $favorite_ids = array_values(array_filter(array_unique(array_map('absint', (array) get_user_meta($user_id, 'mailerpress_favorite_templates', true)))));
+        $favorite_ids = array_values(array_diff($favorite_ids, [$template_id]));
+        if ($favorite) {
+            $favorite_ids[] = $template_id;
+        }
+        update_user_meta($user_id, 'mailerpress_favorite_templates', $favorite_ids);
+
+        return new \WP_REST_Response(['id' => $template_id, 'is_favorite' => $favorite], 200);
     }
 
     #[Endpoint(
@@ -391,7 +418,7 @@ class Templates
             ARRAY_A
         );
 
-        if (!$template) {
+        if (!$template || !TemplateVisibility::isVisible($template)) {
             return new \WP_Error('not_found', __('Template not found.', 'mailerpress'), ['status' => 404]);
         }
 

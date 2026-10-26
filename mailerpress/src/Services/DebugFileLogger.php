@@ -7,113 +7,14 @@ namespace MailerPress\Services;
 \defined('ABSPATH') || exit;
 
 /**
- * File logger for low-level debugging (send queue, batches, cleanup).
+ * Protects MailerPress storage directories in uploads (contact exports, legacy log
+ * directories) and removes the legacy world-readable wp-content/mailerpress-logs/.
  *
- * Security contract:
- *  - nothing is ever written unless WP_DEBUG_LOG is enabled in wp-config.php;
- *  - files live in a dedicated uploads sub-directory whose name is salted with the site's
- *    keys (unguessable on servers that ignore .htaccess) and protected by .htaccess + index.php;
- *  - email addresses must be masked with maskEmail() before being logged.
- *
- * The legacy, world-readable wp-content/mailerpress-logs/ directory is purged on upgrade.
+ * MailerPress no longer writes debug log files.
  */
 final class DebugFileLogger
 {
     private const DIR_SLUG = 'mailerpress-logs';
-
-    private static ?string $directory = null;
-
-    /**
-     * Logging is opt-in through WP_DEBUG_LOG (true, or a custom log path string as WordPress
-     * itself accepts).
-     */
-    public static function isEnabled(): bool
-    {
-        if (!\defined('WP_DEBUG_LOG')) {
-            return false;
-        }
-
-        $value = \constant('WP_DEBUG_LOG');
-
-        return true === $value || (\is_string($value) && '' !== trim($value));
-    }
-
-    /**
-     * Append a line to $file (basename only) inside the protected log directory.
-     */
-    public static function write(string $file, string $message, array $context = []): void
-    {
-        if (!self::isEnabled()) {
-            return;
-        }
-
-        $directory = self::getDirectory();
-        if (null === $directory) {
-            return;
-        }
-
-        $file = sanitize_file_name(basename($file));
-        if ('' === $file || '.' === $file[0]) {
-            return;
-        }
-
-        $contextStr = !empty($context) ? ' | Context: ' . wp_json_encode($context) : '';
-        $line = sprintf("[%s] %s%s\n", current_time('mysql'), $message, $contextStr);
-
-        @file_put_contents($directory . '/' . $file, $line, FILE_APPEND | LOCK_EX);
-    }
-
-    /**
-     * Mask an email address for logging: "j***@example.com".
-     */
-    public static function maskEmail(string $email): string
-    {
-        $email = trim($email);
-        $at = strrpos($email, '@');
-
-        if (false === $at || 0 === $at) {
-            return '' === $email ? '' : '***';
-        }
-
-        return substr($email, 0, 1) . '***' . substr($email, $at);
-    }
-
-    /**
-     * Protected log directory, created on demand. Null when logging is disabled or the
-     * directory cannot be created.
-     */
-    public static function getDirectory(): ?string
-    {
-        if (!self::isEnabled()) {
-            return null;
-        }
-
-        if (null !== self::$directory) {
-            return self::$directory;
-        }
-
-        $uploads = wp_upload_dir(null, false);
-        if (!empty($uploads['error']) || empty($uploads['basedir'])) {
-            return null;
-        }
-
-        $suffix = substr(wp_hash(self::DIR_SLUG . '|' . get_current_blog_id()), 0, 16);
-        $directory = trailingslashit($uploads['basedir']) . self::DIR_SLUG . '-' . $suffix;
-
-        if (!is_dir($directory) && !wp_mkdir_p($directory)) {
-            return null;
-        }
-
-        self::protectDirectory($directory);
-
-        if (!is_writable($directory)) {
-            return null;
-        }
-
-        self::$directory = $directory;
-
-        return $directory;
-    }
 
     /**
      * Deny direct HTTP access to a directory (Apache 2.2/2.4) and prevent listings.

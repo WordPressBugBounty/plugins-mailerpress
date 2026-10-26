@@ -72,15 +72,15 @@ class MyLists
             'button_text' => $is_logged_in
                 ? __('Save Preferences', 'mailerpress')
                 : __('Subscribe', 'mailerpress'),
-            'loading_text' => __('Saving...', 'mailerpress'),
+            'loading_text' => __('Saving…', 'mailerpress'),
             'success_message' => $is_logged_in
                 ? __('Your subscription preferences have been updated successfully.', 'mailerpress')
                 : __('Thank you for subscribing! Please check your email to confirm your subscription.', 'mailerpress'),
             'error_message' => __('An error occurred while updating your preferences. Please try again.', 'mailerpress'),
-            'email_label' => __('Email Address', 'mailerpress'),
+            'email_label' => __('Email address', 'mailerpress'),
             'email_placeholder' => __('your@email.com', 'mailerpress'),
-            'first_name_label' => __('First Name', 'mailerpress'),
-            'last_name_label' => __('Last Name', 'mailerpress'),
+            'first_name_label' => __('First name', 'mailerpress'),
+            'last_name_label' => __('Last name', 'mailerpress'),
             'subscription_status_label' => __('Subscription status', 'mailerpress'),
             'subscribed_label' => __('Subscribed', 'mailerpress'),
             'unsubscribed_label' => __('Unsubscribed', 'mailerpress'),
@@ -635,7 +635,7 @@ class MyLists
                 'i18n' => [
                     'successMessage' => __('Your subscription preferences have been updated successfully.', 'mailerpress'),
                     'errorMessage' => __('An error occurred while updating your preferences. Please try again.', 'mailerpress'),
-                    'loadingText' => __('Saving...', 'mailerpress'),
+                    'loadingText' => __('Saving…', 'mailerpress'),
                     'emailRequired' => __('Email address is required.', 'mailerpress'),
                 ],
             ]

@@ -33,7 +33,8 @@ class Frontend
         }
     }
 
-    #[Action('init', priority: 1)]
+    // Runs once `init` is done: the workflow listeners of the open (e.g. the goals of MailerPress Pro) boot on `init`.
+    #[Action('wp_loaded', priority: 1)]
     public function handleOpenTracking()
     {
         $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
@@ -158,7 +159,8 @@ class Frontend
             $this->upsertContactStats($contactStatsTable, $contact_id, $campaign_id, $openedAt);
 
             if ($campaign_id && $userId) {
-                \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $userId);
+                // Lets extensions follow the email, e.g. the A/B test step of MailerPress Pro.
+                do_action('mailerpress_automation_email_opened', (int) $campaign_id, (int) $userId);
             }
 
             if ($userId) {
@@ -250,7 +252,7 @@ class Frontend
 
                 $abTestUserId = $userId ?: $contact_id;
                 if ($campaign_id && $abTestUserId) {
-                    \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $abTestUserId);
+                    do_action('mailerpress_automation_email_opened', (int) $campaign_id, (int) $abTestUserId);
                 }
 
                 if ($userId) {
@@ -570,20 +572,28 @@ class Frontend
         $data = $this->decodeTrackingToken($token);
 
 
-        if (!$data || empty($data['url'])) {
-            // Log for debugging (remove in production if needed)
-            wp_die(esc_html__('Invalid tracking link', 'mailerpress'), 'MailerPress', ['response' => 400]);
+        if (!$data || empty($data['url']) || !is_string($data['url'])) {
+            $this->setTrackingNotFound();
+            return;
         }
 
         $contactId = (int)($data['cid'] ?? 0);
         $campaignId = (int)($data['cmp'] ?? 0);
-        $originalUrl = esc_url_raw($data['url']);
+        $originalUrl = trim(esc_url_raw($data['url']));
+
+        // Reject old tracking links to local anchors before recording any click.
+        if ('' === $originalUrl || '#' === $originalUrl[0]) {
+            $this->setTrackingNotFound();
+            return;
+        }
+
         $anonymousKey = isset($data['ank']) ? sanitize_text_field($data['ank']) : null;
         $linkId = isset($data['lid']) ? sanitize_key((string) $data['lid']) : '';
 
         // Validate that we have required IDs
         if ($campaignId <= 0) {
-            wp_die(esc_html__('Invalid tracking link', 'mailerpress'), 'MailerPress', ['response' => 400]);
+            $this->setTrackingNotFound();
+            return;
         }
 
         // Check if this is anonymous tracking (contact_id = 0)
@@ -772,7 +782,8 @@ class Frontend
             if (!$userId) {
                 $userId = $contactId;
             }
-            \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantClick($campaignId, $userId);
+            // Lets extensions follow the email, e.g. the A/B test step of MailerPress Pro.
+            do_action('mailerpress_automation_email_clicked', (int) $campaignId, (int) $userId);
         }
 
         // 5️⃣ Re-evaluate waiting workflows for this contact and campaign (skip for anonymous tracking)
@@ -837,6 +848,16 @@ class Frontend
         exit;
     }
 
+
+    private function setTrackingNotFound(): void
+    {
+        global $wp_query;
+
+        $wp_query->set_404();
+        status_header(404);
+        nocache_headers();
+        remove_action('template_redirect', 'redirect_canonical');
+    }
 
     private function decodeTrackingToken(string $token): ?array
     {

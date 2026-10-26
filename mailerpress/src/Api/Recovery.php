@@ -140,7 +140,7 @@ class Recovery
         if (!$batch_id) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => __('Invalid batch_id', 'mailerpress'),
+                'message' => __('Invalid batch ID', 'mailerpress'),
             ], 400);
         }
 
@@ -325,7 +325,7 @@ class Recovery
         if (!$batch_id) {
             return new WP_REST_Response([
                 'success' => false,
-                'message' => __('Invalid batch_id', 'mailerpress'),
+                'message' => __('Invalid batch ID', 'mailerpress'),
             ], 400);
         }
 

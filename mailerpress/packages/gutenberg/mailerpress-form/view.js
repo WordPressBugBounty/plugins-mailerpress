@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const mailerPressOptinForms = document.querySelectorAll(
-    ".mailerpress-optin-form",
+    "form.mailerpress-optin-form",
   );
 
   mailerPressOptinForms.forEach((form) => {
@@ -9,6 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     form.dataset.mailerpressOptinInitialized = "true";
+    const config = window.mailerpressFormConfig ?? window.mailerpressOptin;
+    // Add-ons register extensions that can add data to each submission.
+    const extensionsReady = Promise.all(
+      (window.mailerpressFormExtensions || []).map((extension) =>
+        Promise.resolve().then(() => extension(form, config)),
+      ),
+    );
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -24,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
       submitButton.disabled = true;
 
       try {
+        const extensions = await extensionsReady;
         const submitForm = async (nonceRefreshed = false) => {
           const formData = new FormData(form);
 
@@ -33,15 +41,21 @@ document.addEventListener("DOMContentLoaded", () => {
             ? JSON.parse(listValue)
             : [listValue];
 
-          // Get double opt-in setting from form data attribute
-          const doubleOptinEnabled = form.dataset.doubleOptin === "true";
-          const contactStatus = doubleOptinEnabled ? "pending" : "subscribed";
+          // Only an explicit block choice overrides the current global setting.
+          // Legacy markup and shortcodes leave that decision to the API.
+          let contactStatus;
+          if (form.dataset.doubleOptinMode === "enabled") {
+            contactStatus = "pending";
+          } else if (form.dataset.doubleOptinMode === "disabled") {
+            contactStatus = "subscribed";
+          }
 
           const payload = {
             contactEmail: formData.get("contactEmail"),
             contactFirstName: formData.get("contactFirstName"),
             contactLastName: formData.get("contactLastName"),
             contactStatus: contactStatus,
+            confirmationToken: form.dataset.confirmationToken || undefined,
             tags: JSON.parse(formData.get("mailerpress-tags") || "[]").map(
               (id) => ({ id }),
             ),
@@ -49,6 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
             opt_in_source: "custom_form",
             website: formData.get("website") || "", // Honeypot field
             lang: document.documentElement.lang || "",
+            ...Object.assign(
+              {},
+              ...extensions.map((extension) => extension?.getData?.() || {}),
+            ),
           };
 
           // Nonce injected server-side: window.mailerpressFormConfig (Gutenberg block)
@@ -155,12 +173,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const errorEl = document.createElement("div");
         errorEl.className = "mailerpress-notice error";
         errorEl.textContent =
+          err.message ||
           form.dataset.errorMessage ||
           window.mailerpressFormConfig?.i18n?.unexpected ||
           "Unexpected error. Please try again later.";
         form.appendChild(errorEl);
         setTimeout(() => errorEl.remove(), 4000);
       } finally {
+        extensionsReady.then(
+          (extensions) =>
+            extensions.forEach((extension) => extension?.reset?.()),
+          () => {},
+        );
         submitButton.disabled = false;
         submitButton.textContent = originalBtnText;
       }

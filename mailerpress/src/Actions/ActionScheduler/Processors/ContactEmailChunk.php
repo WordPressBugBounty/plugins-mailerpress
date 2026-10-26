@@ -7,7 +7,6 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 \defined('ABSPATH') || exit;
 
 use DI\DependencyException;
-use MailerPress\Services\DebugFileLogger;
 use DI\NotFoundException;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\EmailManager\EmailServiceManager;
@@ -18,7 +17,6 @@ use MailerPress\Core\QueueManager;
 use MailerPress\Jobs\SendEmailJob;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\InactiveContactManager;
-use MailerPress\Services\Logger;
 
 class ContactEmailChunk
 {
@@ -47,8 +45,6 @@ class ContactEmailChunk
     {
         global $wpdb;
 
-        $start_time = microtime(true);
-
         // 1. Récupérer chunk de la DB
         $chunksTable = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
         $chunk = $wpdb->get_row($wpdb->prepare(
@@ -57,31 +53,11 @@ class ContactEmailChunk
         ));
 
         if (!$chunk) {
-            Logger::info('Chunk not found in database', [
-                'chunk_id' => $chunk_id,
-                'batch_id' => $batch_id
-            ]);
             return;
         }
 
-        // Calculer le délai d'exécution
-        $scheduled_time = strtotime($chunk->scheduled_at);
-        $actual_time = time();
-        $delay_seconds = $actual_time - $scheduled_time;
-
-        Logger::info('Chunk processing started', [
-            'chunk_id' => $chunk_id,
-            'batch_id' => $batch_id,
-            'scheduled_at' => $chunk->scheduled_at,
-            'actual_execution' => current_time('mysql'),
-            'delay_seconds' => $delay_seconds,
-            'status' => $chunk->status,
-            'retry_count' => (int)$chunk->retry_count,
-        ]);
-
         // 2. Vérifier si déjà traité
         if ($chunk->status === 'completed') {
-            Logger::info('Chunk already completed, skipping', ['chunk_id' => $chunk_id]);
             return;
         }
 
@@ -102,17 +78,8 @@ class ContactEmailChunk
             // Fast path : transient existe
             $chunkData = $transient;
             $contact_chunk = $transient['contacts'];
-            Logger::info('Using transient cache (fast path)', [
-                'chunk_id' => $chunk_id,
-                'contacts_count' => count($contact_chunk),
-            ]);
         } else {
             // Fallback : transient expiré, lire depuis DB
-            Logger::info('Transient expired, using database fallback', [
-                'chunk_id' => $chunk_id,
-                'transient_key' => $transient_key,
-            ]);
-
             $contact_chunk = json_decode($chunk->contact_ids, true);
             $chunkData = json_decode($chunk->chunk_data, true);
 
@@ -148,6 +115,12 @@ class ContactEmailChunk
         try {
             $this->processStandardEmailChunk($chunk_id, $batch_id, $contact_chunk, $html, $chunkData);
 
+            // Quota exhaustion or a provider 429 leaves only unsent contacts pending.
+            $status = $wpdb->get_var($wpdb->prepare("SELECT status FROM {$chunksTable} WHERE id = %d", $chunk_id));
+            if ('pending' === $status) {
+                return;
+            }
+
             // 6. Marquer comme completed
             $wpdb->update(
                 $chunksTable,
@@ -169,15 +142,6 @@ class ContactEmailChunk
             if ( 0 === $remaining ) {
                 delete_transient('mailerpress_batch_' . $batch_id . '_html_processed');
             }
-
-            $processing_duration = round(microtime(true) - $start_time, 2);
-
-            Logger::info('Chunk processing completed successfully', [
-                'chunk_id' => $chunk_id,
-                'batch_id' => $batch_id,
-                'processing_duration_seconds' => $processing_duration,
-                'contacts_processed' => count($contact_chunk),
-            ]);
         } catch (\Throwable $e) {
             // 7. Gérer l'erreur avec retry
             $this->handleChunkError($chunk_id, $batch_id, $e->getMessage());
@@ -241,10 +205,6 @@ class ContactEmailChunk
         $chunkData['contacts'] = $contact_chunk;
 
         if (empty($contact_chunk)) {
-            Logger::info('Chunk skipped because it has no subscribed contacts', [
-                'chunk_id' => $chunk_id,
-                'batch_id' => $batch_id,
-            ]);
             return;
         }
 
@@ -311,23 +271,16 @@ class ContactEmailChunk
                 $contacts_by_id[(int)$contact->contact_id] = $contact;
             }
 
-            // Fetch all custom fields in a single query
-            $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
-            $all_custom_fields = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT contact_id, field_key, field_value FROM {$customFieldsTable} WHERE contact_id IN ({$contact_placeholders})",
-                    ...$contact_ids
-                )
-            );
+            // Extra merge tag variables of each contact, e.g. the custom fields added by MailerPress Pro.
+            $custom_fields_by_contact = (array) apply_filters('mailerpress_contact_merge_variables', [], $contact_ids);
 
-            // Group custom fields by contact_id
-            $custom_fields_by_contact = [];
-            foreach ($all_custom_fields as $customField) {
-                $contact_id = (int)$customField->contact_id;
-                if (!isset($custom_fields_by_contact[$contact_id])) {
-                    $custom_fields_by_contact[$contact_id] = [];
-                }
-                $custom_fields_by_contact[$contact_id][$customField->field_key] = $customField->field_value;
+            $private_campaign = \MailerPress\Actions\Shortcodes\CampaignEmail::isPrivate((int) $chunkData['campaignId']);
+            if ($private_campaign) {
+                $html = preg_replace(
+                    '~<a\b[^>]*\bhref\s*=\s*(["\'])\{\{campaign_online_url\}\}\1[^>]*>.*?</a>~is',
+                    '',
+                    $html
+                ) ?? $html;
             }
 
             do_action( 'mailerpress/email/before_chunk_process', $contact_ids, $html, (int) ( $chunkData['campaignId'] ?? 0 ) );
@@ -372,7 +325,9 @@ class ContactEmailChunk
                     'contact_email' => \sprintf('%s', esc_html($contactEntity->email)),
                     'contact_first_name' => \sprintf('%s', esc_html($contactEntity->first_name)),
                     'contact_last_name' => \sprintf('%s', esc_html($contactEntity->last_name)),
-                    'campaign_online_url' => \MailerPress\Actions\Shortcodes\CampaignEmail::getPublicUrl((int) $chunkData['campaignId']),
+                    'campaign_online_url' => $private_campaign
+                        ? ''
+                        : \MailerPress\Actions\Shortcodes\CampaignEmail::getPublicUrl((int) $chunkData['campaignId']),
                 ];
 
                 $clickTracking = $chunkData['clickTracking'] ?? 'yes';
@@ -399,9 +354,9 @@ class ContactEmailChunk
                     );
                 }
 
-                // Add custom fields to variables
+                // Add the extra merge tag variables of the contact
                 if (isset($custom_fields_by_contact[$contact_id])) {
-                    foreach ($custom_fields_by_contact[$contact_id] as $field_key => $field_value) {
+                    foreach ((array) $custom_fields_by_contact[$contact_id] as $field_key => $field_value) {
                         $contact_variables[$field_key] = esc_html($field_value ?? '');
                     }
                 }
@@ -558,15 +513,6 @@ class ContactEmailChunk
     }
 
     /**
-     * Log message to file for debugging
-     */
-    private function log(string $message, array $context = []): void
-    {
-        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
-        DebugFileLogger::write('queue-debug.log', $message, $context);
-    }
-
-    /**
      * Handle chunk error with retry logic
      */
     private function handleChunkError(int $chunk_id, int $batch_id, string $error): void
@@ -614,14 +560,6 @@ class ContactEmailChunk
             );
 
             ChunkWorker::ensureWorkerRunning();
-
-            Logger::info('Chunk scheduled for retry (will be picked up by ChunkWorker)', [
-                'chunk_id' => $chunk_id,
-                'batch_id' => $batch_id,
-                'retry' => $retry_count + 1,
-                'delay_seconds' => $delay,
-                'next_scheduled_at' => $next_scheduled_at,
-            ]);
         } else {
             // Max retries : marquer comme failed définitif
             $this->markChunkAsFailed($chunk_id, $batch_id, $error);

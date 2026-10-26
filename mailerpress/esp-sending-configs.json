@@ -1,13 +1,13 @@
 {
-  "php": {
-    "name": "PHP Mail",
+  "wordpress": {
+    "name": "WordPress",
     "warning": {
-      "type": "warning",
-      "message": "PHP Mail has very limited deliverability and is not recommended for bulk sending. Consider using a professional email service (Brevo, SendGrid, Postmark) for better deliverability and to avoid IP blacklisting."
+      "type": "info",
+      "message": "Sending with WordPress works for testing and small lists. For larger lists, set up an email provider."
     },
     "profiles": [
       {
-        "id": "php_micro",
+        "id": "wordpress_micro",
         "name": "Micro",
         "label": "Micro (Shared hosting - very limited)",
         "description": "For very weak shared hosting",
@@ -17,7 +17,9 @@
             "value": 10,
             "unit": "minutes"
           },
-          "rate_limit": 1
+          "rate_limit": 1,
+          "daily_limit": 0,
+          "monthly_limit": 0
         },
         "throughput": {
           "perHour": 60,
@@ -26,17 +28,19 @@
         "recommended": false
       },
       {
-        "id": "php_prudent",
-        "name": "Prudent",
-        "label": "Prudent (Recommended for shared hosting)",
-        "description": "Safe configuration for standard shared hosting",
+        "id": "wordpress_conservative",
+        "name": "Conservative",
+        "label": "Conservative (shared hosting or SMTP plugin)",
+        "description": "Safe for shared hosting and most SMTP plugins",
         "config": {
           "numberEmail": 25,
           "frequency": {
             "value": 10,
             "unit": "minutes"
           },
-          "rate_limit": 2
+          "rate_limit": 2,
+          "daily_limit": 0,
+          "monthly_limit": 0
         },
         "throughput": {
           "perHour": 150,
@@ -46,45 +50,92 @@
         "isDefault": true
       },
       {
-        "id": "php_standard",
+        "id": "wordpress_standard",
         "name": "Standard",
-        "label": "Standard (VPS only - risky)",
-        "description": "Only for basic VPS, not recommended",
+        "label": "Standard (VPS or SMTP plugin)",
+        "description": "For a VPS or a well-configured SMTP plugin",
         "config": {
-          "numberEmail": 50,
+          "numberEmail": 100,
           "frequency": {
             "value": 10,
             "unit": "minutes"
           },
-          "rate_limit": 3
+          "rate_limit": 5,
+          "daily_limit": 0,
+          "monthly_limit": 0
+        },
+        "throughput": {
+          "perHour": 600,
+          "perDay": 14400
+        },
+        "recommended": false
+      },
+      {
+        "id": "wordpress_performance",
+        "name": "Performance",
+        "label": "Performance (dedicated SMTP provider)",
+        "description": "For dedicated SMTP providers with high throughput",
+        "config": {
+          "numberEmail": 250,
+          "frequency": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "rate_limit": 10,
+          "daily_limit": 0,
+          "monthly_limit": 0
+        },
+        "throughput": {
+          "perHour": 1500,
+          "perDay": 36000
+        },
+        "recommended": false
+      }
+    ]
+  },
+  "smtp": {
+    "name": "Custom SMTP",
+    "warning": {
+      "type": "warning",
+      "message": "Custom SMTP deliverability depends on your SMTP provider. While better than sending from your web host, dedicated ESPs (Brevo, SendGrid, Postmark) offer better deliverability, analytics, and support. Common providers: Gmail SMTP (limited), Office365, third-party SMTP servers."
+    },
+    "profiles": [
+      {
+        "id": "smtp_conservative",
+        "name": "Conservative",
+        "label": "Conservative (Gmail SMTP, free providers)",
+        "description": "Safe for Gmail SMTP or free SMTP providers with strict limits",
+        "config": {
+          "numberEmail": 25,
+          "frequency": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "rate_limit": 3,
+          "daily_limit": 0,
+          "monthly_limit": 0
         },
         "throughput": {
           "perHour": 300,
           "perDay": 7200
         },
-        "recommended": false
-      }
-    ]
-  },
-  "brevo": {
-    "name": "Brevo",
-    "info": {
-      "type": "info",
-      "message": "Brevo is an excellent choice for beginners. Free plan includes 300 emails/day. Very good deliverability."
-    },
-    "profiles": [
+        "recommended": true,
+        "isDefault": true
+      },
       {
-        "id": "brevo_prudent",
-        "name": "Prudent",
-        "label": "Prudent (Free plan - 300 emails/day)",
-        "description": "Perfect for small campaigns on free plan",
+        "id": "smtp_balanced",
+        "name": "Balanced",
+        "label": "Balanced (Recommended - Most SMTP servers)",
+        "description": "Safe and reliable for most third-party SMTP servers",
         "config": {
           "numberEmail": 50,
           "frequency": {
             "value": 5,
             "unit": "minutes"
           },
-          "rate_limit": 10
+          "rate_limit": 8,
+          "daily_limit": 0,
+          "monthly_limit": 0
         },
         "throughput": {
           "perHour": 600,
@@ -93,349 +144,54 @@
         "recommended": false
       },
       {
-        "id": "brevo_balanced",
-        "name": "Balanced",
-        "label": "Balanced (Recommended)",
-        "description": "Optimal configuration for most use cases",
-        "config": {
-          "numberEmail": 100,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 20
-        },
-        "throughput": {
-          "perHour": 1200,
-          "perDay": 28800
-        },
-        "recommended": true,
-        "isDefault": true
-      },
-      {
-        "id": "brevo_performance",
+        "id": "smtp_performance",
         "name": "Performance",
-        "label": "Performance (Premium plans)",
-        "description": "High volume sending for premium plans",
-        "config": {
-          "numberEmail": 200,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 30
-        },
-        "throughput": {
-          "perHour": 2400,
-          "perDay": 57600
-        },
-        "recommended": false
-      }
-    ]
-  },
-  "sendgrid": {
-    "name": "SendGrid",
-    "info": {
-      "type": "info",
-      "message": "SendGrid is very reliable and supports up to 10,000 requests/second. Current implementation sends 1 email per request. Future optimization: Implement batch sending (up to 1,000 emails/request) for 1000x higher throughput."
-    },
-    "profiles": [
-      {
-        "id": "sendgrid_balanced",
-        "name": "Balanced",
-        "label": "Balanced (Recommended)",
-        "description": "Optimal for most SendGrid plans",
+        "label": "Performance (Dedicated SMTP servers)",
+        "description": "For dedicated/enterprise SMTP servers",
         "config": {
           "numberEmail": 100,
           "frequency": {
             "value": 3,
             "unit": "minutes"
           },
-          "rate_limit": 25
+          "rate_limit": 15,
+          "daily_limit": 0,
+          "monthly_limit": 0
         },
         "throughput": {
           "perHour": 2000,
           "perDay": 48000
-        },
-        "recommended": true,
-        "isDefault": true
-      },
-      {
-        "id": "sendgrid_performance",
-        "name": "Performance",
-        "label": "Performance (Pro plans)",
-        "description": "High volume for Pro+ plans",
-        "config": {
-          "numberEmail": 200,
-          "frequency": {
-            "value": 3,
-            "unit": "minutes"
-          },
-          "rate_limit": 50
-        },
-        "throughput": {
-          "perHour": 4000,
-          "perDay": 96000
-        },
-        "recommended": false
-      },
-      {
-        "id": "sendgrid_high_performance",
-        "name": "High Performance",
-        "label": "High Performance (Premier plans)",
-        "description": "Very high volume for Premier plans",
-        "config": {
-          "numberEmail": 300,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 50
-        },
-        "throughput": {
-          "perHour": 3600,
-          "perDay": 86400
-        },
-        "recommended": false
-      }
-    ]
-  },
-  "postmark": {
-    "name": "Postmark",
-    "info": {
-      "type": "info",
-      "message": "Postmark offers premium quality deliverability for transactional emails. Excellent reputation and support."
-    },
-    "profiles": [
-      {
-        "id": "postmark_prudent",
-        "name": "Prudent",
-        "label": "Prudent (10k plan)",
-        "description": "For 10,000 emails/month plans",
-        "config": {
-          "numberEmail": 50,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 10
-        },
-        "throughput": {
-          "perHour": 600,
-          "perDay": 14400
-        },
-        "recommended": false
-      },
-      {
-        "id": "postmark_balanced",
-        "name": "Balanced",
-        "label": "Balanced (Recommended)",
-        "description": "Optimal for 50k-100k plans",
-        "config": {
-          "numberEmail": 100,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 20
-        },
-        "throughput": {
-          "perHour": 1200,
-          "perDay": 28800
-        },
-        "recommended": true,
-        "isDefault": true
-      },
-      {
-        "id": "postmark_performance",
-        "name": "Performance",
-        "label": "Performance (100k+ plans)",
-        "description": "High volume for 100k+ plans",
-        "config": {
-          "numberEmail": 200,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 30
-        },
-        "throughput": {
-          "perHour": 2400,
-          "perDay": 57600
-        },
-        "recommended": false
-      }
-    ]
-  },
-  "mailgun": {
-    "name": "Mailgun",
-    "info": {
-      "type": "info",
-      "message": "Mailgun is robust and flexible, excellent for high volumes. Good balance between features and cost."
-    },
-    "profiles": [
-      {
-        "id": "mailgun_balanced",
-        "name": "Balanced",
-        "label": "Balanced (Recommended)",
-        "description": "Optimal for most Mailgun plans",
-        "config": {
-          "numberEmail": 100,
-          "frequency": {
-            "value": 3,
-            "unit": "minutes"
-          },
-          "rate_limit": 25
-        },
-        "throughput": {
-          "perHour": 2000,
-          "perDay": 48000
-        },
-        "recommended": true,
-        "isDefault": true
-      },
-      {
-        "id": "mailgun_performance",
-        "name": "Performance",
-        "label": "Performance (Foundation+ plans)",
-        "description": "High volume for premium plans",
-        "config": {
-          "numberEmail": 200,
-          "frequency": {
-            "value": 3,
-            "unit": "minutes"
-          },
-          "rate_limit": 40
-        },
-        "throughput": {
-          "perHour": 4000,
-          "perDay": 96000
-        },
-        "recommended": false
-      },
-      {
-        "id": "mailgun_high_performance",
-        "name": "High Performance",
-        "label": "High Performance (Scale plans)",
-        "description": "Very high volume for Scale plans",
-        "config": {
-          "numberEmail": 300,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 50
-        },
-        "throughput": {
-          "perHour": 3600,
-          "perDay": 86400
-        },
-        "recommended": false
-      }
-    ]
-  },
-  "amazonses": {
-    "name": "Amazon SES",
-    "info": {
-      "type": "info",
-      "message": "Amazon SES is highly scalable and cost-effective. Default limit: 14 emails/second. Request limit increases through AWS support for higher volumes."
-    },
-    "profiles": [
-      {
-        "id": "amazonses_starter",
-        "name": "Starter",
-        "label": "Starter (New accounts - 14 emails/sec)",
-        "description": "For new SES accounts with default limits",
-        "config": {
-          "numberEmail": 100,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 14
-        },
-        "throughput": {
-          "perHour": 1200,
-          "perDay": 28800
-        },
-        "recommended": false
-      },
-      {
-        "id": "amazonses_balanced",
-        "name": "Balanced",
-        "label": "Balanced (Recommended)",
-        "description": "Optimal for most SES accounts",
-        "config": {
-          "numberEmail": 150,
-          "frequency": {
-            "value": 5,
-            "unit": "minutes"
-          },
-          "rate_limit": 20
-        },
-        "throughput": {
-          "perHour": 1800,
-          "perDay": 43200
-        },
-        "recommended": true,
-        "isDefault": true
-      },
-      {
-        "id": "amazonses_performance",
-        "name": "Performance",
-        "label": "Performance (Increased limits)",
-        "description": "For accounts with approved limit increases",
-        "config": {
-          "numberEmail": 200,
-          "frequency": {
-            "value": 3,
-            "unit": "minutes"
-          },
-          "rate_limit": 30
-        },
-        "throughput": {
-          "perHour": 4000,
-          "perDay": 96000
-        },
-        "recommended": false
-      },
-      {
-        "id": "amazonses_high_performance",
-        "name": "High Performance",
-        "label": "High Performance (Enterprise)",
-        "description": "For high-volume enterprise accounts",
-        "config": {
-          "numberEmail": 300,
-          "frequency": {
-            "value": 3,
-            "unit": "minutes"
-          },
-          "rate_limit": 50
-        },
-        "throughput": {
-          "perHour": 6000,
-          "perDay": 144000
         },
         "recommended": false
       }
     ]
   },
   "metadata": {
-    "version": "1.0.0",
-    "last_updated": "2026-01-23",
+    "version": "3.0.0",
+    "last_updated": "2026-10-01",
     "notes": [
-      "All configurations are optimized for WordPress + ActionScheduler",
-      "ChunkWorker processes 1 chunk per minute maximum",
-      "Minimum recommended interval is 3 minutes to avoid overloading ActionScheduler",
-      "Rate limits are applied during chunk processing (emails per second)",
-      "Frequency determines spacing between chunks (throughput control)",
-      "For slow servers: reduce numberEmail and increase interval"
+      "Shared source for admin and server-side profile resolution.",
+      "Daily quotas use a rolling 24-hour window; monthly quotas use the UTC calendar month.",
+      "Quotas count MailerPress sends only; leave room for sends outside this plugin.",
+      "Paid and production profiles require verified account limits.",
+      "The campaign worker processes at most one chunk per minute.",
+      "MailerPress Pro adds the profiles of its providers through the mailerpress_esp_sending_configs filter."
     ],
     "calculation": {
       "throughput_per_hour": "(numberEmail * 60) / interval_minutes",
       "throughput_per_day": "throughput_per_hour * 24",
       "chunk_duration_seconds": "numberEmail / rate_limit",
       "actionscheduler_load": "60 / interval_minutes (runs per hour)"
-    }
+    },
+    "supported_esps": [
+      "wordpress",
+      "smtp"
+    ],
+    "legacy_esps": [
+      "mailerpress",
+      "mailersend",
+      "php",
+      "smtp2go"
+    ]
   }
 }

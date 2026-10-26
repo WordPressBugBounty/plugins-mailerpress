@@ -7,7 +7,6 @@ namespace MailerPress\Jobs;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Abstract\BaseJob;
-use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\EmailManager\EmailServiceManager;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\HtmlParser;
@@ -41,6 +40,8 @@ class SendEmailJob extends BaseJob
 
         // We'll want to know if the whole job failed catastrophically
         $jobException = null;
+        $deferredContacts = [];
+        $retryAt = 0;
 
         try {
             $recipientBatches = $data['to']; // you said already chunked to <= 50 items
@@ -79,37 +80,6 @@ class SendEmailJob extends BaseJob
             $replyToAddress = !empty($defaultSettings['replyToAddress'])
                 ? $defaultSettings['replyToAddress']
                 : ($data['sender_to'] ?? '');
-
-            // Get rate limit configuration (emails per second)
-            // Priority: 1. Job data (passed from chunk), 2. Option (backwards compatibility)
-            $rateLimit = 10; // Default fallback
-
-            if (isset($data['rate_limit'])) {
-                // New way: rate_limit passed from ContactEmailChunk
-                $rateLimit = (int)$data['rate_limit'];
-            } else {
-                // Backwards compatibility: read from option
-                $frequencySending = get_option('mailerpress_frequency_sending', [
-                    "settings" => [
-                        "numberEmail" => 25,
-                        "config" => ["value" => 5, "unit" => "minutes"],
-                        "rate_limit" => 10,
-                    ],
-                ]);
-
-                if (is_string($frequencySending)) {
-                    $frequencySending = json_decode($frequencySending, true) ?: [];
-                }
-
-                // Support both new and old formats
-                if (isset($frequencySending['effectiveConfig']['rate_limit'])) {
-                    $rateLimit = (int)$frequencySending['effectiveConfig']['rate_limit'];
-                } else {
-                    $rateLimit = (int)($frequencySending['settings']['rate_limit'] ?? 10);
-                }
-            }
-
-            $delayBetweenEmails = $rateLimit > 0 ? (1000000 / $rateLimit) : 0; // Convert to microseconds (1 second = 1,000,000 microseconds)
 
             $preprocessedBody = HtmlParser::preprocessBody($data['body']);
 
@@ -157,17 +127,27 @@ class SendEmailJob extends BaseJob
 
                     $unsubToken = $recipient['unsubscribe_token'] ?? '';
                     if ( ! empty( $unsubToken ) ) {
-                        $unsubUrl = get_rest_url( null, sprintf(
+                        $unsubPath = sprintf(
                             'mailerpress/v1/one-click-unsubscribe?token=%s',
                             urlencode( $unsubToken )
-                        ) );
+                        );
+                        // Attribute one-click unsubscribes to this campaign batch.
+                        if ( ! empty( $data['batch_id'] ) ) {
+                            $unsubPath .= '&batchId=' . (int) $data['batch_id'];
+                        }
+                        $unsubUrl = get_rest_url( null, $unsubPath );
                         $emailPayload['custom_headers'] = [
                             'List-Unsubscribe'      => '<' . $unsubUrl . '>',
                             'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
                         ];
                     }
 
-                    $result = $mailer->sendEmail($emailPayload);
+                    $result = \MailerPress\Services\SendingFrequencyLimiter::send($mailer, $emailPayload);
+                    if ($result instanceof WP_Error && 'mailerpress_sending_deferred' === $result->get_error_code()) {
+                        $deferredContacts = array_column(array_slice($recipientBatches, $emailIndex), 'id');
+                        $retryAt = time() + (int) $result->get_error_data()['retry_after'];
+                        break;
+                    }
 
                     if ($result === true) {
                         ++$countSuccess;
@@ -198,55 +178,20 @@ class SendEmailJob extends BaseJob
                             'message' => $errorMessage,
                         ];
                         // Note: La mise à jour de error_emails se fait maintenant à la fin du traitement pour éviter les problèmes de concurrence
-
-                        // --- Log to file per batch (WP_DEBUG_LOG only, protected directory, masked email) ---
-                        $batchId = (int) ($data['batch_id'] ?? 0);
-                        DebugFileLogger::write(
-                            "batch-{$batchId}.log",
-                            sprintf('Email: %s | Error: %s', DebugFileLogger::maskEmail((string) $recipient['email']), $errorMessage)
-                        );
-                    }
-
-                    // Apply rate limiting: wait between emails to respect the rate limit
-                    // Skip delay for the last email
-                    if ($delayBetweenEmails > 0 && $emailIndex < count($recipientBatches) - 1) {
-                        usleep((int)$delayBetweenEmails);
                     }
 
                     // Free cyclic references from DOM parsing every 5 emails
                     if ($emailIndex % 5 === 4) {
                         gc_collect_cycles();
                     }
-
-                    // Log warning if memory usage exceeds 80% of limit
-                    if ($emailIndex % 10 === 9) {
-                        $memUsage = memory_get_usage(true);
-                        $memLimit = $this->getMemoryLimitBytes();
-                        if ($memLimit > 0 && $memUsage > $memLimit * 0.8) {
-                            $this->log('Memory warning during batch send', [
-                                'batch_id' => $data['batch_id'] ?? 'unknown',
-                                'email_index' => $emailIndex,
-                                'memory_usage_mb' => round($memUsage / 1048576, 1),
-                                'memory_limit_mb' => round($memLimit / 1048576, 1),
-                            ]);
-                        }
-                    }
-
-                    $emailIndex++;
                 } catch (Throwable $e) {
                     ++$countError;
                     $errors[] = [
                         'email' => $recipient['email'] ?? '',
                         'message' => $e->getMessage(),
                     ];
-
-                    // --- Log to file per batch (WP_DEBUG_LOG only, protected directory, masked email) ---
-                    $batchId = (int) ($data['batch_id'] ?? 0);
-                    DebugFileLogger::write(
-                        "batch-{$batchId}.log",
-                        sprintf('Email: %s | Error: %s', DebugFileLogger::maskEmail((string) ($recipient['email'] ?? '')), $e->getMessage())
-                    );
                 }
+				++$emailIndex;
             }
 
 
@@ -402,6 +347,24 @@ class SendEmailJob extends BaseJob
             }
         }
 
+        if (!empty($deferredContacts) && !empty($data['chunk_id'])) {
+            global $wpdb;
+            $chunksTable = Tables::get(Tables::MAILERPRESS_EMAIL_CHUNKS);
+            $chunkIndex = $wpdb->get_var($wpdb->prepare("SELECT chunk_index FROM {$chunksTable} WHERE id = %d", (int) $data['chunk_id']));
+            delete_transient('mailerpress_chunk_' . (int) $data['batch_id'] . '_' . $chunkIndex);
+            $wpdb->update(
+                $chunksTable,
+                [
+                    'status' => 'pending',
+                    'contact_ids' => wp_json_encode($deferredContacts),
+                    'scheduled_at' => gmdate('Y-m-d H:i:s', $retryAt),
+                ],
+                ['id' => (int) $data['chunk_id']],
+                ['%s', '%s', '%s'],
+                ['%d']
+            );
+        }
+
         // If the job blew up, rethrow so the queue system can mark it failed / retry.
         if ($jobException) {
             throw $jobException; // Action Scheduler will log failure & retry per its rules
@@ -489,33 +452,6 @@ class SendEmailJob extends BaseJob
             "SELECT campaign_type FROM {$campaignsTable} WHERE campaign_id = %d",
             $campaignId
         ));
-    }
-
-    /**
-     * Log message to file for debugging
-     */
-    private function log(string $message, array $context = []): void
-    {
-        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
-        DebugFileLogger::write('queue-debug.log', $message, $context);
-    }
-
-    private function getMemoryLimitBytes(): int
-    {
-        $limit = ini_get('memory_limit');
-        if ( '-1' === $limit ) {
-            return 0;
-        }
-
-        $unit = strtolower(substr($limit, -1));
-        $value = (int) $limit;
-
-        return match ($unit) {
-            'g' => $value * 1073741824,
-            'm' => $value * 1048576,
-            'k' => $value * 1024,
-            default => $value,
-        };
     }
 
     /**

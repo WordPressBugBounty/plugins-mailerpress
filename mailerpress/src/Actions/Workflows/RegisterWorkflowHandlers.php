@@ -8,8 +8,6 @@ namespace MailerPress\Actions\Workflows;
 
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Actions\Workflows\MailerPress\Actions\CreateCampaignStepHandler;
-use MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler;
-use MailerPress\Actions\Workflows\MailerPress\Actions\ABTestWinnerHandler;
 
 /**
  * Register custom workflow step handlers
@@ -41,28 +39,11 @@ class RegisterWorkflowHandlers
         // Uncomment the line below to enable the example handler:
         // $manager->registerStepHandler(new ExampleCustomStepHandler());
 
-        // Add more custom handlers here as needed:
-        $manager->registerStepHandler(new ExampleCustomStepHandler());
         // Register MailerPress action handlers
         $createCampaignHandler = new CreateCampaignStepHandler();
         $manager->registerStepHandler($createCampaignHandler);
 
-        // Register A/B Test handler
-        $abTestHandler = new ABTestStepHandler();
-        $manager->registerStepHandler($abTestHandler);
-
-        // Initialize A/B Test Winner Handler (registers WordPress hooks)
-        new ABTestWinnerHandler();
-
-        // Verify registration
-        $executor = $manager->getExecutor();
-        $registry = $executor->getHandlerRegistry();
-
-        // Verify create_campaign handler
-        $registry->getHandler('create_campaign');
-        // Verify ab_test handler
-        $registry->getHandler('ab_test');
-
+        // Add more custom handlers here as needed:
         // $manager->registerStepHandler(new YetAnotherHandler());
     }
 }

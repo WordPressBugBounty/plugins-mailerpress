@@ -7,7 +7,6 @@ namespace MailerPress\Actions\Campaigns;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Attributes\Action;
-use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\Enums\Tables;
 
 class Campaigns
@@ -63,7 +62,7 @@ class Campaigns
                             $batchTable,
                             [
                                 'error_message' => sprintf(
-                                    __('All %d emails failed to send. Enable WP_DEBUG_LOG to get per-batch log files with details.', 'mailerpress'),
+                                    __('All %d emails failed to send.', 'mailerpress'),
                                     $total_emails
                                 ),
                             ],
@@ -124,15 +123,6 @@ class Campaigns
         if ($finalStatus === 'sent') {
             $this->triggerCampaignSentWebhook($campaign_id, $batch_id);
         }
-    }
-
-    /**
-     * Log message to file for debugging
-     */
-    private function log(string $message, array $context = []): void
-    {
-        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
-        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     /**

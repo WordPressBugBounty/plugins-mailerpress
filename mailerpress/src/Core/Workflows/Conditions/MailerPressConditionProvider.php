@@ -60,33 +60,6 @@ class MailerPressConditionProvider
 				return $contact->subscription_status ?? null;
 		}
 
-		// Handle MailerPress custom fields (format: mp_custom_field:field_key)
-		if (\str_starts_with($field, 'mp_custom_field:')) {
-			$fieldKey = \substr($field, \strlen('mp_custom_field:'));
-			if (empty($fieldKey)) {
-				return null;
-			}
-
-			global $wpdb;
-			$customFieldsTable = $wpdb->prefix . Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS;
-			$contactId = (int) $contact->contact_id;
-
-			$value = $wpdb->get_var($wpdb->prepare(
-				"SELECT field_value FROM {$customFieldsTable} WHERE contact_id = %d AND field_key = %s",
-				$contactId,
-				$fieldKey
-			));
-
-			if ($value !== null) {
-				// Unserialize if needed
-				$value = is_serialized($value)
-					? unserialize($value, ['allowed_classes' => false])
-					: $value;
-			}
-
-			return $value;
-		}
-
 		return $provided;
 	}
 

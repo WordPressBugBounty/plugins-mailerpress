@@ -17,7 +17,13 @@ class WorkflowFailedJobsNotification extends AbstractNotificationMessage
     {
         $count = $this->getFailedJobsCount();
         return sprintf(
-            __('You have %d failed workflow job(s) in the last 24 hours. Check your workflow dashboard for details.', 'mailerpress'),
+            /* translators: %d: number of failed workflow jobs. */
+            _n(
+                'You have %d failed workflow job in the last 24 hours. Check your workflow dashboard for details.',
+                'You have %d failed workflow jobs in the last 24 hours. Check your workflow dashboard for details.',
+                $count,
+                'mailerpress'
+            ),
             $count
         );
     }

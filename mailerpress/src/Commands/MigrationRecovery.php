@@ -35,13 +35,8 @@ class MigrationRecovery
     {
         \WP_CLI::line('Running migrations in force mode (resetting failed migrations)...');
 
-        $manager = new Manager(
-            Kernel::$config['root'] . '/src/Core/Migrations/migrations',
-            []
-        );
-
         try {
-            $manager->runForce();
+            Manager::runForceAllPaths();
             \WP_CLI::success('Migrations completed successfully!');
         } catch (\Throwable $e) {
             \WP_CLI::error("Migration error: " . $e->getMessage());

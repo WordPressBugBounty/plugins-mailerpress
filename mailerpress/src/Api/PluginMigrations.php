@@ -105,6 +105,22 @@ class PluginMigrations
     }
 
     #[Endpoint(
+        'migration/runs/(?P<id>\d+)/background',
+        methods: 'POST',
+        permissionCallback: [Permissions::class, 'canManageSettings']
+    )]
+    public function background(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
+    {
+        $result = $this->migrationManager->continueInBackground((int) $request->get_param('id'));
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return new \WP_REST_Response($result, 200);
+    }
+
+    #[Endpoint(
         'migration/runs/(?P<id>\d+)/cancel',
         methods: 'POST',
         permissionCallback: [Permissions::class, 'canManageSettings']

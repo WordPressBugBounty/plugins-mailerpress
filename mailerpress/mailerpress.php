@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name: MailerPress
  * Plugin URI: https://mailerpress.com/
  * Description: Create beautiful emails simply inside WordPress connected to your favorite Email Service Provider
- * Version: 2.1.3
+ * Version: 2.2
  * Author: Team MailerPress
  * Author URI: https://mailerpress.com/
  * License: GPLv3 or later
@@ -33,7 +33,6 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-use MailerPress\Core\CapabilitiesManager;
 use MailerPress\Core\Kernel;
 use MailerPress\Core\Uninstall;
 use MailerPress\Core\Notifications\NotificationBootstrap;
@@ -45,7 +44,7 @@ use MailerPress\Services\DeactivatePro;
 use MailerPress\Services\TranslationUpdates;
 
 // Define constants
-define('MAILERPRESS_VERSION', '2.1.3');
+define('MAILERPRESS_VERSION', '2.2');
 define('MAILERPRESS_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 define('MAILERPRESS_PLUGIN_DIR_URL', plugin_dir_url(__FILE__));
 define('MAILERPRESS_ASSETS_DIR', MAILERPRESS_PLUGIN_DIR_URL . 'assets');
@@ -104,9 +103,12 @@ try {
         // Hook pour permettre à d'autres parties du plugin d'enregistrer des triggers personnalisés
         do_action('mailerpress_register_custom_triggers', $manager->getTriggerManager());
 
-        // Les goals (benchmarks) promeuvent les triggers déclarés ci-dessus :
-        // ils doivent donc être initialisés après l'enregistrement des triggers.
-        $manager->bootGoals();
+        // Triggers are registered: extensions can build on them, e.g. the goals of MailerPress Pro promote them.
+        do_action('mailerpress_workflow_triggers_registered', $manager);
+
+        // Resume the contacts paused on a step whose handler is available again (e.g. MailerPress Pro reactivated).
+        // Runs last because some handlers, such as goals, only recognise their steps once booted.
+        \MailerPress\Core\Workflows\Services\PausedStepResumer::resume($manager->getExecutor()->getHandlerRegistry());
 
         // Initialize notification messages
         NotificationBootstrap::init();
@@ -134,7 +136,7 @@ try {
 
     // Deactivation hook
     register_deactivation_hook(__FILE__, static function (): void {
-        CapabilitiesManager::removeCapabilities();
+        // Capabilities are kept so role assignments survive reactivation; uninstall.php removes them.
 
         // Désactiver automatiquement le plugin Pro si présent
         $deactivateProFile = __DIR__ . '/src/Services/DeactivatePro.php';

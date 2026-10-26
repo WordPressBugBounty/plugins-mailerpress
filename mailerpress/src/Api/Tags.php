@@ -222,7 +222,7 @@ class Tags
 
         return new \WP_Error(
             'delete_failed',
-            __('Failed to delete the tags.', 'mailerpress'),
+            __('Failed to delete tags.', 'mailerpress'),
             [
                 'status' => 500,
             ]

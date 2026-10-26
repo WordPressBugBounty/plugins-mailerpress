@@ -38,7 +38,7 @@ class PrimaryProviderDisabledNotification extends AbstractNotificationMessage
     {
         return [
             'label' => __('Configure', 'mailerpress'),
-            'url' => admin_url('admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings&activeView=Providers'),
+            'url' => admin_url('admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Fintegrations&activeView=providers'),
         ];
     }
 }

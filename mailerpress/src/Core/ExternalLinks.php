@@ -55,8 +55,6 @@ class ExternalLinks
         'docs.int_pmpro'                => 'https://mailerpress.com/docs/how-to-integrate-mailerpress-with-paid-memberships-pro',
 
         // Add-ons
-        'addons.optin'                  => 'https://mailerpress.com/add-ons/optin-forms',
-        'addons.turbo'                  => 'https://mailerpress.com/add-ons/turbo',
 
         // Blog / Announcements
         'blog.v2'                       => 'https://mailerpress.com/mailerpress-2-1/',
@@ -98,8 +96,6 @@ class ExternalLinks
             'docs.int_fluent_form'      => 'https://mailerpress.com/fr/docs/comment-connecter-mailerpress-a-fluent-forms',
             'docs.int_woocommerce'      => 'https://mailerpress.com/fr/docs/comment-integrer-mailerpress-woocommerce',
             'docs.int_pmpro'            => 'https://mailerpress.com/fr/docs/comment-integrer-mailerpress-a-paid-memberships-pro',
-            'addons.optin'              => 'https://mailerpress.com/fr/add-ons/optin-forms',
-            'addons.turbo'              => 'https://mailerpress.com/fr/add-ons/turbo',
             'blog.v2'                   => 'https://mailerpress.com/fr/mailerpress-2-1/',
             'my_account'                => 'https://mailerpress.com/fr/my-account/',
         ],

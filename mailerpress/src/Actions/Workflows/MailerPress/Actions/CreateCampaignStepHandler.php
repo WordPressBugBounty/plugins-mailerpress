@@ -39,7 +39,7 @@ class CreateCampaignStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'create_campaign',
-            'label' => \__('Create Campaign', 'mailerpress'),
+            'label' => \__('Create campaign', 'mailerpress'),
             'description' => \__('Create a new MailerPress campaign automatically within your workflow. Useful for generating dynamic campaigns based on events, such as creating a newsletter campaign from a published post or generating personalized campaigns for each contact.', 'mailerpress'),
             'icon' => '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/></svg>',
             'category' => 'campaign',
@@ -47,7 +47,7 @@ class CreateCampaignStepHandler implements StepHandlerInterface
             'settings_schema' => [
                 [
                     'key' => 'name',
-                    'label' => \__('Campaign Name', 'mailerpress'),
+                    'label' => \__('Campaign name', 'mailerpress'),
                     'type' => 'text',
                     'required' => true,
                     'help' => \__('Enter a name for the campaign', 'mailerpress'),
@@ -61,7 +61,7 @@ class CreateCampaignStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'campaign_type',
-                    'label' => \__('Campaign Type', 'mailerpress'),
+                    'label' => \__('Campaign type', 'mailerpress'),
                     'type' => 'select',
                     'options' => [
                         ['label' => \__('Newsletter', 'mailerpress'), 'value' => 'newsletter'],

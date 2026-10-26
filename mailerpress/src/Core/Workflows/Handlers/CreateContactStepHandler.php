@@ -9,8 +9,8 @@ use MailerPress\Core\Enums\Tables;
 use MailerPress\Models\Contacts as ContactsModel;
 use MailerPress\Models\Lists;
 use MailerPress\Models\Tags;
-use MailerPress\Models\CustomFields;
 use MailerPress\Services\ContactUpsertService;
+use MailerPress\Core\Workflows\Services\PausedStepResumer;
 
 /**
  * Create Contact Step Handler
@@ -63,29 +63,17 @@ class CreateContactStepHandler implements StepHandlerInterface
             ];
         }
 
-        $customFieldSettings = [];
-        foreach ((new CustomFields())->all() as $field) {
-            $customFieldSettings[] = [
-                'key' => 'custom_field_' . $field->field_key,
-                'label' => $field->label ?? $field->field_key,
-                'type' => 'trigger_mapping',
-                'target_type' => 'string',
-                'required' => false,
-                'placeholder' => __('Select field from trigger...', 'mailerpress'),
-                'help' => sprintf(__('Map a value to the "%s" custom field.', 'mailerpress'), $field->field_key),
-            ];
-        }
-
         return [
             'key' => 'create_contact',
-            'label' => __('Create Contact', 'mailerpress'),
+            'label' => __('Create contact', 'mailerpress'),
             'description' => __('Create a new contact in MailerPress or update an existing one. Map fields from the trigger context to contact fields.', 'mailerpress'),
-            'icon' => 'user-plus',
+            'icon' => 'mailerpress',
             'category' => 'contact',
             'type' => 'ACTION',
             // Mark this action as requiring trigger context mapping
             'uses_trigger_mapping' => true,
-            'settings_schema' => [
+            // Extensions add their settings, e.g. MailerPress Pro maps trigger data to contact custom fields.
+            'settings_schema' => (array) apply_filters('mailerpress_workflow_create_contact_schema', [
                 // ===== Field Mapping Section =====
                 [
                     'key' => '_section_mapping',
@@ -104,7 +92,7 @@ class CreateContactStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'first_name',
-                    'label' => __('First Name', 'mailerpress'),
+                    'label' => __('First name', 'mailerpress'),
                     'type' => 'trigger_mapping',
                     'target_type' => 'string',
                     'required' => false,
@@ -113,7 +101,7 @@ class CreateContactStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'last_name',
-                    'label' => __('Last Name', 'mailerpress'),
+                    'label' => __('Last name', 'mailerpress'),
                     'type' => 'trigger_mapping',
                     'target_type' => 'string',
                     'required' => false,
@@ -129,7 +117,7 @@ class CreateContactStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'subscription_status',
-                    'label' => __('Subscription Status', 'mailerpress'),
+                    'label' => __('Subscription status', 'mailerpress'),
                     'type' => 'select',
                     'required' => false,
                     'options' => [
@@ -158,14 +146,6 @@ class CreateContactStepHandler implements StepHandlerInterface
                     'options' => $tagOptions,
                     'help' => __('Select one or more tags to add to the contact.', 'mailerpress'),
                 ],
-                [
-                    'key' => '_section_custom_fields',
-                    'type' => 'section',
-                    'label' => __('Custom Fields', 'mailerpress'),
-                    'description' => __('Map trigger data to contact custom fields.', 'mailerpress'),
-                ],
-                ...$customFieldSettings,
-
                 // ===== Advanced Settings Section =====
                 [
                     'key' => '_section_advanced',
@@ -182,14 +162,14 @@ class CreateContactStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'opt_in_source',
-                    'label' => __('Opt-in Source', 'mailerpress'),
+                    'label' => __('Opt-in source', 'mailerpress'),
                     'type' => 'text',
                     'required' => false,
                     'default' => 'workflow',
                     'placeholder' => 'workflow',
                     'help' => __('Identifies where this contact came from (e.g., "woocommerce", "form", "api"). Useful for tracking and segmentation.', 'mailerpress'),
                 ],
-            ],
+            ]),
         ];
     }
 
@@ -210,17 +190,33 @@ class CreateContactStepHandler implements StepHandlerInterface
         $tags = $this->normalizeArraySetting($settings['tags'] ?? []);
         $updateExisting = $settings['update_existing'] ?? true;
         $optInSource = $this->replacePlaceholders($settings['opt_in_source'] ?? 'workflow', $context);
-        $customFields = [];
-        foreach ($settings as $key => $value) {
-            if (!is_string($key) || !str_starts_with($key, 'custom_field_') || $value === '' || $value === null) {
-                continue;
-            }
 
-            $fieldKey = substr($key, strlen('custom_field_'));
-            if ($fieldKey !== '') {
-                $customFields[$fieldKey] = $this->replacePlaceholders((string) $value, $context);
-            }
+        // Custom field mapping ("custom_field_<key>" settings) is provided by an extension: without it, the contact
+        // waits on this step instead of being saved without its mapped values.
+        $hasCustomFieldMapping = (bool) array_filter(
+            (array) $settings,
+            static fn($value, $key): bool => is_string($key) && str_starts_with($key, 'custom_field_') && $value !== '' && $value !== null,
+            ARRAY_FILTER_USE_BOTH
+        );
+        if ($hasCustomFieldMapping && !PausedStepResumer::isFeatureAvailable('create_contact_custom_fields')) {
+            return StepResult::paused('create_contact_custom_fields');
         }
+
+        /**
+         * Custom field values to save on the contact, by field key.
+         *
+         * @param array    $customFields Values by field key.
+         * @param array    $settings     Step settings.
+         * @param array    $context      Workflow context.
+         * @param callable $resolve      Replaces the context placeholders of a value.
+         */
+        $customFields = (array) apply_filters(
+            'mailerpress_workflow_create_contact_custom_fields',
+            [],
+            (array) $settings,
+            $context,
+            fn(string $value): string => (string) $this->replacePlaceholders($value, $context)
+        );
 
         // Validate email
         if (empty($email)) {

@@ -86,10 +86,24 @@ class ContactUpsertService
             && $existingContact->subscription_status === 'unsubscribed'
             && in_array($subscriptionStatus, ['pending', 'subscribed'], true)
             && ($updateContactFields || filter_var($data['allow_resubscribe'] ?? false, FILTER_VALIDATE_BOOLEAN));
+        // A contact who already confirmed is never asked again: a signup with double opt-in
+        // leaves a subscribed contact subscribed instead of making it pending.
+        if ($existingContact && 'subscribed' === $existingContact->subscription_status && 'pending' === $subscriptionStatus) {
+            $subscriptionStatus = '';
+        }
+        // A contact still waiting for its confirmation who signs up again through a form receives
+        // a new email at most once per hour; imports and migrations send none.
+        $resendsConfirmation = $existingContact
+            && 'pending' === $existingContact->subscription_status
+            && 'pending' === $subscriptionStatus
+            && filter_var($data['allow_resubscribe'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($isNew) {
             $subscriptionStatus = $subscriptionStatus ?: 'subscribed';
             $lifecycleFields = $this->prepareLifecycleFields($data, $subscriptionStatus, true);
+            if ('pending' === $subscriptionStatus) {
+                $lifecycleFields['pending_since'] = current_time('mysql');
+            }
 
             $insertData = array_merge(
                 [
@@ -143,6 +157,10 @@ class ContactUpsertService
             if ($subscriptionStatus) {
                 $updateData['subscription_status'] = $subscriptionStatus;
                 $updateFormat[] = '%s';
+                foreach (PendingContactManager::transitionFields($contactId, $subscriptionStatus) as $column => $value) {
+                    $updateData[$column] = $value;
+                    $updateFormat[] = '%s';
+                }
             }
 
             foreach ($this->prepareLifecycleFields($updateContactFields ? $data : [], $subscriptionStatus, false) as $column => $value) {
@@ -214,7 +232,8 @@ class ContactUpsertService
             } elseif ($contactUpdated || !empty($addedLists) || !empty($addedTags) || !empty($customFieldChanges['added']) || !empty($customFieldChanges['updated'])) {
                 do_action('mailerpress_contact_updated', $contactId);
             }
-            if ($isResubscription && $contactUpdated && $subscriptionStatus === 'pending') {
+            if (($isResubscription && $contactUpdated && $subscriptionStatus === 'pending')
+                || ($resendsConfirmation && $this->reserveConfirmationResend($contactId))) {
                 do_action('mailerpress_contact_confirmation_requested', $contactId);
             }
         }
@@ -233,6 +252,28 @@ class ContactUpsertService
             'custom_fields_added' => $customFieldChanges['added'],
             'custom_fields_updated' => $customFieldChanges['updated'],
         ];
+    }
+
+    private function reserveConfirmationResend(int $contactId): bool
+    {
+        global $wpdb;
+
+        $key = 'mailerpress_confirmation_resend_' . $contactId;
+        $lock = 'mailerpress_confirmation_' . md5($wpdb->options . $key);
+        if (1 !== (int) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) {
+            return false;
+        }
+
+        try {
+            if (false !== get_transient($key)) {
+                return false;
+            }
+
+            // Reserve before firing the hook so concurrent submissions cannot resend.
+            return set_transient($key, 1, HOUR_IN_SECONDS);
+        } finally {
+            $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));
+        }
     }
 
     private function firstPresent(array $data, array $keys): mixed

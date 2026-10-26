@@ -116,7 +116,7 @@ class ContactCreated
                     $body = $this->replaceDynamicVariables($content, $contact, $site);
                 }
 
-                $subject = wp_strip_all_tags($this->replaceDynamicVariables($subject, $contact, $site, false, false, false));
+                $subject = wp_strip_all_tags(html_entity_decode($this->replaceDynamicVariables($subject, $contact, $site, false, false, false), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
                 $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
                 $config = $mailer->getConfig();

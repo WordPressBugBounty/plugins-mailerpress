@@ -72,7 +72,7 @@ class CustomerFirstOrder
                 'category' => 'woocommerce',
                 'output_fields' => [
                     // Customer fields
-                    ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                    ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                     ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                     ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                     ['key' => 'customer_id', 'label' => __('Customer ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
@@ -80,11 +80,11 @@ class CustomerFirstOrder
                     // Order fields
                     ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                     ['key' => 'order_number', 'label' => __('Order Number', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
-                    ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                    ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                     ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                     ['key' => 'order_date', 'label' => __('Order Date', 'mailerpress'), 'type' => 'date', 'group' => 'order'],
                     ['key' => 'completed_date', 'label' => __('Completed Date', 'mailerpress'), 'type' => 'date', 'group' => 'order'],
-                    ['key' => 'order_status', 'label' => __('Order Status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                    ['key' => 'order_status', 'label' => __('Order status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                     ['key' => 'payment_method_title', 'label' => __('Payment Method', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                     // Billing address
                     ['key' => 'billing_address.first_name', 'label' => __('Billing First Name', 'mailerpress'), 'type' => 'string', 'group' => 'billing'],

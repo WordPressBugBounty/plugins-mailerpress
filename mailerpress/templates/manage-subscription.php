@@ -52,7 +52,7 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
     <?php endif; ?>
 
     <div class="mailerpress-form-line">
-        <label><?php esc_html_e('Email*', 'mailerpress'); ?></label>
+        <label><?php esc_html_e('Email', 'mailerpress'); ?>*</label>
         <strong><?php echo esc_html($contact->email ?? ''); ?></strong>
     </div>
 
@@ -69,13 +69,13 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
     </div>
 
     <div class="mailerpress-form-line">
-        <label for="contact_first_name"><?php esc_html_e('First Name', 'mailerpress'); ?></label>
+        <label for="contact_first_name"><?php esc_html_e('First name', 'mailerpress'); ?></label>
         <input id="contact_first_name" type="text" name="first_name"
                value="<?php echo esc_attr($contact->first_name ?? ''); ?>">
     </div>
 
     <div class="mailerpress-form-line">
-        <label for="contact_last_name"><?php esc_html_e('Last Name', 'mailerpress'); ?></label>
+        <label for="contact_last_name"><?php esc_html_e('Last name', 'mailerpress'); ?></label>
         <input id="contact_last_name" type="text" name="last_name"
                value="<?php echo esc_attr($contact->last_name ?? ''); ?>">
     </div>
@@ -197,7 +197,7 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = submitBtn.dataset.loadingText || '<?php esc_attr_e('Saving...', 'mailerpress'); ?>';
+            submitBtn.innerHTML = submitBtn.dataset.loadingText || '<?php esc_attr_e('Saving…', 'mailerpress'); ?>';
             responseMsg.style.display = 'none';
             responseMsg.textContent = '';
 

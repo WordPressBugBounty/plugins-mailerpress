@@ -8,6 +8,7 @@ namespace MailerPress\Core\Migration\Sources;
 
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Migration\MigrationRepository;
+use MailerPress\Core\Migration\CustomFieldsImport;
 use MailerPress\Core\Migration\MigrationSourceInterface;
 use MailerPress\Services\ContactUpsertService;
 
@@ -49,7 +50,8 @@ class NewsletterMigrationSource implements MigrationSourceInterface
 
     public function getIconSvg(): string
     {
-        return '';
+        // Symbol from the official Newsletter logo: https://www.thenewsletterplugin.com/wp-content/themes/tnp/assets/the-newsletter-plugin-logo.svg
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 53" aria-hidden="true" focusable="false"><defs><linearGradient id="mailerpress-newsletter-gradient" x1="51.4149696%" y1="62.4316359%" x2="87.3163171%" y2="25.6846901%"><stop stop-color="#CC525A" offset="0%"/><stop stop-color="#EF5B62" offset="39.01%"/><stop stop-color="#FF5F65" offset="62.31%"/></linearGradient></defs><path d="M98.3252003,0.219470541 C99.331285,-0.318070214 100,0.165716465 100,1.30052473 L100,50.7423288 C100,51.8771371 99.3674318,53 98.2227845,53 L2.32544129,53 C1.18079402,53 0.994035785,52.4624592 2.00012049,51.9249185 L98.3252003,0.219470541 Z" fill="url(#mailerpress-newsletter-gradient)"/><path d="M1.95192481,0.219470541 C0.945840111,-0.318070214 0,0.165716465 0,1.30052473 L0,50.7423288 C0,51.8771371 1.18681848,53 2.33146575,53 L98.228809,53 C99.3734562,53 99.4216519,52.4624592 98.4155672,51.9249185 L1.95192481,0.219470541 Z" fill="#FF5F65"/></svg>';
     }
 
     public function isDetected(): bool
@@ -81,8 +83,10 @@ class NewsletterMigrationSource implements MigrationSourceInterface
             [
                 'key' => 'custom_fields',
                 'label' => __('Custom fields', 'mailerpress'),
-                'description' => __('Newsletter profile fields mapped to MailerPress custom fields.', 'mailerpress'),
-                'supported' => true,
+                'description' => CustomFieldsImport::enabled()
+                    ? __('Newsletter profile fields mapped to MailerPress custom fields.', 'mailerpress')
+                    : __('Custom fields are imported with MailerPress Pro.', 'mailerpress'),
+                'supported' => CustomFieldsImport::enabled(),
                 'default' => true,
             ],
             [
@@ -152,6 +156,9 @@ class NewsletterMigrationSource implements MigrationSourceInterface
         $created = [];
         $ordered = ['lists', 'custom_fields', 'contacts'];
         $entityTypes = array_values(array_intersect($ordered, $entityTypes));
+        if (!CustomFieldsImport::enabled()) {
+            $entityTypes = array_values(array_diff($entityTypes, ['custom_fields']));
+        }
 
         foreach ($ordered as $entityType) {
             if (!in_array($entityType, $entityTypes, true)) {
@@ -196,7 +203,9 @@ class NewsletterMigrationSource implements MigrationSourceInterface
 
         return match ((string) $chunk->entity_type) {
             'lists' => $this->processLists($repository, (int) $run->id),
-            'custom_fields' => $this->processCustomFields($repository, (int) $run->id),
+            'custom_fields' => CustomFieldsImport::enabled()
+                ? $this->processCustomFields($repository, (int) $run->id)
+                : CustomFieldsImport::skippedChunk(),
             'contacts' => $this->processContacts($payload, $repository, $run),
             default => [
                 'processed' => 0,
@@ -413,9 +422,12 @@ class NewsletterMigrationSource implements MigrationSourceInterface
                     'ip' => (string) ($row->ip ?? ''),
                 ],
                 'lists' => $this->getSubscriberListIds($row, $repository, (int) $run->id),
-                'custom_fields' => $customFields,
+                // Custom field values are only imported with MailerPress Pro (see CustomFieldsImport).
+                'custom_fields' => CustomFieldsImport::enabled() ? $customFields : [],
                 'assign_default_list' => false,
                 'update_existing' => $updateExisting,
+                // Migrated contacts already opted in elsewhere: no confirmation email, automation or webhook.
+                'suppress_contact_hooks' => true,
             ]);
 
             if (empty($result['success'])) {
@@ -819,6 +831,10 @@ class NewsletterMigrationSource implements MigrationSourceInterface
 
     private function ensureCustomFieldDefinition(string $fieldKey, string $label, string $type, array $options = []): int
     {
+        if (!CustomFieldsImport::enabled()) {
+            return 0;
+        }
+
         global $wpdb;
 
         $fieldKey = sanitize_key($fieldKey);

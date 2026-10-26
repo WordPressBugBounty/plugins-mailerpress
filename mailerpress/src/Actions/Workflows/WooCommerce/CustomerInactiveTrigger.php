@@ -34,7 +34,7 @@ class CustomerInactiveTrigger
 
         $definition = [
             'label' => __('Customer Inactive (Daily)', 'mailerpress'),
-            'description' => __('Runs daily to find WooCommerce customers whose latest matching order is older than the configured number of days. Use it for win-back automations and coupon emails.', 'mailerpress'),
+            'description' => __('Runs daily to find WooCommerce customers whose latest matching order is older than the configured number of days. Only customers who already exist as subscribed or inactive contacts are included; unknown customers are never added. Use it for win-back automations and coupon emails.', 'mailerpress'),
             'icon' => 'woocommerce',
             'category' => 'woocommerce',
             'settings_schema' => [
@@ -59,7 +59,7 @@ class CustomerInactiveTrigger
                 ],
             ],
             'output_fields' => [
-                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                 ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_id', 'label' => __('Customer ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
@@ -157,7 +157,7 @@ class CustomerInactiveTrigger
                         continue;
                     }
 
-                    $contact = self::ensureContactForOrder($contactsModel, $order, $email);
+                    $contact = self::findEligibleContactForOrder($contactsModel, $order, $email);
 
                     if (!$contact) {
                         continue;
@@ -267,11 +267,17 @@ class CustomerInactiveTrigger
         return false;
     }
 
-    private static function ensureContactForOrder(Contacts $contactsModel, \WC_Order $order, string $email): ?object
+    /**
+     * Returns the existing contact eligible for the win-back workflow.
+     *
+     * Customers without a subscribed or inactive contact are skipped: creating
+     * them here would subscribe people who never gave their consent.
+     */
+    private static function findEligibleContactForOrder(Contacts $contactsModel, \WC_Order $order, string $email): ?object
     {
         $existingContact = $contactsModel->getContactByEmail($email);
 
-        if ($existingContact && !in_array((string) ($existingContact->subscription_status ?? ''), ['subscribed', 'inactive'], true)) {
+        if (!$existingContact || !in_array((string) ($existingContact->subscription_status ?? ''), ['subscribed', 'inactive'], true)) {
             return null;
         }
 
@@ -281,24 +287,20 @@ class CustomerInactiveTrigger
             'last_name' => $order->get_billing_last_name(),
             'update_existing' => true,
             'update_contact_fields' => true,
-            'assign_default_list' => !$existingContact,
+            'assign_default_list' => false,
             'suppress_contact_hooks' => true,
-            'opt_in_source' => $existingContact ? (string) ($existingContact->opt_in_source ?? 'woocommerce') : 'woocommerce_customer_inactive',
+            'opt_in_source' => (string) ($existingContact->opt_in_source ?? 'woocommerce'),
             'opt_in_details' => [
                 'trigger' => self::TRIGGER_KEY,
                 'last_order_id' => $order->get_id(),
             ],
         ];
 
-        if (!$existingContact) {
-            $payload['subscription_status'] = 'subscribed';
-        }
-
         $result = (new ContactUpsertService())->upsert($payload);
         $contactId = (int) ($result['contact_id'] ?? 0);
 
         if (empty($result['success']) || $contactId <= 0) {
-            return $existingContact ?: null;
+            return $existingContact;
         }
 
         return $contactsModel->get($contactId);

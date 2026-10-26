@@ -203,7 +203,7 @@ class Overview
                     <div class="mailerpress-dashboard-overview__create">
                         <a class="button mailerpress-dashboard-overview__primary-action" href="<?php echo esc_url($this->adminUrl('/home', ['view' => 'create-campaign'])); ?>">
                             <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
-                            <?php esc_html_e('New Campaign', 'mailerpress'); ?>
+                            <?php esc_html_e('New campaign', 'mailerpress'); ?>
                         </a>
                     </div>
                 <?php endif; ?>
@@ -613,6 +613,7 @@ class Overview
             'wp_email' => __('WordPress email', 'mailerpress'),
             'wc_email' => __('WooCommerce email', 'mailerpress'),
             'confirm_email' => __('Confirmation email', 'mailerpress'),
+            'transactional' => __('Transactional email', 'mailerpress'),
             'ab_test' => __('A/B test', 'mailerpress'),
             default => ucwords(str_replace('_', ' ', $type)),
         };

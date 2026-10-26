@@ -32,9 +32,9 @@ class Cpt
             'edit_item' => __('Edit Block', 'mailerpress'),
             'view_item' => __('View Block', 'mailerpress'),
             'all_items' => __('All Blocks', 'mailerpress'),
-            'search_items' => __('Search Blocks', 'mailerpress'),
+            'search_items' => __('Search blocks', 'mailerpress'),
             'parent_item_colon' => __('Parent Blocks:', 'mailerpress'),
-            'not_found' => __('No blocks found.', 'mailerpress'),
+            'not_found' => __('No blocks found', 'mailerpress'),
             'not_found_in_trash' => __('No blocks found in Trash.', 'mailerpress'),
         ];
 
@@ -92,8 +92,8 @@ class Cpt
             Kernel::getContainer()->get('cpt-page-slug'),
             [
                 'labels' => [
-                    'name' => __('MailerPress Page', 'mailerpress'),
-                    'singular_name' => __('MailerPress Page', 'mailerpress'),
+                    'name' => __('MailerPress page', 'mailerpress'),
+                    'singular_name' => __('MailerPress page', 'mailerpress'),
                 ],
                 'public' => false,
                 'has_archive' => false,

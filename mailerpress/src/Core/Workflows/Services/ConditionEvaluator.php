@@ -5,6 +5,42 @@ namespace MailerPress\Core\Workflows\Services;
 class ConditionEvaluator
 {
     /**
+     * Feature needed to evaluate the field, when an extension provides it. MailerPress fields with a parameter
+     * ("mp_<name>:<key>", e.g. the custom fields of MailerPress Pro) come from extensions.
+     */
+    public static function requiredFeature(string $field): ?string
+    {
+        if (!str_starts_with($field, 'mp_') || !str_contains($field, ':')) {
+            return null;
+        }
+
+        return 'condition_field:' . strstr($field, ':', true);
+    }
+
+    /** First feature the condition needs that no active extension provides, or null. */
+    public function findMissingFeature(?array $condition): ?string
+    {
+        foreach ((array) ($condition['rules'] ?? []) as $rule) {
+            if (!is_array($rule)) {
+                continue;
+            }
+
+            if (isset($rule['rules']) && is_array($rule['rules'])) {
+                $missing = $this->findMissingFeature($rule);
+            } else {
+                $feature = self::requiredFeature((string) ($rule['field'] ?? ''));
+                $missing = null !== $feature && !PausedStepResumer::isFeatureAvailable($feature) ? $feature : null;
+            }
+
+            if (null !== $missing) {
+                return $missing;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Evaluate a condition structure
      * 
      * @param array|null $condition Condition array or null for "no condition"
@@ -149,6 +185,12 @@ class ConditionEvaluator
 
         // Validate field is present
         if (empty($field)) {
+            return false;
+        }
+
+        // A field of an inactive extension cannot be evaluated.
+        $feature = self::requiredFeature($field);
+        if (null !== $feature && !PausedStepResumer::isFeatureAvailable($feature)) {
             return false;
         }
 

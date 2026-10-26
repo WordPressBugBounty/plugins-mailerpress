@@ -117,7 +117,7 @@ class EmailBatchesTask
                             ? $defaultSettings['replyToAddress'] 
                             : $senderEmail;
 
-                        $is_sent = $mailer->sendEmail([
+                        $is_sent = \MailerPress\Services\SendingFrequencyLimiter::send($mailer, [
                             'to' => $contact->email,
                             'html' => true,
                             'body' => $email->html_content,
@@ -132,8 +132,12 @@ class EmailBatchesTask
                             'batch_id' => (int) $batch_id,
                         ]);
 
+                        if (is_wp_error($is_sent) && 'mailerpress_sending_deferred' === $is_sent->get_error_code()) {
+                            break;
+                        }
+
                         // Mise à jour du statut de l'email et du champ processed_at
-                        if ($is_sent) {
+                        if (true === $is_sent) {
                             $wpdb->update(
                                 $tableEmailQueue,
                                 ['status' => 'sent', 'processed_at' => current_time('mysql')],

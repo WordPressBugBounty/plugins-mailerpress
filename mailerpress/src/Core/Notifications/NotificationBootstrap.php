@@ -5,6 +5,7 @@ namespace MailerPress\Core\Notifications;
 defined('ABSPATH') || exit;
 
 use MailerPress\Core\Notifications\Messages\PrimaryProviderDisabledNotification;
+use MailerPress\Core\Notifications\Messages\PrimaryProviderUnavailableNotification;
 use MailerPress\Core\Notifications\Messages\LiteSpeedActivatedNotification;
 use MailerPress\Core\Notifications\Messages\ProductUpdateNotification;
 use MailerPress\Core\Notifications\Messages\DisableWpCronNotification;
@@ -12,6 +13,7 @@ use MailerPress\Core\Notifications\Messages\WorkflowFailedJobsNotification;
 use MailerPress\Core\Notifications\Messages\DatabaseUpdateRequiredNotification;
 use MailerPress\Core\Notifications\Messages\PasswordProtectedActivatedNotification;
 use MailerPress\Core\Notifications\Messages\LicenseActivationRequiredNotification;
+use MailerPress\Core\Notifications\Messages\GoProNotification;
 
 class NotificationBootstrap
 {
@@ -26,6 +28,11 @@ class NotificationBootstrap
         NotificationMessageFactory::register(
             'primary_provider_disabled',
             PrimaryProviderDisabledNotification::class
+        );
+
+        NotificationMessageFactory::register(
+            'primary_provider_unavailable',
+            PrimaryProviderUnavailableNotification::class
         );
 
         NotificationMessageFactory::register(
@@ -61,6 +68,11 @@ class NotificationBootstrap
         NotificationMessageFactory::register(
             'license_activation_required',
             LicenseActivationRequiredNotification::class
+        );
+
+        NotificationMessageFactory::register(
+            'go_pro',
+            GoProNotification::class
         );
 
         // Allow plugins and extensions to register their own messages

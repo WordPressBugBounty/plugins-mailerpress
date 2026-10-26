@@ -273,32 +273,26 @@ final class HtmlParser
         @$dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NODEFDTD);
 
         $xpath = new \DOMXPath($dom);
-        $nodes = $xpath->query('//a[@href]');
+        $nodes = iterator_to_array($xpath->query('//a[@href]'));
+        $linkIds = self::getClickTrackingLinkIds(array_map(
+            static fn(\DOMElement $link): string => $link->getAttribute('href'),
+            $nodes
+        ));
 
         $trackedLinks = 0;
-        $linkIndex = 0;
 
         // Get optional jobId and stepId for automation emails
         $jobId = isset($this->variables['JOB_ID']) ? (int) $this->variables['JOB_ID'] : null;
         $stepId = isset($this->variables['STEP_ID']) ? (string) $this->variables['STEP_ID'] : null;
 
-        foreach ($nodes as $link) {
+        foreach ($nodes as $nodeIndex => $link) {
             /** @var \DOMElement $link */
+            $linkId = $linkIds[$nodeIndex];
+            if (null === $linkId) {
+                continue;
+            }
+
             $href = $link->getAttribute('href');
-
-            // Skip links that contain merge tags (they will be replaced later in replaceVariables())
-            // Merge tags are in format {{VAR}} or %VAR%
-            if (preg_match('/{{[^}]+}}|%[^%]+%/', $href)) {
-                continue;
-            }
-
-            // Skip links that already have mp_utm tracking
-            if (strpos($href, 'mp_utm=') !== false) {
-                continue;
-            }
-
-            $linkIndex++;
-            $linkId = $this->getClickTrackingLinkId($linkIndex);
 
             // Handle both internal and external links for A/B testing tracking
             // For external links, we still want to track clicks
@@ -335,9 +329,36 @@ final class HtmlParser
         return str_replace('<?xml encoding="UTF-8">', '', $dom->saveHTML());
     }
 
-    private function getClickTrackingLinkId(int $linkIndex): string
+    /**
+     * Click-tracking ID each link receives when the email is sent, keyed like $hrefs.
+     *
+     * Hrefs still holding merge tags ({{VAR}} or %VAR%) or already tracked (mp_utm) are skipped
+     * without taking an index. Empty links and local anchors take one but stay untracked.
+     *
+     * @param array<array-key, string> $hrefs Link hrefs in document order, merge tags replaced.
+     * @return array<array-key, ?string> Link ID, or null for an untracked link.
+     */
+    public static function getClickTrackingLinkIds(array $hrefs): array
     {
-        return 'mp-link-' . $linkIndex;
+        $linkIds = [];
+        $linkIndex = 0;
+
+        foreach ($hrefs as $key => $href) {
+            $linkIds[$key] = null;
+
+            if (preg_match('/{{[^}]+}}|%[^%]+%/', $href) || strpos($href, 'mp_utm=') !== false) {
+                continue;
+            }
+
+            $linkIndex++;
+
+            $trimmedHref = trim($href);
+            if ('' !== $trimmedHref && '#' !== $trimmedHref[0]) {
+                $linkIds[$key] = 'mp-link-' . $linkIndex;
+            }
+        }
+
+        return $linkIds;
     }
 
     private function mailerpress_product_url_to_id($url)

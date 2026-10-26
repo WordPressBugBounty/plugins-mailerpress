@@ -69,7 +69,7 @@ class CampaignArchive
         global $wpdb;
         $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
 
-        $sql = "SELECT campaign_id, name, created_at, updated_at
+        $sql = "SELECT campaign_id, name, created_at, updated_at, config
                 FROM {$table}
                 WHERE status = 'sent'";
 
@@ -79,11 +79,12 @@ class CampaignArchive
 
         $sql .= " ORDER BY created_at {$order}";
 
-        if ($limit > 0) {
-            $sql .= $wpdb->prepare(" LIMIT %d", $limit);
-        }
+        $campaigns = $wpdb->get_results($sql, ARRAY_A) ?: [];
+        $campaigns = array_values(array_filter($campaigns, static fn(array $campaign): bool =>
+            !CampaignEmail::isPrivate((int) $campaign['campaign_id'], $campaign['config'])
+        ));
 
-        return $wpdb->get_results($sql, ARRAY_A) ?: [];
+        return $limit > 0 ? array_slice($campaigns, 0, $limit) : $campaigns;
     }
 
     /**

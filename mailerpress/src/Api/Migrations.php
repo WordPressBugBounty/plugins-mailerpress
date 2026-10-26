@@ -46,7 +46,8 @@ class Migrations
 
             return new WP_REST_Response([
                 'success' => true,
-                'message' => sprintf(__('Reset %d failed migration(s) and released lock.', 'mailerpress'), $count),
+                'message' => /* translators: %d: number of migrations. */
+                sprintf(_n('Reset %d failed migration and released lock.', 'Reset %d failed migrations and released lock.', $count, 'mailerpress'), $count),
                 'reset_count' => $count,
             ], 200);
         } catch (\Throwable $e) {
@@ -63,13 +64,8 @@ class Migrations
     #[Endpoint('migrations/force-run', 'POST', permissionCallback: [Permissions::class, 'canManageSettings'])]
     public function forceRun(WP_REST_Request $request): WP_REST_Response
     {
-        $manager = new Manager(
-            Kernel::$config['root'] . '/src/Core/Migrations/migrations',
-            []
-        );
-
         try {
-            $manager->runForce();
+            Manager::runForceAllPaths();
 
             return new WP_REST_Response([
                 'success' => true,
@@ -99,7 +95,7 @@ class Migrations
 
             return new WP_REST_Response([
                 'success' => true,
-                'message' => __('Migration lock released.', 'mailerpress'),
+                'message' => __('Migration lock released', 'mailerpress'),
             ], 200);
         } catch (\Throwable $e) {
             return new WP_REST_Response([
@@ -136,18 +132,10 @@ class Migrations
     public function repairDatabase(WP_REST_Request $request): WP_REST_Response
     {
         try {
-            // Initialiser le logger avant tout
-            DatabaseRepairLogger::init();
             DatabaseRepairLogger::info('API: Début de la réparation de la base de données');
 
             $diagnostic = new DatabaseDiagnostic();
             $result = $diagnostic->repair();
-
-            // Ajouter le chemin du fichier de log dans la réponse
-            $logFile = DatabaseRepairLogger::getLogFilePath();
-            $result['log_file'] = $logFile;
-            $result['log_file_exists'] = file_exists($logFile);
-            $result['log_file_readable'] = $logFile && is_readable($logFile);
 
             // Ajouter un échantillon des logs en mémoire
             $logs = DatabaseRepairLogger::getLogs();
@@ -156,21 +144,16 @@ class Migrations
 
             DatabaseRepairLogger::info('API: Réparation terminée', [
                 'success' => $result['success'],
-                'log_file' => $logFile,
             ]);
 
             return new WP_REST_Response($result, $result['success'] ? 200 : 500);
         } catch (\Throwable $e) {
-            DatabaseRepairLogger::init(); // S'assurer que le logger est initialisé
             DatabaseRepairLogger::exception($e, ['source' => 'API repairDatabase']);
 
-            $logFile = DatabaseRepairLogger::getLogFilePath();
             return new WP_REST_Response([
                 'success' => false,
                 'error' => $e->getMessage(),
                 'trace' => defined('WP_DEBUG') && WP_DEBUG ? $e->getTraceAsString() : null,
-                'log_file' => $logFile,
-                'log_file_exists' => file_exists($logFile),
             ], 500);
         }
     }
@@ -189,7 +172,6 @@ class Migrations
             $diagnosticData = $diagnostic->diagnose();
 
             // Get only error logs (ERROR, CRITICAL, EXCEPTION levels)
-            DatabaseRepairLogger::init();
             $allLogs = DatabaseRepairLogger::getLogs();
 
             // Filter only ERROR and CRITICAL level logs
@@ -225,8 +207,6 @@ class Migrations
                     })),
                 ],
                 'error_logs' => $errorLogs,
-                'log_file_path' => DatabaseRepairLogger::getLogFilePath(),
-                'log_file_exists' => file_exists(DatabaseRepairLogger::getLogFilePath()),
                 'total_error_logs' => count($errorLogs),
                 'total_log_entries' => count($allLogs),
             ];
@@ -236,7 +216,6 @@ class Migrations
                 return new WP_REST_Response([
                     'success' => true,
                     'logs' => $jsonExport,
-                    'log_file' => DatabaseRepairLogger::getLogFilePath(),
                 ], 200);
             } else {
                 // Format texte simple
@@ -244,7 +223,6 @@ class Migrations
                 return new WP_REST_Response([
                     'success' => true,
                     'logs' => $textExport,
-                    'log_file' => DatabaseRepairLogger::getLogFilePath(),
                 ], 200);
             }
         } catch (\Throwable $e) {

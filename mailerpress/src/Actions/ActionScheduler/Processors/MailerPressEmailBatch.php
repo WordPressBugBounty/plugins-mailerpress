@@ -12,9 +12,7 @@ use MailerPress\Core\Interfaces\ContactFetcherInterface;
 use MailerPress\Core\Kernel;
 use MailerPress\Models\Campaigns;
 use MailerPress\Models\Contacts;
-use MailerPress\Services\ClassicContactFetcher;
-use MailerPress\Services\ContactIdsFetcher;
-use MailerPress\Services\SegmentContactFetcher;
+use MailerPress\Services\ContactFetcherFactory;
 
 class MailerPressEmailBatch
 {
@@ -305,37 +303,12 @@ class MailerPressEmailBatch
                 return;
             }
 
-            // Frequency settings
-            $frequencySending = get_option('mailerpress_frequency_sending', [
-                "settings" => [
-                    "numberEmail" => 25,
-                    "config" => ["value" => 5, "unit" => "minutes"],
-                ],
-            ]);
-
-            if (is_string($frequencySending)) {
-                $decoded = json_decode($frequencySending, true);
-                $frequencySending = is_array($decoded) ? $decoded : [
-                    "settings" => [
-                        "numberEmail" => 25,
-                        "config" => ["value" => 5, "unit" => "minutes"],
-                    ],
-                ];
-            }
-
-            // Support both new and old config formats for backwards compatibility
-            if (isset($frequencySending['effectiveConfig'])) {
-                // New format (from refactored SendingFrequency component)
-                $effectiveConfig = $frequencySending['effectiveConfig'];
-                $numberEmail = $effectiveConfig['numberEmail'] ?? 25;
-                $frequencyConfig = $effectiveConfig['frequency'] ?? ['value' => 5, 'unit' => 'minutes'];
-                $rateLimit = $effectiveConfig['rate_limit'] ?? 10;
-            } else {
-                // Old format (backwards compatibility)
-                $numberEmail = $frequencySending['settings']['numberEmail'] ?? 25;
-                $frequencyConfig = $frequencySending['settings']['config'] ?? ['value' => 5, 'unit' => 'minutes'];
-                $rateLimit = $frequencySending['settings']['rate_limit'] ?? 10;
-            }
+            // Resolve the current ESP and catalog version on the server.
+            $frequencySettings = \MailerPress\Services\SendingFrequencyConfig::get();
+            $effectiveConfig = $frequencySettings['effectiveConfig'];
+            $numberEmail = $effectiveConfig['numberEmail'];
+            $frequencyConfig = $effectiveConfig['frequency'];
+            $rateLimit = $effectiveConfig['rate_limit'];
 
             $unit_multipliers = ['seconds' => 1, 'minutes' => MINUTE_IN_SECONDS, 'hours' => HOUR_IN_SECONDS];
             $interval_seconds = ($frequencyConfig['value'] ?? 5) * ($unit_multipliers[$frequencyConfig['unit']] ?? MINUTE_IN_SECONDS);
@@ -630,6 +603,8 @@ class MailerPressEmailBatch
                 }
 
                 // Étape 2 : Calculer le total et mettre à jour AVANT de planifier
+                // Un contact ne doit jamais recevoir deux fois la même campagne.
+                $allContactIds = array_values(array_unique(array_map('intval', $allContactIds)));
                 $totalEmails = count($allContactIds);
                 $wpdb->update(
                     Tables::get(Tables::MAILERPRESS_EMAIL_BATCHES),
@@ -809,14 +784,7 @@ class MailerPressEmailBatch
         array $tags,
         $segment
     ): ?ContactFetcherInterface {
-        // Default to 'classic' if type is null or empty (backward compatibility)
-        $type = $type ?? 'classic';
-
-        return match ($type) {
-            'classic' => new ClassicContactFetcher($lists, $tags),
-            'contact_ids' => new ContactIdsFetcher(is_array($segment) ? $segment : []),
-            'segment' => new SegmentContactFetcher(is_array($segment) ? $segment[0] : $segment),
-            default => new ClassicContactFetcher($lists, $tags) // Fallback to classic instead of null
-        };
+        // An empty type means "classic" (backward compatibility).
+        return ContactFetcherFactory::make($type, $lists, $tags, (array) $segment);
     }
 }

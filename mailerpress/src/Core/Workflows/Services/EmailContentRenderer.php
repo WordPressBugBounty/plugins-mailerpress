@@ -1351,7 +1351,7 @@ class EmailContentRenderer
         }
 
         if ($config['showBillingCycle'] && !empty($data['billing_cycle'])) {
-            $rows[] = ['label' => \__('Billing Cycle', 'mailerpress'), 'value' => $data['billing_cycle']];
+            $rows[] = ['label' => \__('Billing cycle', 'mailerpress'), 'value' => $data['billing_cycle']];
         }
 
         if ($config['showTotal'] && !empty($data['total'])) {
@@ -1359,7 +1359,7 @@ class EmailContentRenderer
         }
 
         if ($config['showNextPayment'] && !empty($data['next_payment'])) {
-            $rows[] = ['label' => \__('Next Payment', 'mailerpress'), 'value' => $data['next_payment']];
+            $rows[] = ['label' => \__('Next payment', 'mailerpress'), 'value' => $data['next_payment']];
         }
 
         if ($config['showTrialEnd'] && !empty($data['trial_end'])) {

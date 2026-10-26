@@ -9,6 +9,7 @@ namespace MailerPress\Api;
 use DI\DependencyException;
 use DI\NotFoundException;
 use MailerPress\Actions\ActionScheduler\Processors\ExportContact;
+use MailerPress\Actions\Gutenberg\Init as GutenbergInit;
 use MailerPress\Core\ApiAuthentication;
 use MailerPress\Core\Attributes\Endpoint;
 use MailerPress\Core\Capabilities;
@@ -18,6 +19,8 @@ use MailerPress\Models\CustomFields;
 use MailerPress\Services\RateLimiter;
 use MailerPress\Services\RateLimitConfig;
 use MailerPress\Services\ContactUpsertService;
+use MailerPress\Services\ContactImportFields;
+use MailerPress\Services\PendingContactManager;
 use MailerPress\Services\InactiveContactManager;
 use WP_Error;
 use WP_REST_Request;
@@ -132,32 +135,13 @@ class Contacts
                     ];
                     $campaignScore = 0;
                 }
-
-                // Revenue
-                if (!empty($stats->revenue) && (float)$stats->revenue > 0) {
-                    if (function_exists('get_woocommerce_currency_symbol') && function_exists('wc_get_price_decimals')) {
-                        $revenue = (float)$stats->revenue;
-                        $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8');
-                        $formatted_price = number_format(
-                            $revenue,
-                            wc_get_price_decimals(),
-                            wc_get_price_decimal_separator(),
-                            wc_get_price_thousand_separator()
-                        );
-
-                        $activities[] = [
-                            'type' => 'revenue',
-                            'timestamp' => $stats->updated_at ?: $stats->created_at,
-                            'details' => sprintf(
-                                __('Generated %s %s in revenue from campaign "%s"', 'mailerpress'),
-                                $formatted_price,
-                                $currency_symbol,
-                                $campaign->name
-                            ),
-                        ];
-                    }
-                }
             }
+
+            /**
+             * Filters the activity of a contact for one campaign, e.g. to add events tracked by an extension.
+             * Added entries can set a 'label' and a sort 'priority'.
+             */
+            $activities = apply_filters('mailerpress_contact_campaign_activities', $activities, $campaign, $statsRows, $contact_id);
 
             // Utiliser les clics préchargés
             $clicks = $clicks_by_campaign[(int)$campaign->campaign_id] ?? [];
@@ -195,13 +179,12 @@ class Contacts
                 $priority = [
                     'opened' => 1,
                     'clicked' => 2,
-                    'revenue' => 3,
                     'sent' => 4,
                     'unsubscribed' => 5,
                 ];
 
-                $a_priority = $priority[$a['type']] ?? 99;
-                $b_priority = $priority[$b['type']] ?? 99;
+                $a_priority = $a['priority'] ?? $priority[$a['type']] ?? 99;
+                $b_priority = $b['priority'] ?? $priority[$b['type']] ?? 99;
 
                 return $a_priority <=> $b_priority;
             });
@@ -242,17 +225,23 @@ class Contacts
 
         $campaigns = $wpdb->get_results($wpdb->prepare(
             "
-        SELECT DISTINCT c.campaign_id, c.name
+        SELECT c.campaign_id, c.name,
+               SUM(cs.opened) AS total_opened,
+               SUM(cs.click_count) AS total_clicked,
+               SUM(cs.status = 'bad') AS total_unsubscribed,
+               MAX(cs.updated_at) AS last_activity
         FROM {$wpdb->prefix}mailerpress_campaigns c
         INNER JOIN {$wpdb->prefix}mailerpress_contact_stats cs
             ON cs.campaign_id = c.campaign_id
         WHERE cs.contact_id = %d
+        GROUP BY c.campaign_id, c.name, c.created_at
         ORDER BY c.created_at DESC
         ",
             $contact_id
         ), ARRAY_A);
 
-        return rest_ensure_response($campaigns);
+        /** Filters the campaigns of a contact, e.g. to add 'extra_metrics' computed by an extension. */
+        return rest_ensure_response(apply_filters('mailerpress_contact_campaigns', $campaigns ?: [], $contact_id));
     }
 
     #[Endpoint(
@@ -280,7 +269,7 @@ class Contacts
 
         $totals = $wpdb->get_row($wpdb->prepare(
             "SELECT SUM(opened) AS total_opened, SUM(click_count) AS total_clicked,
-                    SUM(status = 'bad') AS total_unsubscribed, SUM(revenue) AS total_revenue,
+                    SUM(status = 'bad') AS total_unsubscribed,
                     MAX(updated_at) AS last_activity
              FROM {$contactStatsTable} {$whereClause}",
             ...$params
@@ -289,7 +278,6 @@ class Contacts
             'total_opened' => (int)($totals->total_opened ?? 0),
             'total_clicked' => (int)($totals->total_clicked ?? 0),
             'total_unsubscribed' => (int)($totals->total_unsubscribed ?? 0),
-            'total_revenue' => (float)($totals->total_revenue ?? 0),
             'last_activity' => $totals->last_activity ?? 0,
         ];
 
@@ -299,6 +287,9 @@ class Contacts
                 $stats[$key] = 0;
             }
         }
+
+        /** Filters additional metrics of a contact, e.g. computed by an extension: key => {label, value, detail}. */
+        $stats['extra_metrics'] = (object) apply_filters('mailerpress_contact_statistics', [], $contact_id, $campaign_id);
 
         return rest_ensure_response($stats);
     }
@@ -606,13 +597,13 @@ class Contacts
                     INNER JOIN {$tags_table} t_search ON t_search.tag_id = ct_search.tag_id
                     WHERE t_search.name LIKE %s
                 )",
-                "c.contact_id IN (
-                    SELECT cf_search.contact_id
-                    FROM {$custom_fields_table} cf_search
-                    INNER JOIN {$field_definitions_table} fd_search ON fd_search.field_key = cf_search.field_key
-                    WHERE cf_search.field_value LIKE %s
-                )",
             ];
+            // Extensions add search conditions, e.g. MailerPress Pro searches custom field values.
+            // Each condition holds exactly one %s placeholder, bound to the LIKE pattern of the search.
+            $search_conditions = array_values(array_filter(
+                (array) apply_filters('mailerpress_contacts_search_conditions', $search_conditions, $search),
+                'is_string'
+            ));
             $search_params = array_fill(0, count($search_conditions), $search_like);
 
             if (is_numeric($search)) {
@@ -667,6 +658,26 @@ class Contacts
             $where .= " AND EXISTS (SELECT 1 FROM {$contact_tags_table} ct_filter
                 WHERE ct_filter.contact_id = c.contact_id AND ct_filter.tag_id IN ($placeholders))";
             $params = array_merge($params, $tagIds);
+        }
+
+        // Filter by date added (created_at is stored in the site timezone)
+        foreach ( (array) $request->get_param( 'date_added' ) as $entry ) {
+            if ( ! is_array( $entry ) || ! isset( $entry['id'], $entry['value'] ) || ! is_string( $entry['value'] ) ) {
+                continue;
+            }
+            $bound = sanitize_key( (string) $entry['id'] );
+            $value = sanitize_text_field( $entry['value'] );
+            $date = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value, wp_timezone() );
+            if ( false === $date || $value !== $date->format( 'Y-m-d' ) ) {
+                continue;
+            }
+            if ( 'from' === $bound ) {
+                $where .= ' AND c.created_at >= %s';
+                $params[] = $date->format( 'Y-m-d H:i:s' );
+            } elseif ( 'to' === $bound ) {
+                $where .= ' AND c.created_at < %s';
+                $params[] = $date->modify( '+1 day' )->format( 'Y-m-d H:i:s' );
+            }
         }
 
         // Filter by segment (handled by pro plugin via filter hook)
@@ -733,67 +744,16 @@ class Contacts
             }
         }
 
-        // Each custom field criterion intersects with the other contact filters.
-        $customFilters = array_filter(
-            $request->get_query_params(),
-            static fn ($key) => is_string($key) && str_starts_with($key, 'custom_'),
-            ARRAY_FILTER_USE_KEY
-        );
-        if ($customFilters) {
-            $definitions = $wpdb->get_results("SELECT field_key, type FROM {$field_definitions_table}", OBJECT_K);
-            foreach ($customFilters as $filterKey => $criteria) {
-                $fieldKey = substr($filterKey, 7);
-                $definition = $definitions[$fieldKey] ?? null;
-                if (!$definition || !is_array($criteria) || count($criteria) !== 1 || !is_array($criteria[0] ?? null)) {
-                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter.', 'mailerpress'), ['status' => 400]);
-                }
-
-                $criterion = $criteria[0];
-                $operator = $criterion['operator'] ?? '';
-                $value = $criterion['value'] ?? '';
-                $allowedOperators = ['equals', 'not_equals', 'is_empty', 'is_not_empty'];
-                if ($definition->type === 'text') {
-                    $allowedOperators[] = 'contains';
-                }
-                if (in_array($definition->type, ['number', 'date'], true)) {
-                    $allowedOperators = array_merge($allowedOperators, ['greater_than', 'less_than']);
-                }
-                if (!in_array($operator, $allowedOperators, true) || !is_scalar($value)) {
-                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter.', 'mailerpress'), ['status' => 400]);
-                }
-
-                $value = sanitize_text_field((string) $value);
-                $needsValue = !in_array($operator, ['is_empty', 'is_not_empty'], true);
-                if ($needsValue && ($value === ''
-                    || ($definition->type === 'number' && !is_numeric($value))
-                    || ($definition->type === 'checkbox' && !in_array($value, ['0', '1'], true))
-                    || ($definition->type === 'date' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)
-                        || !checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4)))))) {
-                    return new \WP_Error('invalid_custom_field_filter', __('Invalid custom field filter value.', 'mailerpress'), ['status' => 400]);
-                }
-
-                $params[] = $fieldKey;
-                $comparison = "cf_filter.field_value IS NOT NULL AND cf_filter.field_value <> ''";
-                if ($needsValue) {
-                    $column = $definition->type === 'number'
-                        ? 'CAST(cf_filter.field_value AS DECIMAL(65, 20))'
-                        : 'cf_filter.field_value';
-                    $sqlOperator = match ($operator) {
-                        'contains' => 'LIKE',
-                        'greater_than' => '>',
-                        'less_than' => '<',
-                        default => '=',
-                    };
-                    $comparison .= " AND {$column} {$sqlOperator} %s";
-                    $params[] = $operator === 'contains' ? '%' . $wpdb->esc_like($value) . '%' : $value;
-                }
-                // Missing values are empty and do not equal a non-empty value.
-                $exists = in_array($operator, ['not_equals', 'is_empty'], true) ? 'NOT EXISTS' : 'EXISTS';
-                $where .= " AND {$exists} (
-                    SELECT 1 FROM {$custom_fields_table} cf_filter
-                    WHERE cf_filter.contact_id = c.contact_id
-                    AND cf_filter.field_key = %s AND {$comparison}
-                )";
+        // Extensions add filters to the listing, e.g. MailerPress Pro filters by custom field.
+        // Each clause is ['sql' => string with placeholders, 'params' => values]; a WP_Error rejects the request.
+        $extensionFilters = apply_filters('mailerpress_contacts_list_where', [], $request);
+        if (is_wp_error($extensionFilters)) {
+            return $extensionFilters;
+        }
+        foreach ((array) $extensionFilters as $clause) {
+            if (is_array($clause) && !empty($clause['sql']) && is_string($clause['sql'])) {
+                $where .= " AND ({$clause['sql']})";
+                $params = array_merge($params, array_values((array) ($clause['params'] ?? [])));
             }
         }
 
@@ -817,30 +777,24 @@ class Contacts
         $orderby_param = $request->get_param('orderby');
         $order_param = strtoupper($request->get_param('order') ?? 'DESC');
         $order = in_array($order_param, $allowed_order, true) ? $order_param : 'DESC';
-        $custom_field_sort = false;
+        $distinctSort = false;
 
-        if ( is_string( $orderby_param ) && str_starts_with( $orderby_param, 'custom_' ) ) {
-            $custom_sort_key = substr( $orderby_param, 7 );
-            $field_exists = $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$field_definitions_table} WHERE field_key = %s",
-                $custom_sort_key
-            ) );
-            if ( $field_exists ) {
-                $custom_field_sort = true;
-                $joins .= $wpdb->prepare(
-                    " LEFT JOIN {$custom_fields_table} cf_sort ON cf_sort.contact_id = c.contact_id AND cf_sort.field_key = %s",
-                    $custom_sort_key
-                );
-                $orderBy = sprintf( 'cf_sort.field_value %s', esc_sql( $order ) );
-            } else {
-                $orderBy = sprintf( 'c.contact_id %s', esc_sql( $order ) );
-            }
+        // Extensions sort on their own columns, e.g. MailerPress Pro sorts by custom field.
+        // They return ['join' => prepared SQL, 'order_by' => SQL, 'distinct' => bool], or null.
+        $extensionSort = is_string( $orderby_param ) && ! in_array( $orderby_param, $allowed_orderby, true )
+            ? apply_filters( 'mailerpress_contacts_list_order', null, $orderby_param, $order, $request )
+            : null;
+
+        if ( is_array( $extensionSort ) && ! empty( $extensionSort['order_by'] ) && is_string( $extensionSort['order_by'] ) ) {
+            $joins .= is_string( $extensionSort['join'] ?? null ) ? ' ' . $extensionSort['join'] : '';
+            $orderBy = $extensionSort['order_by'];
+            $distinctSort = ! empty( $extensionSort['distinct'] );
         } else {
             $orderby = in_array( $orderby_param, $allowed_orderby, true ) ? $orderby_param : 'contact_id';
             $orderBy = sprintf( 'c.%s %s', esc_sql( $orderby ), esc_sql( $order ) );
         }
 
-        // Count matching contacts without joining custom fields used only for sorting.
+        // Count matching contacts without the joins used only for sorting.
         $countQuery = "
         SELECT COUNT(*)
         FROM {$contact_table} c
@@ -860,7 +814,7 @@ class Contacts
         }
 
         // Fetch contacts — only select needed columns, skip large TEXT fields
-        $selectDistinct = $custom_field_sort ? 'DISTINCT' : '';
+        $selectDistinct = $distinctSort ? 'DISTINCT' : '';
         $contacts = $wpdb->get_results($wpdb->prepare("
         SELECT {$selectDistinct} c.contact_id, c.contact_id as id, c.email, c.first_name, c.last_name,
                c.subscription_status, c.opt_in_source, c.created_at, c.updated_at, c.unsubscribe_token{$engagementSelect}
@@ -1099,6 +1053,15 @@ class Contacts
         $allowedSubscriptionStatuses = ['subscribed', 'pending', 'unsubscribed', InactiveContactManager::STATUS_INACTIVE];
         if ($isTrustedSubmission && in_array($requested_subscription_status, $allowedSubscriptionStatuses, true)) {
             $subscription_status = $requested_subscription_status;
+        } elseif ('pending' === $requested_subscription_status) {
+            // Asking for confirmation is stricter than the global setting, so visitors may request it.
+            $subscription_status = 'pending';
+        } elseif (
+            'subscribed' === $requested_subscription_status
+            && GutenbergInit::isValidSkipConfirmationToken($request->get_param('confirmationToken'))
+        ) {
+            // The form block disabled double opt-in; the server-signed token proves it.
+            $subscription_status = 'subscribed';
         }
 
         if (!$isTrustedSubmission && in_array($optinSource, ['manual', 'batch_import_file'], true)) {
@@ -1116,6 +1079,14 @@ class Contacts
                 ]);
             }
         }
+
+        if (!$isTrustedSubmission) {
+			/** Lets add-ons reject a public form submission with a WP_Error. */
+			$verified = apply_filters('mailerpress_verify_form_submission', true, $request, 'native_forms');
+			if (is_wp_error($verified)) {
+				return $verified;
+			}
+		}
 
         if (empty($email) || !is_email($email)) {
             return new \WP_Error(
@@ -1460,6 +1431,11 @@ class Contacts
 
             if (!empty($newStatus)) {
                 $newStatus = sanitize_text_field((string) $newStatus);
+                if ('pending' === $newStatus) {
+                    // Evaluate the previous status before assigning the new one.
+                    $updateClauses[] = "pending_since = CASE WHEN subscription_status = 'pending' THEN pending_since ELSE %s END";
+                    $params[] = current_time('mysql');
+                }
                 $updateClauses[] = 'subscription_status = %s';
                 $params[] = esc_html($newStatus);
                 $updateClauses = array_merge($updateClauses, $this->lifecycleSetClausesForStatus($newStatus, $params));
@@ -1526,6 +1502,10 @@ class Contacts
                     $updateData['subscription_status'] = esc_html($newStatus);
                     $updateFormat[] = '%s';
                     $this->appendLifecycleUpdateData($updateData, $updateFormat, $newStatus);
+                    foreach (PendingContactManager::transitionFields($id, $newStatus) as $column => $value) {
+                        $updateData[$column] = $value;
+                        $updateFormat[] = '%s';
+                    }
                 }
                 if ($firstName !== null) {
                     $updateData['first_name'] = sanitize_text_field($firstName);
@@ -1725,6 +1705,10 @@ class Contacts
             $updateData['subscription_status'] = esc_html($newStatus);
             $updateFormat[] = '%s';
             $this->appendLifecycleUpdateData($updateData, $updateFormat, $newStatus);
+            foreach (PendingContactManager::transitionFields($id, $newStatus) as $column => $value) {
+                $updateData[$column] = $value;
+                $updateFormat[] = '%s';
+            }
             $contactUpdated = true;
         }
 
@@ -3067,27 +3051,18 @@ class Contacts
         );
 
         if (null === $contact_id) {
-            // Extract and clean first_name and last_name
-            // Handle both array_key_exists and isset to catch empty strings
-            $first_name = '';
-            $last_name = '';
-
-            if (array_key_exists('first_name', $contact)) {
-                $first_name = is_string($contact['first_name']) ? trim($contact['first_name'], ' "\'') : '';
-            }
-
-            if (array_key_exists('last_name', $contact)) {
-                $last_name = is_string($contact['last_name']) ? trim($contact['last_name'], ' "\'') : '';
-            }
+            $names = ContactImportFields::names($contact);
+            $dates = ContactImportFields::dates($contact);
+            $now = current_time('mysql');
 
             $contact_data = [
                 'email' => sanitize_email($contact['email'] ?? ''),
-                'first_name' => sanitize_text_field($first_name),
-                'last_name' => sanitize_text_field($last_name),
+                'first_name' => $names['first_name'] ?? '',
+                'last_name' => $names['last_name'] ?? '',
                 'subscription_status' => sanitize_text_field($status),
                 'unsubscribe_token' => wp_generate_uuid4(),
-                'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql'),
+                'created_at' => $dates['created_at'] ?? $now,
+                'updated_at' => $dates['updated_at'] ?? $dates['created_at'] ?? $now,
                 'opt_in_source' => 'batch_import_file',
                 'access_token' => bin2hex(random_bytes(32))
             ];
@@ -3174,27 +3149,14 @@ class Contacts
             }
         } else {
             if (true === $forceUpdate || '1' === $forceUpdate) {
-                // Extract and clean first_name and last_name
-                // Handle both array_key_exists and isset to catch empty strings
-                $first_name = '';
-                $last_name = '';
-
-                if (array_key_exists('first_name', $contact)) {
-                    $first_name = is_string($contact['first_name']) ? trim($contact['first_name'], ' "\'') : '';
-                }
-
-                if (array_key_exists('last_name', $contact)) {
-                    $last_name = is_string($contact['last_name']) ? trim($contact['last_name'], ' "\'') : '';
-                }
-
+                // The import status only applies to new contacts: existing contacts keep their subscription status.
                 $result = $wpdb->update(
                     $contactTable,
-                    [
-                        'subscription_status' => $status,
-                        'updated_at' => current_time('mysql'),
-                        'first_name' => sanitize_text_field($first_name),
-                        'last_name' => sanitize_text_field($last_name),
-                    ],
+                    array_merge(
+                        ['updated_at' => current_time('mysql')],
+                        ContactImportFields::names($contact),
+                        ContactImportFields::dates($contact)
+                    ),
                     ['contact_id' => $contact_id]
                 );
 

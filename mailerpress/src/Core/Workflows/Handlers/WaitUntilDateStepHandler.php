@@ -2,12 +2,11 @@
 
 namespace MailerPress\Core\Workflows\Handlers;
 
-use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Workflows\Models\Step;
 use MailerPress\Core\Workflows\Models\AutomationJob;
 use MailerPress\Core\Workflows\Results\StepResult;
 use MailerPress\Core\Workflows\Services\ActionSchedulerManager;
-use MailerPress\Core\Workflows\Services\ContactResolver;
+use MailerPress\Core\Workflows\Services\PausedStepResumer;
 
 class WaitUntilDateStepHandler implements StepHandlerInterface
 {
@@ -18,10 +17,11 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 
 	public function getDefinition(): array
 	{
-		return [
+		// Extensions add date sources, e.g. MailerPress Pro reads the date from a contact custom field.
+		return (array) apply_filters('mailerpress_workflow_wait_until_date_definition', [
 			'key' => 'wait_until_date',
 			'label' => __('Wait Until Date', 'mailerpress'),
-			'description' => __('Pause the workflow until a specific date, or until a date stored in a contact custom field (with an optional offset). Ideal for event reminders — e.g. "3 days before event_date".', 'mailerpress'),
+			'description' => __('Pause the workflow until a specific date, with an optional offset.', 'mailerpress'),
 			'icon' => 'calendar',
 			'category' => 'timing',
 			'type' => 'DELAY',
@@ -34,7 +34,6 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 					'default' => 'fixed',
 					'options' => [
 						['value' => 'fixed', 'label' => __('Fixed date', 'mailerpress')],
-						['value' => 'custom_field', 'label' => __('Contact custom field', 'mailerpress')],
 					],
 				],
 				[
@@ -43,15 +42,6 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 					'type' => 'datetime',
 					'required' => true,
 					'visible_when' => ['date_source' => 'fixed'],
-				],
-				[
-					'key' => 'custom_field_key',
-					'label' => __('Date field key', 'mailerpress'),
-					'type' => 'text',
-					'required' => true,
-					'placeholder' => 'event_date',
-					'help' => __('The custom field key that contains a date value (e.g. event_date).', 'mailerpress'),
-					'visible_when' => ['date_source' => 'custom_field'],
 				],
 				[
 					'key' => 'offset_value',
@@ -98,7 +88,7 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 					],
 				],
 			],
-		];
+		]);
 	}
 
 	public function handle(Step $step, AutomationJob $job, array $context = []): StepResult
@@ -111,10 +101,14 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 		if ( 'fixed' === $dateSource ) {
 			$targetDateString = $settings['fixed_date'] ?? null;
 		} else {
-			$fieldKey = $settings['custom_field_key'] ?? null;
-			if ( $fieldKey ) {
-				$targetDateString = $this->getContactCustomFieldDate( (int) $job->getUserId(), $fieldKey, $context );
+			// Other sources belong to an extension: without it, the contact waits on this step.
+			$feature = 'wait_until_date_source:' . $dateSource;
+			if ( ! PausedStepResumer::isFeatureAvailable( $feature ) ) {
+				return StepResult::paused( $feature );
 			}
+
+			$target = apply_filters( 'mailerpress_workflow_wait_until_date_target', null, $dateSource, $settings, (int) $job->getUserId(), $context );
+			$targetDateString = is_scalar( $target ) && '' !== (string) $target ? (string) $target : null;
 		}
 
 		if ( ! $targetDateString ) {
@@ -192,31 +186,6 @@ class WaitUntilDateStepHandler implements StepHandlerInterface
 				? sprintf( '%d %s %s', $offsetValue, $offsetUnit, $offsetDirection )
 				: 'none',
 		] );
-	}
-
-	private function getContactCustomFieldDate(int $userId, string $fieldKey, array $context): ?string
-	{
-		if ( isset( $context[ $fieldKey ] ) && ! empty( $context[ $fieldKey ] ) ) {
-			return (string) $context[ $fieldKey ];
-		}
-
-		global $wpdb;
-		$customFieldsTable = Tables::get( Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS );
-
-		$contact = ( new ContactResolver() )->resolve( $userId, null, $context );
-		$contactId = $contact?->contactId;
-
-		if ( ! $contactId ) {
-			return null;
-		}
-
-		$value = $wpdb->get_var( $wpdb->prepare(
-			"SELECT field_value FROM {$customFieldsTable} WHERE contact_id = %d AND field_key = %s LIMIT 1",
-			$contactId,
-			$fieldKey
-		) );
-
-		return $value ?: null;
 	}
 
 	private function calculateOffsetSeconds(int $value, string $unit): int

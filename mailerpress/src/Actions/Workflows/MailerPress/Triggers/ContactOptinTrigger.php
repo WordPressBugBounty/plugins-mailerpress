@@ -117,7 +117,7 @@ class ContactOptinTrigger
             'settings_schema' => [
                 [
                     'key' => 'subscription_status',
-                    'label' => __('Subscription Status', 'mailerpress'),
+                    'label' => __('Subscription status', 'mailerpress'),
                     'type' => 'select',
                     'required' => false,
                     'options' => $statusOptions,
@@ -143,12 +143,12 @@ class ContactOptinTrigger
             'output_fields' => [
                 ['key' => 'contact_id', 'label' => __('Contact ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
                 ['key' => 'email', 'label' => __('Email', 'mailerpress'), 'type' => 'email', 'group' => 'contact'],
-                ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
-                ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
-                ['key' => 'subscription_status', 'label' => __('Subscription Status', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
-                ['key' => 'opt_in_source', 'label' => __('Opt-in Source', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'first_name', 'label' => __('First name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'last_name', 'label' => __('Last name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'subscription_status', 'label' => __('Subscription status', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'opt_in_source', 'label' => __('Opt-in source', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
                 ['key' => 'opt_in_details', 'label' => __('Opt-in Details', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
-                ['key' => 'created_at', 'label' => __('Created At', 'mailerpress'), 'type' => 'date', 'group' => 'contact'],
+                ['key' => 'created_at', 'label' => __('Created at', 'mailerpress'), 'type' => 'date', 'group' => 'contact'],
                 ['key' => 'lists', 'label' => __('Lists (IDs)', 'mailerpress'), 'type' => 'array', 'group' => 'contact'],
                 ['key' => 'tags', 'label' => __('Tags (IDs)', 'mailerpress'), 'type' => 'array', 'group' => 'contact'],
                 ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],

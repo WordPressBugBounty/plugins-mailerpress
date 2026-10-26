@@ -7,7 +7,6 @@ namespace MailerPress\Core;
 \defined('ABSPATH') || exit;
 
 use MailerPress\Core\Enums\Tables;
-use MailerPress\Services\DebugFileLogger;
 use MailerPress\Core\Interfaces\JobInterface;
 
 class QueueManager
@@ -240,15 +239,6 @@ class QueueManager
         }
         
         $wpdb->delete($this->tableName, ['id' => $jobId]);
-    }
-
-    /**
-     * Log message to file for debugging
-     */
-    private function log(string $message, array $context = []): void
-    {
-        // Written only when WP_DEBUG_LOG is enabled, into a protected uploads sub-directory.
-        DebugFileLogger::write('queue-debug.log', $message, $context);
     }
 
     /**

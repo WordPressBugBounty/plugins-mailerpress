@@ -8,8 +8,7 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
-use MailerPress\Services\ClassicContactFetcher;
-use MailerPress\Services\SegmentContactFetcher;
+use MailerPress\Services\ContactFetcherFactory;
 
 final class RefreshScheduledCounts
 {
@@ -47,10 +46,7 @@ final class RefreshScheduledCounts
 			$segment = $config['segment'] ?? [];
 
 			try {
-				$fetcher = match ( $recipientTargeting ) {
-					'segment' => new SegmentContactFetcher( is_array( $segment ) ? $segment[0] : $segment ),
-					default   => new ClassicContactFetcher( $lists, $tags ),
-				};
+				$fetcher = ContactFetcherFactory::make( $recipientTargeting, (array) $lists, (array) $tags, (array) $segment );
 			} catch ( \Exception $e ) {
 				continue;
 			}

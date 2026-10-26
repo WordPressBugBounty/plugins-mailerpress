@@ -33,7 +33,7 @@ class EmailLogger
         $fromEmail = $data['sender_to'] ?? $data['from'] ?? '';
         $fromName = $data['sender_name'] ?? '';
         $replyTo = $data['reply_to_address'] ?? $data['reply_to'] ?? '';
-        $service = $data['service'] ?? 'php';
+        $service = $data['service'] ?? 'wordpress';
         $isHtml = $data['html'] ?? true;
 
         // Extract related IDs

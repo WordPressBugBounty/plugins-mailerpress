@@ -18,11 +18,9 @@ use MailerPress\Core\Workflows\Handlers\CreateContactStepHandler;
 use MailerPress\Core\Workflows\Handlers\CreateWordPressUserStepHandler;
 use MailerPress\Core\Workflows\Handlers\WaitUntilDateStepHandler;
 use MailerPress\Core\Workflows\Handlers\LoadPostFieldsStepHandler;
-use MailerPress\Core\Workflows\Handlers\GoalStepHandler;
 use MailerPress\Core\Workflows\Services\ConditionEvaluator;
 use MailerPress\Core\Workflows\Models\AutomationJob;
 use MailerPress\Core\Workflows\Exceptions\NonRetryableException;
-use MailerPress\Services\Logger;
 
 class WorkflowExecutor
 {
@@ -61,9 +59,6 @@ class WorkflowExecutor
         $this->handlerRegistry->register(new CreateWordPressUserStepHandler());
         $this->handlerRegistry->register(new WaitUntilDateStepHandler());
         $this->handlerRegistry->register(new LoadPostFieldsStepHandler());
-        // Registered last: it claims any key present in the goal registry, which
-        // is populated after the handlers are built.
-        $this->handlerRegistry->register(new GoalStepHandler());
     }
 
     public function getHandlerRegistry(): StepHandlerRegistry
@@ -168,24 +163,52 @@ class WorkflowExecutor
                     $handler = $this->handlerRegistry->getHandler($stepKey);
 
                     if (!$handler) {
-                        $job->setNextStepId($step->getNextStepId());
-                        $job->setStatus('ACTIVE');
+                        // The step belongs to an extension that is not active, e.g. a MailerPress Pro step:
+                        // pause the contact on it, and resume once its handler is registered again.
+                        $job->setNextStepId($step->getStepId());
+                        $job->setStatus('PAUSED');
+                        $job->setLastError(PausedStepResumer::reason($stepKey));
                         $this->jobRepo->update($job);
 
                         $this->logRepo->log(
                             $job->getAutomationId(),
                             $step->getStepId(),
                             $job->getUserId(),
-                            'COMPLETED',
-                            ['skipped' => true, 'reason' => 'No handler found for key: ' . $stepKey]
+                            'WAITING',
+                            ['paused' => true, 'reason' => 'missing_step_handler', 'step_key' => $stepKey]
                         );
 
                         $wpdb->query('COMMIT');
-                        continue;
+                        PausedStepResumer::remember($stepKey);
+
+                        return true;
                     }
 
                     // Pass context to handler
                     $result = $handler->handle($step, $job, $context);
+
+                    $missingFeature = $result->getMissingFeature();
+                    if (null !== $missingFeature) {
+                        // The step settings need a feature of an inactive extension: pause the contact on the
+                        // step, and resume once the feature is available again.
+                        $job->setNextStepId($step->getStepId());
+                        $job->setStatus('PAUSED');
+                        $job->setLastError(PausedStepResumer::featureReason($missingFeature));
+                        $this->jobRepo->update($job);
+
+                        $this->logRepo->log(
+                            $job->getAutomationId(),
+                            $step->getStepId(),
+                            $job->getUserId(),
+                            'WAITING',
+                            ['paused' => true, 'reason' => 'missing_feature', 'feature' => $missingFeature, 'step_key' => $stepKey]
+                        );
+
+                        $wpdb->query('COMMIT');
+                        PausedStepResumer::rememberFeature($missingFeature);
+
+                        return true;
+                    }
 
                     // Merge any new context data from the result back into context
                     $resultData = $result->getData();
@@ -268,15 +291,6 @@ class WorkflowExecutor
             // Si on atteint la limite, on s'arrête proprement
             return true;
         } catch (\Exception $e) {
-            Logger::error('WorkflowExecutor: Job execution failed', [
-                'job_id' => $jobId,
-                'automation_id' => $job->getAutomationId(),
-                'step_id' => $job->getNextStepId(),
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
             $this->logRepo->log(
                 $job->getAutomationId(),
                 $job->getNextStepId() ?? 'unknown',
@@ -318,14 +332,6 @@ class WorkflowExecutor
         $this->jobRepo->update($job);
 
         ActionSchedulerManager::scheduleContinue(time() + $delaySeconds, (int) $job->getId());
-
-        Logger::info('WorkflowExecutor: Job scheduled for retry', [
-            'job_id' => $job->getId(),
-            'attempt' => $attempt,
-            'max_retries' => $job->getMaxRetries(),
-            'delay_seconds' => $delaySeconds,
-            'error' => $error,
-        ]);
 
         do_action('mailerpress_workflow_job_retry_scheduled', $job, $attempt);
     }
@@ -441,7 +447,7 @@ class WorkflowExecutor
         $reevaluated = 0;
 
         foreach ($waitingJobs as $job) {
-            // A job parked on a goal is owned by GoalManager: the condition
+            // A job parked on a goal is owned by the goal engine (MailerPress Pro): the condition
             // re-evaluation must not pull it back to an earlier condition step.
             if ($this->isParkedOnGoal($job)) {
                 continue;
@@ -646,11 +652,7 @@ class WorkflowExecutor
             $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
             $cartRepo->deleteCartsByUserId($job->getUserId());
         } catch (\Exception $e) {
-            Logger::warning('WorkflowExecutor: Failed to cleanup abandoned cart tracking', [
-                'job_id' => $job->getId(),
-                'user_id' => $job->getUserId(),
-                'error' => $e->getMessage(),
-            ]);
+            // Cart tracking cleanup is best effort and must not fail the workflow job.
         }
     }
 }

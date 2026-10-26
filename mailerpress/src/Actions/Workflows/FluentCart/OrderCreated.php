@@ -40,7 +40,7 @@ class OrderCreated
             ['value' => 'processing', 'label' => __('Processing', 'mailerpress')],
             ['value' => 'completed', 'label' => __('Completed', 'mailerpress')],
             ['value' => 'on-hold', 'label' => __('On Hold', 'mailerpress')],
-            ['value' => 'canceled', 'label' => __('Canceled', 'mailerpress')],
+            ['value' => 'canceled', 'label' => __('Cancelled', 'mailerpress')],
             ['value' => 'failed', 'label' => __('Failed', 'mailerpress')],
         ];
 
@@ -52,7 +52,7 @@ class OrderCreated
             'settings_schema' => [
                 [
                     'key' => 'order_status',
-                    'label' => __('Order Status', 'mailerpress'),
+                    'label' => __('Order status', 'mailerpress'),
                     'type' => 'select',
                     'required' => false,
                     'options' => $orderStatusOptions,
@@ -68,7 +68,7 @@ class OrderCreated
                 ],
             ],
             'output_fields' => [
-                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                 ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_name', 'label' => __('Customer Full Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
@@ -76,9 +76,9 @@ class OrderCreated
                 ['key' => 'user_id', 'label' => __('WordPress User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
                 ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_number', 'label' => __('Receipt Number', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
-                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+                ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
                 ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
-                ['key' => 'order_status', 'label' => __('Order Status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
+                ['key' => 'order_status', 'label' => __('Order status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'payment_status', 'label' => __('Payment Status', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'payment_method', 'label' => __('Payment Method', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
                 ['key' => 'order_date', 'label' => __('Order Date', 'mailerpress'), 'type' => 'date', 'group' => 'order'],

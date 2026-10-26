@@ -10,7 +10,13 @@ class Capabilities
 {
     const MANAGE_SETTINGS = 'mailerpress_manage_settings'; // 'manage_options'
     const MANAGE_CAMPAIGNS = 'mailerpress_manage_campaigns'; // 'edit_posts'
-    const EDIT_OTHERS_CAMPAIGNS = 'mailerpress_edit_others_campaings'; // 'edit_others_posts'
+    const EDIT_OTHERS_CAMPAIGNS = 'mailerpress_edit_others_campaigns'; // 'edit_others_posts'
+    /**
+     * Misspelled name used before 2.2.0, migrated to EDIT_OTHERS_CAMPAIGNS.
+     *
+     * @deprecated 2.2.0 Use EDIT_OTHERS_CAMPAIGNS.
+     */
+    const LEGACY_EDIT_OTHERS_CAMPAIGNS = 'mailerpress_edit_others_campaings';
     const PUBLISH_CAMPAIGNS = 'mailerpress_publish_campaigns'; // 'publish_posts'
     const DELETE_EMAIL_CAMPAIGNS = 'mailerpress_delete_email_campaigns'; // 'delete_posts'
     const DELETE_CONTACTS = 'mailerpress_delete_contacts'; // 'manage_options'

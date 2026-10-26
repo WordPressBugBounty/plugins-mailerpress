@@ -20,9 +20,9 @@ class AddToListStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'add_to_list',
-            'label' => __('Add to List', 'mailerpress'),
+            'label' => __('Add to list', 'mailerpress'),
             'description' => __('Add the contact to an email list. Lists help organize your contacts and allow you to target specific groups in your email campaigns.', 'mailerpress'),
-            'icon' => 'list',
+            'icon' => 'mailerpress',
             'category' => 'contact',
             'type' => 'ACTION',
             'settings_schema' => [

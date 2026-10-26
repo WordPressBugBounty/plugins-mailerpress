@@ -8,6 +8,7 @@ namespace MailerPress\Core\Migration\Sources;
 
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Migration\MigrationRepository;
+use MailerPress\Core\Migration\CustomFieldsImport;
 use MailerPress\Core\Migration\MigrationSourceInterface;
 use MailerPress\Services\ContactUpsertService;
 
@@ -92,8 +93,10 @@ class MailPoetMigrationSource implements MigrationSourceInterface
             [
                 'key' => 'custom_fields',
                 'label' => __('Custom fields', 'mailerpress'),
-                'description' => __('Custom field definitions and subscriber values.', 'mailerpress'),
-                'supported' => true,
+                'description' => CustomFieldsImport::enabled()
+                    ? __('Custom field definitions and subscriber values.', 'mailerpress')
+                    : __('Custom fields are imported with MailerPress Pro.', 'mailerpress'),
+                'supported' => CustomFieldsImport::enabled(),
                 'default' => true,
             ],
             [
@@ -170,6 +173,9 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         $created = [];
         $ordered = ['lists', 'tags', 'custom_fields', 'contacts'];
         $entityTypes = array_values(array_intersect($ordered, $entityTypes));
+        if (!CustomFieldsImport::enabled()) {
+            $entityTypes = array_values(array_diff($entityTypes, ['custom_fields']));
+        }
 
         foreach ($ordered as $entityType) {
             if (!in_array($entityType, $entityTypes, true)) {
@@ -187,8 +193,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
                     $this->createMailPoetSegmentChunks(
                         $repository,
                         $runId,
-                        $entityType,
-                        false
+                        $entityType
                     )
                 );
                 continue;
@@ -238,7 +243,9 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         return match ((string) $chunk->entity_type) {
             'lists' => $this->processLists($payload, $repository, (int) $run->id),
             'tags' => $this->processTags($payload, $repository, (int) $run->id),
-            'custom_fields' => $this->processCustomFields($payload, $repository, (int) $run->id),
+            'custom_fields' => CustomFieldsImport::enabled()
+                ? $this->processCustomFields($payload, $repository, (int) $run->id)
+                : CustomFieldsImport::skippedChunk(),
             'contacts' => $this->processContacts($payload, $repository, $run),
             default => [
                 'processed' => 0,
@@ -699,7 +706,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
 
     private function processLists(array $payload, MigrationRepository $repository, int $runId): array
     {
-        $rows = $this->getMailPoetSegmentRowsForRange($payload, false);
+        $rows = $this->getMailPoetSegmentRowsForRange($payload);
         $processed = 0;
         $skipped = 0;
 
@@ -713,46 +720,6 @@ class MailPoetMigrationSource implements MigrationSourceInterface
             $repository->saveMapping(self::SOURCE_KEY, 'segment', (int) $row->id, 'list', $targetId, $runId, [
                 'type' => (string) ($row->type ?? ''),
                 'description' => (string) ($row->description ?? ''),
-            ]);
-            $processed++;
-        }
-
-        return [
-            'processed' => $processed,
-            'skipped' => $skipped,
-            'errors' => 0,
-        ];
-    }
-
-    private function processSegments(array $payload, MigrationRepository $repository, int $runId): array
-    {
-        $this->ensureSystemCustomFields();
-
-        $rows = $this->getMailPoetSegmentRowsForRange($payload, true);
-        $processed = 0;
-        $skipped = 0;
-
-        foreach ($rows as $row) {
-            $converted = $this->convertMailPoetDynamicSegment($row, $repository, $runId);
-            if (empty($converted['conditions']) || empty($converted['operator'])) {
-                $skipped++;
-                continue;
-            }
-
-            $targetId = $this->ensureSegment((string) ($row->name ?? ''), [
-                'operator' => (string) $converted['operator'],
-                'conditions' => $converted['conditions'],
-            ]);
-
-            if ($targetId <= 0) {
-                $skipped++;
-                continue;
-            }
-
-            $repository->saveMapping(self::SOURCE_KEY, 'dynamic_segment', (int) $row->id, 'segment', $targetId, $runId, [
-                'source_type' => 'dynamic',
-                'operator' => (string) $converted['operator'],
-                'conditions_count' => count($converted['conditions']),
             ]);
             $processed++;
         }
@@ -826,595 +793,6 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         ];
     }
 
-    private function convertMailPoetDynamicSegment(object $row, MigrationRepository $repository, int $runId): array
-    {
-        $filters = $this->getDynamicSegmentFilters((int) $row->id);
-        $operator = $this->resolveDynamicSegmentOperator($filters);
-        if ($operator === null) {
-            return [];
-        }
-
-        $conditions = [];
-        foreach ($filters as $filter) {
-            $converted = $this->convertDynamicSegmentFilter($filter, $repository, $runId, $operator);
-            if ($converted === null) {
-                return [];
-            }
-
-            $conditions = array_merge($conditions, $converted);
-        }
-
-        if (empty($conditions)) {
-            return [];
-        }
-
-        return [
-            'operator' => $operator,
-            'conditions' => $conditions,
-        ];
-    }
-
-    private function canConvertMailPoetDynamicSegment(object $row): bool
-    {
-        $filters = $this->getDynamicSegmentFilters((int) $row->id);
-        $operator = $this->resolveDynamicSegmentOperator($filters);
-        if ($operator === null) {
-            return false;
-        }
-
-        foreach ($filters as $filter) {
-            if (!$this->canConvertDynamicSegmentFilter($filter, $operator)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function resolveDynamicSegmentOperator(array $filters): ?string
-    {
-        if (empty($filters)) {
-            return null;
-        }
-
-        $connectors = [];
-        foreach ($filters as $filter) {
-            $data = is_array($filter['data'] ?? null) ? $filter['data'] : [];
-            if ($this->hasDynamicFilterGrouping($data)) {
-                return null;
-            }
-
-            $connect = $this->normalizeMailPoetDynamicKey($data['connect'] ?? '');
-            if ($connect === 'none') {
-                return null;
-            }
-
-            if ($connect === 'and' || $connect === 'or') {
-                $connectors[] = $connect;
-            }
-        }
-
-        $connectors = array_values(array_unique($connectors));
-        if (count($connectors) > 1) {
-            return null;
-        }
-
-        return count($filters) > 1 && ($connectors[0] ?? 'and') === 'or' ? 'OR' : 'AND';
-    }
-
-    private function getDynamicSegmentFilters(int $segmentId): array
-    {
-        global $wpdb;
-
-        $table = $this->sourceTable('dynamic_segment_filters');
-        if (!$table || !$this->tableExists($table)) {
-            return [];
-        }
-
-        $select = $this->selectColumns($table, ['id', 'segment_id', 'filter_data', 'filter_type', 'action']);
-        $rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT {$select}
-                 FROM {$table}
-                 WHERE segment_id = %d
-                 ORDER BY id ASC",
-                $segmentId
-            )
-        ) ?: [];
-
-        $filters = [];
-        foreach ($rows as $row) {
-            $data = $this->decodeValue($row->filter_data ?? '');
-            $data = is_array($data) ? $data : [];
-
-            $filters[] = [
-                'id' => (int) ($row->id ?? 0),
-                'data' => $data,
-                'filter_type' => (string) ($row->filter_type ?: ($data['segmentType'] ?? '')),
-                'action' => (string) ($row->action ?: ($data['action'] ?? '')),
-            ];
-        }
-
-        return $filters;
-    }
-
-    private function convertDynamicSegmentFilter(array $filter, MigrationRepository $repository, int $runId, string $segmentOperator): ?array
-    {
-        $data = is_array($filter['data'] ?? null) ? $filter['data'] : [];
-        $filterType = $this->normalizeMailPoetDynamicKey($filter['filter_type'] ?? ($data['segmentType'] ?? ''));
-        $action = $this->normalizeMailPoetDynamicKey($filter['action'] ?? ($data['action'] ?? ''));
-
-        if ($filterType !== 'userrole') {
-            return null;
-        }
-
-        return match ($action) {
-            'subscribedtolist' => $this->convertMailPoetRelationFilter(
-                $this->normalizeDynamicFilterIds($data['segments'] ?? []),
-                $this->normalizeMailPoetDynamicKey($data['operator'] ?? 'any'),
-                'list',
-                $segmentOperator,
-                fn (int $sourceId): int => $this->resolveMailPoetSegmentListTargetId($sourceId, $repository, $runId)
-            ),
-            'subscribertag' => $this->convertMailPoetRelationFilter(
-                $this->normalizeDynamicFilterIds($data['tags'] ?? []),
-                $this->normalizeMailPoetDynamicKey($data['operator'] ?? 'any'),
-                'tag',
-                $segmentOperator,
-                fn (int $sourceId): int => $this->resolveMailPoetTagTargetId($sourceId, $repository, $runId)
-            ),
-            'mailpoetcustomfield' => $this->convertMailPoetCustomFieldFilter($data, $repository, $runId),
-            'lastclickdate', 'lastengagementdate', 'lastopendate', 'lastpurchasedate', 'lastsendingdate', 'subscribeddate' => $this->convertMailPoetDateFieldFilter($data, $action, $segmentOperator),
-            'subscriberscore' => $this->convertMailPoetSubscriberScoreFilter($data),
-            default => null,
-        };
-    }
-
-    private function canConvertDynamicSegmentFilter(array $filter, string $segmentOperator): bool
-    {
-        $data = is_array($filter['data'] ?? null) ? $filter['data'] : [];
-        $filterType = $this->normalizeMailPoetDynamicKey($filter['filter_type'] ?? ($data['segmentType'] ?? ''));
-        $action = $this->normalizeMailPoetDynamicKey($filter['action'] ?? ($data['action'] ?? ''));
-
-        if ($filterType !== 'userrole') {
-            return false;
-        }
-
-        return match ($action) {
-            'subscribedtolist' => !empty($this->normalizeDynamicFilterIds($data['segments'] ?? [])),
-            'subscribertag' => !empty($this->normalizeDynamicFilterIds($data['tags'] ?? [])),
-            'mailpoetcustomfield' => $this->canConvertMailPoetCustomFieldFilter($data),
-            'lastclickdate', 'lastengagementdate', 'lastopendate', 'lastpurchasedate', 'lastsendingdate', 'subscribeddate' => $this->convertMailPoetDateFieldFilter($data, $action, $segmentOperator) !== null,
-            'subscriberscore' => $this->convertMailPoetSubscriberScoreFilter($data) !== null,
-            default => false,
-        };
-    }
-
-    private function convertMailPoetRelationFilter(
-        array $sourceIds,
-        string $operator,
-        string $field,
-        string $segmentOperator,
-        callable $resolveTargetId
-    ): ?array {
-        $targetIds = [];
-        foreach ($sourceIds as $sourceId) {
-            $targetId = $resolveTargetId((int) $sourceId);
-            if ($targetId > 0) {
-                $targetIds[] = $targetId;
-            }
-        }
-
-        $targetIds = array_values(array_unique(array_map('absint', $targetIds)));
-        if (empty($targetIds)) {
-            return null;
-        }
-
-        if ($operator === 'any') {
-            return [
-                [
-                    'field' => $field,
-                    'operator' => count($targetIds) === 1 ? 'is' : 'contains',
-                    'value' => count($targetIds) === 1 ? $targetIds[0] : $targetIds,
-                ],
-            ];
-        }
-
-        if ($operator === 'all') {
-            if (count($targetIds) === 1) {
-                return [
-                    [
-                        'field' => $field,
-                        'operator' => 'is',
-                        'value' => $targetIds[0],
-                    ],
-                ];
-            }
-
-            if ($segmentOperator !== 'AND') {
-                return null;
-            }
-
-            return array_map(
-                static fn (int $targetId): array => [
-                    'field' => $field,
-                    'operator' => 'is',
-                    'value' => $targetId,
-                ],
-                $targetIds
-            );
-        }
-
-        if ($operator === 'none') {
-            if (count($targetIds) === 1) {
-                return [
-                    [
-                        'field' => $field,
-                        'operator' => 'is_not',
-                        'value' => $targetIds[0],
-                    ],
-                ];
-            }
-
-            if ($segmentOperator !== 'AND') {
-                return null;
-            }
-
-            return array_map(
-                static fn (int $targetId): array => [
-                    'field' => $field,
-                    'operator' => 'is_not',
-                    'value' => $targetId,
-                ],
-                $targetIds
-            );
-        }
-
-        return null;
-    }
-
-    private function convertMailPoetCustomFieldFilter(array $data, MigrationRepository $repository, int $runId): ?array
-    {
-        $sourceFieldId = absint($data['custom_field_id'] ?? 0);
-        $dateType = sanitize_key((string) ($data['date_type'] ?? ''));
-        if ($dateType !== '' && !in_array($dateType, ['year_month_day', 'year_month'], true)) {
-            return null;
-        }
-
-        $fieldKey = $this->resolveMailPoetCustomFieldKey($sourceFieldId, $repository, $runId);
-        $operator = $this->mapMailPoetCustomFieldOperator((string) ($data['operator'] ?? ''));
-        $value = $this->normalizeDynamicFilterValue($data['value'] ?? null);
-
-        if ($fieldKey === '' || $operator === '' || $value === null) {
-            return null;
-        }
-
-        return [
-            [
-                'field' => 'custom_field',
-                'field_key' => $fieldKey,
-                'operator' => $operator,
-                'value' => $value,
-            ],
-        ];
-    }
-
-    private function canConvertMailPoetCustomFieldFilter(array $data): bool
-    {
-        $sourceFieldId = absint($data['custom_field_id'] ?? 0);
-        $dateType = sanitize_key((string) ($data['date_type'] ?? ''));
-
-        return $sourceFieldId > 0
-            && ($dateType === '' || in_array($dateType, ['year_month_day', 'year_month'], true))
-            && $this->mapMailPoetCustomFieldOperator((string) ($data['operator'] ?? '')) !== ''
-            && $this->normalizeDynamicFilterValue($data['value'] ?? null) !== null;
-    }
-
-    private function convertMailPoetDateFieldFilter(array $data, string $action, string $segmentOperator): ?array
-    {
-        $fieldKey = $this->mailPoetDateActionFieldKey($action);
-        if ($fieldKey === '') {
-            return null;
-        }
-
-        $operator = $this->normalizeMailPoetDynamicKey($data['operator'] ?? '');
-        $value = $this->normalizeDynamicFilterValue($data['value'] ?? null);
-        $value2 = $this->normalizeDynamicFilterValue($data['value2'] ?? null);
-        $relativeDays = $this->normalizeRelativeDayCount($value);
-
-        if ($value === null) {
-            return null;
-        }
-
-        $conditions = match ($operator) {
-            'before' => $this->mailPoetDateCondition($fieldKey, 'before', $value),
-            'after' => $this->mailPoetDateCondition($fieldKey, 'after', $value),
-            'on' => $this->mailPoetDateCondition($fieldKey, 'on', $value),
-            'onorbefore' => $this->mailPoetDateCondition($fieldKey, 'before', $this->shiftDate((string) $value, 1)),
-            'onorafter' => $this->mailPoetDateCondition($fieldKey, 'after', $this->shiftDate((string) $value, -1)),
-            'inthelast' => $relativeDays === null ? null : $this->mailPoetDateCondition($fieldKey, 'after', $this->daysAgoDate($relativeDays)),
-            'notinthelast' => $relativeDays === null ? null : $this->mailPoetDateCondition($fieldKey, 'before', $this->daysAgoDate($relativeDays - 1)),
-            'between' => $this->mailPoetDateRangeConditions($fieldKey, $value, $value2, $segmentOperator),
-            default => null,
-        };
-
-        return empty($conditions) ? null : $conditions;
-    }
-
-    private function mailPoetDateActionFieldKey(string $action): string
-    {
-        return match ($this->normalizeMailPoetDynamicKey($action)) {
-            'lastclickdate' => 'mailpoet_last_click_at',
-            'lastengagementdate' => 'mailpoet_last_engagement_at',
-            'lastopendate' => 'mailpoet_last_open_at',
-            'lastpurchasedate' => 'mailpoet_last_purchase_at',
-            'lastsendingdate' => 'mailpoet_last_sending_at',
-            'subscribeddate' => 'mailpoet_last_subscribed_at',
-            default => '',
-        };
-    }
-
-    private function mailPoetDateCondition(string $fieldKey, string $operator, mixed $value): ?array
-    {
-        $date = $this->normalizeDateString($value);
-        if ($date === '') {
-            return null;
-        }
-
-        return [
-            [
-                'field' => 'custom_field',
-                'field_key' => $fieldKey,
-                'operator' => $operator,
-                'value' => $date,
-            ],
-        ];
-    }
-
-    private function mailPoetDateRangeConditions(string $fieldKey, mixed $value, mixed $value2, string $segmentOperator): ?array
-    {
-        if ($segmentOperator !== 'AND') {
-            return null;
-        }
-
-        $start = $this->normalizeDateString($value);
-        $end = $this->normalizeDateString($value2);
-        if ($start === '' || $end === '') {
-            return null;
-        }
-
-        if (strcmp($start, $end) > 0) {
-            [$start, $end] = [$end, $start];
-        }
-
-        return array_merge(
-            $this->mailPoetDateCondition($fieldKey, 'after', $this->shiftDate($start, -1)) ?? [],
-            $this->mailPoetDateCondition($fieldKey, 'before', $this->shiftDate($end, 1)) ?? []
-        );
-    }
-
-    private function normalizeDateString(mixed $value): string
-    {
-        if (!is_scalar($value)) {
-            return '';
-        }
-
-        $value = sanitize_text_field((string) $value);
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return '';
-        }
-
-        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-
-        return $date && $date->format('Y-m-d') === $value ? $value : '';
-    }
-
-    private function shiftDate(string $date, int $days): string
-    {
-        $date = $this->normalizeDateString($date);
-        if ($date === '') {
-            return '';
-        }
-
-        $modifier = ($days >= 0 ? '+' : '') . $days . ' days';
-        $shifted = \DateTimeImmutable::createFromFormat('!Y-m-d', $date)?->modify($modifier);
-
-        return $shifted ? $shifted->format('Y-m-d') : '';
-    }
-
-    private function daysAgoDate(int $days): string
-    {
-        $timestamp = (int) current_time('timestamp') - (max(0, $days) * DAY_IN_SECONDS);
-
-        return wp_date('Y-m-d', $timestamp);
-    }
-
-    private function normalizeRelativeDayCount(mixed $value): ?int
-    {
-        if (!is_scalar($value)) {
-            return null;
-        }
-
-        $value = trim((string) $value);
-        if ($value === '' || !ctype_digit($value)) {
-            return null;
-        }
-
-        $days = (int) $value;
-
-        return $days > 0 ? $days : null;
-    }
-
-    private function convertMailPoetSubscriberScoreFilter(array $data): ?array
-    {
-        $operator = match ($this->normalizeMailPoetDynamicKey($data['operator'] ?? '')) {
-            'higherthan' => 'greater_than',
-            'lowerthan' => 'less_than',
-            'equals' => 'equals',
-            'not_equals' => 'not_equals',
-            default => '',
-        };
-        $value = $this->normalizeDynamicFilterValue($data['value'] ?? null);
-
-        if ($operator === '' || !is_numeric($value)) {
-            return null;
-        }
-
-        return [
-            [
-                'field' => 'custom_field',
-                'field_key' => 'mailpoet_engagement_score',
-                'operator' => $operator,
-                'value' => (float) $value,
-            ],
-        ];
-    }
-
-    private function resolveMailPoetSegmentListTargetId(int $sourceSegmentId, MigrationRepository $repository, int $runId): int
-    {
-        $mapping = $repository->getMapping(self::SOURCE_KEY, 'segment', $sourceSegmentId);
-        if ($mapping) {
-            return (int) $mapping->target_id;
-        }
-
-        $row = $this->getMailPoetSourceRow('segments', $sourceSegmentId, ['id', 'name', 'type', 'description', 'deleted_at'], true);
-        if (!$row || (string) ($row->type ?? '') === 'dynamic') {
-            return 0;
-        }
-
-        $targetId = $this->ensureList((string) ($row->name ?? ''));
-        if ($targetId > 0) {
-            $repository->saveMapping(self::SOURCE_KEY, 'segment', $sourceSegmentId, 'list', $targetId, $runId, [
-                'type' => (string) ($row->type ?? ''),
-                'description' => (string) ($row->description ?? ''),
-            ]);
-        }
-
-        return $targetId;
-    }
-
-    private function resolveMailPoetTagTargetId(int $sourceTagId, MigrationRepository $repository, int $runId): int
-    {
-        $mapping = $repository->getMapping(self::SOURCE_KEY, 'tag', $sourceTagId);
-        if ($mapping) {
-            return (int) $mapping->target_id;
-        }
-
-        $row = $this->getMailPoetSourceRow('tags', $sourceTagId, ['id', 'name', 'description'], false);
-        if (!$row) {
-            return 0;
-        }
-
-        $targetId = $this->ensureTag((string) ($row->name ?? ''));
-        if ($targetId > 0) {
-            $repository->saveMapping(self::SOURCE_KEY, 'tag', $sourceTagId, 'tag', $targetId, $runId, [
-                'description' => (string) ($row->description ?? ''),
-            ]);
-        }
-
-        return $targetId;
-    }
-
-    private function resolveMailPoetCustomFieldKey(int $sourceFieldId, MigrationRepository $repository, int $runId): string
-    {
-        $mapping = $repository->getMapping(self::SOURCE_KEY, 'custom_field', $sourceFieldId);
-        if ($mapping) {
-            return sanitize_key((string) $mapping->target_id);
-        }
-
-        $row = $this->getMailPoetSourceRow('custom_fields', $sourceFieldId, ['id', 'name', 'type', 'params', 'deleted_at'], true);
-        if (!$row) {
-            return '';
-        }
-
-        $fieldKey = $this->mailPoetFieldKey((string) ($row->name ?? ''), (int) $row->id);
-        $targetId = $this->ensureCustomFieldDefinition(
-            $fieldKey,
-            (string) ($row->name ?? ''),
-            $this->mapCustomFieldType((string) ($row->type ?? 'text')),
-            $this->extractCustomFieldOptions($this->decodeValue($row->params ?? ''))
-        );
-
-        if ($targetId > 0) {
-            $repository->saveMapping(self::SOURCE_KEY, 'custom_field', $sourceFieldId, 'custom_field', $fieldKey, $runId, [
-                'target_definition_id' => $targetId,
-                'source_type' => (string) ($row->type ?? ''),
-            ]);
-            return $fieldKey;
-        }
-
-        return '';
-    }
-
-    private function mapMailPoetCustomFieldOperator(string $operator): string
-    {
-        return match ($this->normalizeMailPoetDynamicKey($operator)) {
-            'equals', 'is' => 'equals',
-            'not_equals', 'isnot' => 'not_equals',
-            'contains' => 'contains',
-            'more_than', 'greater_than' => 'greater_than',
-            'less_than' => 'less_than',
-            'greater_than_or_equals' => 'greater_than_or_equals',
-            'less_than_or_equals' => 'less_than_or_equals',
-            'before' => 'before',
-            'after' => 'after',
-            'on' => 'on',
-            default => '',
-        };
-    }
-
-    private function normalizeDynamicFilterValue(mixed $value): null|string|int|float
-    {
-        if (is_array($value)) {
-            $value = count($value) === 1 ? reset($value) : null;
-        }
-
-        if ($value === null || is_bool($value) || is_object($value)) {
-            return null;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return $value;
-        }
-
-        $value = sanitize_text_field((string) $value);
-
-        return $value === '' ? null : $value;
-    }
-
-    private function normalizeDynamicFilterIds(mixed $ids): array
-    {
-        if (!is_array($ids)) {
-            $ids = [$ids];
-        }
-
-        $normalized = [];
-        foreach ($ids as $id) {
-            $id = absint($id);
-            if ($id > 0) {
-                $normalized[] = $id;
-            }
-        }
-
-        return array_values(array_unique($normalized));
-    }
-
-    private function normalizeMailPoetDynamicKey(mixed $value): string
-    {
-        return strtolower(sanitize_key((string) $value));
-    }
-
-    private function hasDynamicFilterGrouping(array $data): bool
-    {
-        foreach (['group', 'group_id', 'groupId', 'group_operator', 'groupOperator'] as $key) {
-            if (!empty($data[$key])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function processContacts(array $payload, MigrationRepository $repository, object $run): array
     {
         $this->ensureSystemCustomFields();
@@ -1455,9 +833,12 @@ class MailPoetMigrationSource implements MigrationSourceInterface
                 ],
                 'lists' => $this->getSubscriberListIds((int) $row->id, $repository, (int) $run->id),
                 'tags' => $this->getSubscriberTagIds((int) $row->id, $repository, (int) $run->id),
-                'custom_fields' => $customFields,
+                // Custom field values are only imported with MailerPress Pro (see CustomFieldsImport).
+                'custom_fields' => CustomFieldsImport::enabled() ? $customFields : [],
                 'assign_default_list' => false,
                 'update_existing' => $updateExisting,
+                // Migrated contacts already opted in elsewhere: no confirmation email, automation or webhook.
+                'suppress_contact_hooks' => true,
             ]);
 
             if (empty($result['success'])) {
@@ -1767,42 +1148,12 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         return $inserted === false ? 0 : (int) $wpdb->insert_id;
     }
 
-    private function ensureSegment(string $name, array $conditions): int
-    {
-        global $wpdb;
-
-        $name = sanitize_text_field(trim($name));
-        if ($name === '' || empty($conditions['conditions'])) {
-            return 0;
-        }
-
-        $table = Tables::get(Tables::MAILERPRESS_SEGMENTS);
-        if (!$this->tableExists($table)) {
-            return 0;
-        }
-
-        $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE name = %s LIMIT 1", $name));
-        if ($existing) {
-            return (int) $existing;
-        }
-
-        $now = current_time('mysql');
-        $inserted = $wpdb->insert(
-            $table,
-            [
-                'name' => $name,
-                'conditions' => wp_json_encode($conditions),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            ['%s', '%s', '%s', '%s']
-        );
-
-        return $inserted === false ? 0 : (int) $wpdb->insert_id;
-    }
-
     private function ensureCustomFieldDefinition(string $fieldKey, string $label, string $type, array $options = [], bool $updateExisting = false): int
     {
+        if (!CustomFieldsImport::enabled()) {
+            return 0;
+        }
+
         global $wpdb;
 
         $fieldKey = sanitize_key($fieldKey);
@@ -1917,7 +1268,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         ) ?: [];
     }
 
-    private function getMailPoetSegmentRowsForRange(array $payload, bool $dynamic): array
+    private function getMailPoetSegmentRowsForRange(array $payload): array
     {
         global $wpdb;
 
@@ -1927,13 +1278,11 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         }
 
         if (!$this->hasColumn($table, 'type')) {
-            return $dynamic ? [] : $this->getRowsForRange('segments', $payload, true);
+            return $this->getRowsForRange('segments', $payload, true);
         }
 
         $select = $this->selectColumns($table, ['id', 'name', 'type', 'description', 'deleted_at']);
-        $typeWhere = $dynamic
-            ? $wpdb->prepare('`type` = %s', 'dynamic')
-            : $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
+        $typeWhere = $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
         $deletedWhere = $this->hasColumn($table, 'deleted_at') ? ' AND `deleted_at` IS NULL' : '';
         $ids = $this->normalizePayloadIds($payload);
 
@@ -1950,7 +1299,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
                 )
             ) ?: [];
 
-            return $dynamic ? $this->filterConvertibleMailPoetDynamicSegments($rows) : $rows;
+            return $rows;
         }
 
         $rows = $wpdb->get_results(
@@ -1965,38 +1314,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
             )
         ) ?: [];
 
-        return $dynamic ? $this->filterConvertibleMailPoetDynamicSegments($rows) : $rows;
-    }
-
-    private function getConvertibleMailPoetDynamicSegmentRows(): array
-    {
-        global $wpdb;
-
-        $table = $this->sourceTable('segments');
-        if (!$table || !$this->tableExists($table) || !$this->hasColumn($table, 'type')) {
-            return [];
-        }
-
-        $select = $this->selectColumns($table, ['id', 'name', 'type', 'description', 'deleted_at']);
-        $typeWhere = $wpdb->prepare('`type` = %s', 'dynamic');
-        $deletedWhere = $this->hasColumn($table, 'deleted_at') ? ' AND `deleted_at` IS NULL' : '';
-
-        $rows = $wpdb->get_results(
-            "SELECT {$select}
-             FROM {$table}
-             WHERE {$typeWhere}{$deletedWhere}
-             ORDER BY id ASC"
-        ) ?: [];
-
-        return $this->filterConvertibleMailPoetDynamicSegments($rows);
-    }
-
-    private function filterConvertibleMailPoetDynamicSegments(array $rows): array
-    {
-        return array_values(array_filter(
-            $rows,
-            fn (object $row): bool => $this->canConvertMailPoetDynamicSegment($row)
-        ));
+        return $rows;
     }
 
     private function normalizePayloadIds(array $payload): array
@@ -2076,7 +1394,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         return $created;
     }
 
-    private function createMailPoetSegmentChunks(MigrationRepository $repository, int $runId, string $entityType, bool $dynamic): array
+    private function createMailPoetSegmentChunks(MigrationRepository $repository, int $runId, string $entityType): array
     {
         global $wpdb;
 
@@ -2086,38 +1404,10 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         }
 
         if (!$this->hasColumn($table, 'type')) {
-            return $dynamic
-                ? []
-                : $this->createRangeChunks($repository, $runId, $entityType, $table, self::STRUCTURE_CHUNK_SIZE, true);
+            return $this->createRangeChunks($repository, $runId, $entityType, $table, self::STRUCTURE_CHUNK_SIZE, true);
         }
 
-        if ($dynamic) {
-            $ids = array_map(
-                static fn (object $row): int => (int) $row->id,
-                $this->getConvertibleMailPoetDynamicSegmentRows()
-            );
-
-            if (empty($ids)) {
-                return [];
-            }
-
-            $created = [];
-            foreach (array_chunk($ids, self::STRUCTURE_CHUNK_SIZE) as $chunkIds) {
-                $chunkId = $repository->insertChunk($runId, self::SOURCE_KEY, $entityType, [
-                    'ids' => array_values($chunkIds),
-                ]);
-
-                if ($chunkId > 0) {
-                    $created[] = $chunkId;
-                }
-            }
-
-            return $created;
-        }
-
-        $typeWhere = $dynamic
-            ? $wpdb->prepare('`type` = %s', 'dynamic')
-            : $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
+        $typeWhere = $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
         $deletedWhere = $this->hasColumn($table, 'deleted_at') ? ' AND `deleted_at` IS NULL' : '';
         $range = $wpdb->get_row("SELECT MIN(id) AS min_id, MAX(id) AS max_id, COUNT(*) AS total FROM {$table} WHERE {$typeWhere}{$deletedWhere}");
         if (!$range || (int) $range->total === 0) {
@@ -2143,7 +1433,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         return $created;
     }
 
-    private function countMailPoetSegmentRowsInRange(array $payload, bool $dynamic): int
+    private function countMailPoetSegmentRowsInRange(array $payload): int
     {
         global $wpdb;
 
@@ -2153,16 +1443,10 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         }
 
         if (!$this->hasColumn($table, 'type')) {
-            return $dynamic ? 0 : $this->countRowsInRange($table, $payload, true);
+            return $this->countRowsInRange($table, $payload, true);
         }
 
-        if ($dynamic) {
-            return count($this->getMailPoetSegmentRowsForRange($payload, true));
-        }
-
-        $typeWhere = $dynamic
-            ? $wpdb->prepare('`type` = %s', 'dynamic')
-            : $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
+        $typeWhere = $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
         $deletedWhere = $this->hasColumn($table, 'deleted_at') ? ' AND `deleted_at` IS NULL' : '';
 
         return (int) $wpdb->get_var(
@@ -2180,7 +1464,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
     private function countChunkRows(string $entityType, array $payload): int
     {
         if ($entityType === 'lists') {
-            return $this->countMailPoetSegmentRowsInRange($payload, false);
+            return $this->countMailPoetSegmentRowsInRange($payload);
         }
 
         $table = match ($entityType) {
@@ -2203,7 +1487,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
     {
         return match ($key) {
             'contacts' => $this->countTableRows('subscribers', true),
-            'lists' => $this->countMailPoetSegments(false),
+            'lists' => $this->countMailPoetSegments(),
             'tags' => $this->countTableRows('tags', false),
             'custom_fields' => $this->countTableRows('custom_fields', true),
             'campaigns' => $this->countTableRows('newsletters', true),
@@ -2249,7 +1533,7 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         return $count;
     }
 
-    private function countMailPoetSegments(bool $dynamic): int
+    private function countMailPoetSegments(): int
     {
         global $wpdb;
 
@@ -2259,16 +1543,10 @@ class MailPoetMigrationSource implements MigrationSourceInterface
         }
 
         if (!$this->hasColumn($table, 'type')) {
-            return $dynamic ? 0 : $this->countTableRows('segments', true);
+            return $this->countTableRows('segments', true);
         }
 
-        if ($dynamic) {
-            return count($this->getConvertibleMailPoetDynamicSegmentRows());
-        }
-
-        $typeWhere = $dynamic
-            ? $wpdb->prepare('`type` = %s', 'dynamic')
-            : $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
+        $typeWhere = $wpdb->prepare('(`type` <> %s OR `type` IS NULL OR `type` = \'\')', 'dynamic');
         $deletedWhere = $this->hasColumn($table, 'deleted_at') ? ' AND `deleted_at` IS NULL' : '';
 
         return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE {$typeWhere}{$deletedWhere}");

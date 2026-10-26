@@ -16,7 +16,7 @@ class ContactListAddedTrigger
         $definition = [
             'label' => __('List Added', 'mailerpress'),
             'description' => __('Triggered when a contact is added to a list. Useful for automations that must run when an existing contact joins a new list.', 'mailerpress'),
-            'icon' => 'list',
+            'icon' => 'mailerpress',
             'category' => 'mailerpress',
             'settings_schema' => [
                 [
@@ -32,8 +32,8 @@ class ContactListAddedTrigger
                 ['key' => 'contact_id', 'label' => __('Contact ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
                 ['key' => 'list_id', 'label' => __('List ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
                 ['key' => 'email', 'label' => __('Email', 'mailerpress'), 'type' => 'email', 'group' => 'contact'],
-                ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
-                ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'first_name', 'label' => __('First name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
+                ['key' => 'last_name', 'label' => __('Last name', 'mailerpress'), 'type' => 'string', 'group' => 'contact'],
                 ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'contact'],
             ],
         ];

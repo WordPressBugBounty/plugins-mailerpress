@@ -78,6 +78,7 @@ class TemplateDirectoryParser
 
         $json_version = $data['version'] ?? '1.0.0';
         $content = $this->replacePluginUrlToken($this->normalizeContent($data['json'] ?? ''), $file_path);
+        $content = str_replace('{{MAILERPRESS_PLUGIN_DIR_URL}}', MAILERPRESS_PLUGIN_DIR_URL, $content);
 
         // Get usage_type from JSON data, default to 'newsletter' for backward compatibility
         $usage_type = $data['usage_type'] ?? 'newsletter';

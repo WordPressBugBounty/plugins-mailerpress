@@ -60,7 +60,7 @@ class SubscriptionSetToCancel
             'settings_schema' => [],
             'output_fields' => [
                 // Customer fields
-                ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+                ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
                 ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
                 ['key' => 'customer_name', 'label' => __('Customer Full Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
@@ -69,16 +69,16 @@ class SubscriptionSetToCancel
                 // Purchase/Order fields
                 ['key' => 'purchase_id', 'label' => __('Purchase ID', 'mailerpress'), 'type' => 'string', 'group' => 'purchase'],
                 ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'string', 'group' => 'purchase'],
-                ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'purchase'],
+                ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'purchase'],
                 ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'purchase'],
-                ['key' => 'order_status', 'label' => __('Order Status', 'mailerpress'), 'type' => 'string', 'group' => 'purchase'],
+                ['key' => 'order_status', 'label' => __('Order status', 'mailerpress'), 'type' => 'string', 'group' => 'purchase'],
                 ['key' => 'revoked', 'label' => __('Revoked', 'mailerpress'), 'type' => 'boolean', 'group' => 'purchase'],
                 // Subscription fields (if purchase is linked to a subscription)
                 ['key' => 'subscription_id', 'label' => __('Subscription ID', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
-                ['key' => 'subscription_status', 'label' => __('Subscription Status', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
+                ['key' => 'subscription_status', 'label' => __('Subscription status', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
                 // Product fields
                 ['key' => 'product_id', 'label' => __('Product ID', 'mailerpress'), 'type' => 'string', 'group' => 'product'],
-                ['key' => 'product_name', 'label' => __('Product Name', 'mailerpress'), 'type' => 'string', 'group' => 'product'],
+                ['key' => 'product_name', 'label' => __('Product name', 'mailerpress'), 'type' => 'string', 'group' => 'product'],
             ],
         ];
 

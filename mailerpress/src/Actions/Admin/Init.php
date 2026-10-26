@@ -152,7 +152,7 @@ class Init
 
     private function isSiteTemplateCampaign(int $campaignId, string $campaignType): bool
     {
-        if (in_array($campaignType, ['confirm_email', 'wp_email', 'wc_email'], true)) {
+        if (in_array($campaignType, ['confirm_email', 'wp_email', 'wc_email', 'transactional'], true)) {
             return true;
         }
 

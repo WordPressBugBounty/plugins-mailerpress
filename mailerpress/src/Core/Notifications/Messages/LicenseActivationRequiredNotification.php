@@ -15,7 +15,7 @@ class LicenseActivationRequiredNotification extends AbstractNotificationMessage
 
 	public function getMessage(): string
 	{
-		return __( 'Activate your license to unlock all MailerPress Pro features and receive automatic updates.', 'mailerpress' );
+		return __( 'Activate your licence to unlock all MailerPress Pro features and receive automatic updates.', 'mailerpress' );
 	}
 
 	public function getRequiredCapability(): string
@@ -55,7 +55,7 @@ class LicenseActivationRequiredNotification extends AbstractNotificationMessage
 	public function getAction(): ?array
 	{
 		return [
-			'label' => __( 'Activate License', 'mailerpress' ),
+			'label' => __( 'Activate Licence', 'mailerpress' ),
 			'url'   => admin_url( 'admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Fsettings&activeView=licence' ),
 		];
 	}

@@ -31,6 +31,23 @@ class DatabaseDiagnostic
     }
 
     /**
+     * Migration files of MailerPress and its extensions, in chronological order.
+     *
+     * @return string[]
+     */
+    protected function getMigrationFiles(): array
+    {
+        $files = [];
+        foreach (Manager::getMigrationPaths() as $path) {
+            $files = array_merge($files, glob($path . '/*.php') ?: []);
+        }
+
+        usort($files, static fn(string $a, string $b): int => strcmp(basename($a), basename($b)));
+
+        return $files;
+    }
+
+    /**
      * Performs a complete diagnosis of the database
      */
     public function diagnose(): array
@@ -500,12 +517,7 @@ class DatabaseDiagnostic
             'foreign_keys' => [],
         ];
 
-        $files = glob($this->migrationPath . '/*.php');
-        if ($files === false) {
-            return $structure;
-        }
-
-        sort($files);
+        $files = $this->getMigrationFiles();
 
         // Use keys to avoid duplicates
         $columnsMap = [];
@@ -724,12 +736,20 @@ class DatabaseDiagnostic
             'mailerpress_provider_lists',
         ];
 
+        // Tables created by extensions, expected only when the extension registers them.
+        $extensionTables = [
+            'mailerpress_webhook_logs',
+            'mailerpress_ab_tests',
+            'mailerpress_ab_test_participants',
+            'mailerpress_automations_goals',
+        ];
+
         $tables = [];
         foreach ($constants as $name => $value) {
             // Filter only the table constants (which start with MAILERPRESS_)
             if (strpos($name, 'MAILERPRESS_') === 0 || strpos($name, 'CONTACT_') === 0) {
                 // Exclude the obsolete tables
-                if (!in_array($value, $obsoleteTables, true)) {
+                if (!in_array($value, $obsoleteTables, true) && !in_array($value, $extensionTables, true)) {
                     $tables[] = $value;
                 }
             }
@@ -738,7 +758,9 @@ class DatabaseDiagnostic
         // Add the migrations table
         $tables[] = 'mailerpress_migrations';
 
-        return array_unique($tables);
+        $tables = apply_filters('mailerpress_expected_tables', $tables);
+
+        return array_values(array_unique(array_filter(is_array($tables) ? $tables : [], 'is_string')));
     }
 
     /**
@@ -748,7 +770,7 @@ class DatabaseDiagnostic
     {
         global $wpdb;
 
-        $migrationFiles = array_map('basename', glob($this->migrationPath . '/*.php') ?: []);
+        $migrationFiles = array_map('basename', $this->getMigrationFiles());
         $trackerTable = $this->tracker->getTableName();
         $trackerExists = $wpdb->get_var(
             $wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->esc_like($trackerTable))
@@ -788,7 +810,6 @@ class DatabaseDiagnostic
      */
     public function repair(): array
     {
-        DatabaseRepairLogger::init();
         DatabaseRepairLogger::info(__('Starting database repair', 'mailerpress'));
 
         $results = [
@@ -863,7 +884,8 @@ class DatabaseDiagnostic
             if ($status['failed_count'] > 0) {
                 $resetCount = $manager->resetFailed();
                 $results['actions_taken'][] = sprintf(
-                    __('%d migration(s) failed reset(s)', 'mailerpress'),
+                    /* translators: %d: number of migrations. */
+                    _n('%d failed migration reset', '%d failed migrations reset', $resetCount, 'mailerpress'),
                     $resetCount
                 );
                 DatabaseRepairLogger::info("{$resetCount} migration(s) failed reset(s)");
@@ -873,7 +895,8 @@ class DatabaseDiagnostic
             if ($status['running_count'] > 0) {
                 $runningCount = $this->tracker->resetAllRunningMigrations();
                 $results['actions_taken'][] = sprintf(
-                    __('%d migration(s) in progress reset(s)', 'mailerpress'),
+                    /* translators: %d: number of migrations. */
+                    _n('%d running migration reset', '%d running migrations reset', $runningCount, 'mailerpress'),
                     $runningCount
                 );
                 DatabaseRepairLogger::info("{$runningCount} migration(s) in progress reset(s)");
@@ -881,7 +904,7 @@ class DatabaseDiagnostic
 
             // 4. Execute the migrations in force mode
             DatabaseRepairLogger::info(__('Execution of migrations in force mode', 'mailerpress'));
-            $manager->runForce();
+            Manager::runForceAllPaths(true);
             $results['actions_taken'][] = __('Migrations executed in force mode', 'mailerpress');
             DatabaseRepairLogger::info(__('Migrations executed in force mode', 'mailerpress'));
 
@@ -1660,12 +1683,7 @@ class DatabaseDiagnostic
         global $wpdb;
         $fullTableName = Tables::get($tableName);
 
-        $files = glob($this->migrationPath . '/*.php');
-        if ($files === false) {
-            return null;
-        }
-
-        sort($files);
+        $files = $this->getMigrationFiles();
 
         $lastDefinition = null;
         $wasDropped = false;

@@ -6,9 +6,9 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 
 \defined('ABSPATH') || exit;
 
+use MailerPress\Actions\ActionScheduler\AsInit;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Services\InactiveContactManager;
-use MailerPress\Services\Logger;
 
 class InactiveContactsProcessor
 {
@@ -48,22 +48,7 @@ class InactiveContactsProcessor
             && function_exists('as_get_scheduled_actions')
             && function_exists('as_unschedule_all_actions')
         ) {
-            $actions = as_get_scheduled_actions([
-                'hook' => self::HOOK,
-                'group' => self::GROUP,
-                'status' => \ActionScheduler_Store::STATUS_PENDING,
-            ], 'ARRAY_A');
-
-            $hasDailyAction = false;
-            foreach ($actions as $action) {
-                $schedule = $action['schedule'] ?? null;
-                if ($schedule instanceof \ActionScheduler_IntervalSchedule && (int) $schedule->get_recurrence() === self::RECURRENCE) {
-                    $hasDailyAction = true;
-                    break;
-                }
-            }
-
-            if (!$hasDailyAction) {
+            if (!AsInit::hasPendingRecurringAction(self::HOOK, self::RECURRENCE, self::GROUP)) {
                 as_unschedule_all_actions(self::HOOK, [], self::GROUP);
                 $needsSchedule = true;
             }
@@ -83,8 +68,6 @@ class InactiveContactsProcessor
     #[Action(self::HOOK)]
     public function process(): void
     {
-        $result = $this->inactiveContactManager->deactivateInactiveContacts();
-
-        Logger::info('Inactive contacts processor completed', $result);
+        $this->inactiveContactManager->deactivateInactiveContacts();
     }
 }

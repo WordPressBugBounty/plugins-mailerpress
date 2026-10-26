@@ -38,24 +38,7 @@ final class AsInit
             && \function_exists('as_get_scheduled_actions')
             && \function_exists('as_schedule_recurring_action')
         ) {
-            $existing = as_get_scheduled_actions([
-                'hook'   => 'mailerpress_as_clean',
-                'status' => \ActionScheduler_Store::STATUS_PENDING,
-            ], 'ARRAY_A');
-
-            $needsReschedule = true;
-            foreach ( $existing as $action ) {
-                $interval = $action['schedule'] ?? null;
-                if ( $interval instanceof \ActionScheduler_IntervalSchedule ) {
-                    $recurrence = $interval->get_recurrence();
-                    if ( (int) $recurrence === DAY_IN_SECONDS ) {
-                        $needsReschedule = false;
-                        break;
-                    }
-                }
-            }
-
-            if ( $needsReschedule ) {
+            if ( !self::hasPendingRecurringAction('mailerpress_as_clean', DAY_IN_SECONDS) ) {
                 as_unschedule_all_actions( 'mailerpress_as_clean' );
                 as_schedule_recurring_action(
                     time(),
@@ -100,23 +83,7 @@ final class AsInit
             && \function_exists('as_has_scheduled_action')
             && \function_exists('as_get_scheduled_actions')
         ) {
-            $refreshActions = as_get_scheduled_actions([
-                'hook'   => 'mailerpress_refresh_scheduled_counts',
-                'status' => \ActionScheduler_Store::STATUS_PENDING,
-            ], 'ARRAY_A');
-
-            $needsReschedule = true;
-            foreach ( $refreshActions as $action ) {
-                $interval = $action['schedule'] ?? null;
-                if ( $interval instanceof \ActionScheduler_IntervalSchedule ) {
-                    if ( (int) $interval->get_recurrence() === HOUR_IN_SECONDS ) {
-                        $needsReschedule = false;
-                        break;
-                    }
-                }
-            }
-
-            if ( $needsReschedule ) {
+            if ( !self::hasPendingRecurringAction('mailerpress_refresh_scheduled_counts', HOUR_IN_SECONDS) ) {
                 as_unschedule_all_actions( 'mailerpress_refresh_scheduled_counts' );
                 as_schedule_recurring_action(
                     time(),
@@ -148,6 +115,42 @@ final class AsInit
             $cleanup = new \MailerPress\Core\Workflows\Services\WorkflowCleanup();
             $cleanup->cleanup();
         });
+    }
+
+    /**
+     * Whether a pending recurring action exists for the hook with the given interval.
+     *
+     * Uses the OBJECT return format: with ARRAY_A, Action Scheduler builds each row with
+     * get_object_vars(), which omits the protected $schedule property, so the interval
+     * could never be read and the action was rescheduled on every check.
+     */
+    public static function hasPendingRecurringAction(string $hook, int $interval, ?string $group = null): bool
+    {
+        $query = [
+            'hook'     => $hook,
+            'status'   => \ActionScheduler_Store::STATUS_PENDING,
+            'per_page' => -1,
+        ];
+
+        if ($group !== null) {
+            $query['group'] = $group;
+        }
+
+        foreach (as_get_scheduled_actions($query) as $action) {
+            if (!$action instanceof \ActionScheduler_Action) {
+                continue;
+            }
+
+            $schedule = $action->get_schedule();
+            if (
+                $schedule instanceof \ActionScheduler_IntervalSchedule
+                && (int) $schedule->get_recurrence() === $interval
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function shouldRunScheduleCheck(string $key, int $ttl = self::SCHEDULE_CHECK_TTL): bool

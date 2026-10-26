@@ -73,7 +73,7 @@ class CustomTrigger
                     'type' => 'select',
                     'required' => false,
                     'options' => [
-                        ['value' => 'email', 'label' => __('Email Address', 'mailerpress')],
+                        ['value' => 'email', 'label' => __('Email address', 'mailerpress')],
                         ['value' => 'user_id', 'label' => __('User ID', 'mailerpress')],
                         ['value' => 'contact_id', 'label' => __('Contact ID', 'mailerpress')],
                         ['value' => 'custom', 'label' => __('Custom Data', 'mailerpress')],
@@ -88,7 +88,7 @@ class CustomTrigger
                     'required' => false,
                     'options' => [
                         ['value' => 'none', 'label' => __('None', 'mailerpress')],
-                        ['value' => 'email', 'label' => __('Email Address', 'mailerpress')],
+                        ['value' => 'email', 'label' => __('Email address', 'mailerpress')],
                         ['value' => 'user_id', 'label' => __('User ID', 'mailerpress')],
                         ['value' => 'contact_id', 'label' => __('Contact ID', 'mailerpress')],
                         ['value' => 'custom', 'label' => __('Custom Data', 'mailerpress')],

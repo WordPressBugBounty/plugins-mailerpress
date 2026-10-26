@@ -466,35 +466,25 @@ class DynamicPostRenderer
                 $blockNameWithKey = trim($blockMatches[1]);
                 $blockContent = $blockMatches[2];
 
-                // Extract block name and optional field key (for ACF fields) or block params
+                /**
+                 * Filters the rendering of a post template block for one post, e.g. custom fields in MailerPress Pro.
+                 *
+                 * @param string|null $html Replacement HTML, or null to let MailerPress render the block.
+                 * @param string $blockNameWithKey Block marker, e.g. "post title" or "post media:large".
+                 * @param string $blockContent HTML between the START and END markers.
+                 * @param WP_Post $post Post being rendered.
+                 * @param bool $preserveImageStyle Whether image styles are kept as authored.
+                 */
+                $rendered = apply_filters('mailerpress_render_post_template_block', null, $blockNameWithKey, $blockContent, $post, $preserveImageStyle);
+                if (is_string($rendered)) {
+                    return $rendered;
+                }
+
+                // Extract block name and optional block params
                 $blockName = $blockNameWithKey;
-                $fieldKey = null;
-                $linkToPost = false;
                 $blockParams = '';
 
-                if (strpos($blockNameWithKey, 'post acf field:') === 0) {
-                    // Parse: "post acf field:fieldKey:linkToPost=1" or "post acf field:fieldKey:linkToPost=0"
-                    $blockName = 'post acf field';
-                    // Remove "post acf field:" prefix
-                    $rest = substr($blockNameWithKey, strlen('post acf field:'));
-                    // Check if linkToPost is present
-                    if (preg_match('/^(.+?):linkToPost=([01])$/', $rest, $matches)) {
-                        $fieldKey = $matches[1];
-                        $linkToPost = $matches[2] === '1';
-                    } else {
-                        // Old format without linkToPost (backward compatibility)
-                        $fieldKey = $rest;
-                    }
-                } elseif (strpos($blockNameWithKey, 'post meta:') === 0) {
-                    $blockName = 'post meta';
-                    $rest = substr($blockNameWithKey, strlen('post meta:'));
-                    if (preg_match('/^(.+?):format=(.*)$/', $rest, $fmtMatch)) {
-                        $fieldKey = $fmtMatch[1];
-                        $blockParams = $fmtMatch[2];
-                    } else {
-                        $fieldKey = $rest;
-                    }
-                } elseif (preg_match('/^([a-zA-Z ]+):(.+)$/', trim($blockNameWithKey), $paramMatch)) {
+                if (preg_match('/^([a-zA-Z ]+):(.+)$/', trim($blockNameWithKey), $paramMatch)) {
                     $blockName = trim($paramMatch[1]);
                     $blockParams = trim($paramMatch[2]);
                 } else {
@@ -603,119 +593,6 @@ class DynamicPostRenderer
                         }
                         break;
 
-                    case 'post acf field':
-                        // Handle ACF field rendering
-                        // Field key is already extracted above
-                        if ($fieldKey && function_exists('get_field_object')) {
-                            $fieldObject = get_field_object($fieldKey, $post->ID);
-                            $fieldValue = get_field($fieldKey, $post->ID);
-                            $fieldType = $fieldObject['type'] ?? 'text';
-
-                            // Handle image fields
-                            if ($fieldType === 'image' || $fieldType === 'file') {
-                                $img = $xpath->query('.//img', $wrapper)->item(0);
-                                if ($img) {
-                                    $imageUrl = '';
-                                    $imageAlt = '';
-
-                                    if (is_numeric($fieldValue)) {
-                                        // It's an attachment ID
-                                        $imageUrl = wp_get_attachment_image_url($fieldValue, 'full');
-                                        $imageAlt = get_post_meta($fieldValue, '_wp_attachment_image_alt', true);
-                                    } elseif (is_array($fieldValue)) {
-                                        // It's an array with image data (formatted by PreparePost)
-                                        if (isset($fieldValue['url'])) {
-                                            $imageUrl = $fieldValue['url'];
-                                        } elseif (isset($fieldValue['ID'])) {
-                                            $imageUrl = wp_get_attachment_image_url($fieldValue['ID'], 'full');
-                                        }
-                                        $imageAlt = $fieldValue['alt'] ?? $fieldValue['title'] ?? '';
-                                    }
-
-                                    if ($imageUrl) {
-                                        $img->setAttribute('src', $imageUrl);
-                                        if ($imageAlt) {
-                                            $img->setAttribute('alt', $imageAlt);
-                                        }
-
-                                        // Set href to post permalink conditionally (if linkToPost is enabled)
-                                        if ($linkToPost) {
-                                            $a = $xpath->query('.//a', $wrapper)->item(0);
-                                            if ($a) {
-                                                $a->setAttribute('href', get_permalink($post));
-                                            }
-                                        }
-                                    } else {
-                                        // If no image URL, remove the image element
-                                        $img->parentNode->removeChild($img);
-                                    }
-                                }
-                            } else {
-                                // Handle text-based fields
-                                $node = $xpath->query('.//div', $wrapper)->item(0);
-                                if ($node) {
-                                    // Format the value based on type
-                                    if (is_array($fieldValue)) {
-                                        $displayValue = implode(', ', array_filter($fieldValue, 'is_scalar'));
-                                    } elseif (is_object($fieldValue)) {
-                                        $displayValue = json_encode($fieldValue);
-                                    } else {
-                                        $displayValue = (string) $fieldValue;
-                                    }
-
-                                    $node->textContent = $displayValue;
-                                }
-                            }
-                        }
-                        break;
-
-                    case 'post meta':
-                        if ($fieldKey) {
-                            $metaValue = get_post_meta($post->ID, $fieldKey, true);
-                            if ($metaValue !== '' && $metaValue !== false) {
-                                $node = $xpath->query('.//div', $wrapper)->item(0);
-                                if (!$node) {
-                                    $node = $xpath->query('.//td', $wrapper)->item(0);
-                                }
-                                if ($node) {
-                                    if (is_array($metaValue)) {
-                                        $displayValue = implode(', ', array_filter($metaValue, 'is_scalar'));
-                                    } else {
-                                        $displayValue = (string) $metaValue;
-                                    }
-
-                                    // Date formatting: blockParams = "date|" or "time|" or "datetime|" or "custom|format"
-                                    if (!empty($blockParams) && strtotime($displayValue) !== false) {
-                                        $parts = explode('|', $blockParams, 2);
-                                        $dateType = $parts[0] ?? 'date';
-                                        $customFmt = $parts[1] ?? '';
-
-                                        $wpDate = get_option('date_format', 'F j, Y');
-                                        $wpTime = get_option('time_format', 'g:i a');
-
-                                        switch ($dateType) {
-                                            case 'time':
-                                                $fmt = $wpTime;
-                                                break;
-                                            case 'datetime':
-                                                $fmt = $wpDate . ' ' . $wpTime;
-                                                break;
-                                            case 'custom':
-                                                $fmt = !empty($customFmt) ? $customFmt : $wpDate;
-                                                break;
-                                            default:
-                                                $fmt = $wpDate;
-                                                break;
-                                        }
-                                        $displayValue = date_i18n($fmt, strtotime($displayValue));
-                                    }
-
-                                    $node->nodeValue = esc_html($displayValue);
-                                }
-                            }
-                        }
-                        break;
-
                     case 'post content':
                         $td = $xpath->query('.//td', $wrapper)->item(0);
                         if ($td) {
@@ -763,6 +640,11 @@ class DynamicPostRenderer
                         break;
 
                     default:
+                        // Post fields of an inactive extension (e.g. custom fields of MailerPress Pro) cannot be
+                        // resolved here: drop them so no post shows the value compiled for another post.
+                        if (0 === strpos($blockName, 'post ')) {
+                            return '';
+                        }
                         return $blockMatches[0];
                 }
 

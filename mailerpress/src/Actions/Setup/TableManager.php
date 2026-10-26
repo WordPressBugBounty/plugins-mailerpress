@@ -15,7 +15,7 @@ use MailerPress\Core\Migrations\Manager;
 class TableManager
 {
     // Bump when migrations change, including within the same plugin release.
-    private const SCHEMA_VERSION = '2026_09_15_100000';
+    private const SCHEMA_VERSION = '2026_10_15_100000';
 
     /**
      * Run migrations early on 'init' hook with high priority
@@ -64,6 +64,11 @@ class TableManager
                 $forceMode
             );
             $completed = $manager->run();
+
+            // Tables of extensions such as MailerPress Pro are created with the same runner.
+            foreach (array_slice(Manager::getMigrationPaths(), 1) as $migrationPath) {
+                $completed = (new Manager($migrationPath, [], $forceMode))->run() && $completed;
+            }
 
             // A locked or incomplete run must remain eligible for the next request.
             if ($completed && ($versionChanged || $schemaChanged)) {

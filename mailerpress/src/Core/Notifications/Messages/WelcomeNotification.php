@@ -30,7 +30,7 @@ class WelcomeNotification extends AbstractNotificationMessage
     public function getAction(): ?array
     {
         return [
-            'label' => __('Get Started', 'mailerpress'),
+            'label' => __('Get started', 'mailerpress'),
             'url' => admin_url('admin.php?page=mailerpress%2Fcampaigns.php&path=%2Fhome%2Fcampaigns'),
         ];
     }

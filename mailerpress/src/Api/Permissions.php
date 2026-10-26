@@ -21,6 +21,7 @@ class Permissions
         'wp_email',
         'wc_email',
         'confirm_email',
+        'transactional',
     ];
 
     /**
@@ -302,7 +303,7 @@ class Permissions
         foreach ($campaigns as $campaign) {
             $campaignType = (string) $campaign['campaign_type'];
 
-            if (self::isSettingsEmailType($campaignType)) {
+            if (self::isSiteEmailType($campaignType)) {
                 continue;
             }
 
@@ -338,6 +339,15 @@ class Permissions
     private static function isSettingsEmailType(string $campaignType): bool
     {
         return in_array($campaignType, ['wp_email', 'wc_email', 'confirm_email'], true);
+    }
+
+    /**
+     * Emails owned by the site rather than by their author: settings emails and
+     * transactional emails sent by integrations.
+     */
+    private static function isSiteEmailType(string $campaignType): bool
+    {
+        return self::isSettingsEmailType($campaignType) || $campaignType === 'transactional';
     }
 
     public static function canPublishCampaign($request): bool|\WP_Error
@@ -841,25 +851,6 @@ class Permissions
     public static function canDeleteAutomations($request): bool|\WP_Error
     {
         return self::checkPrivilegedAuth($request, Capabilities::MANAGE_AUTOMATIONS, 'edit_others_posts');
-    }
-
-    public static function canUseAutomationAi($request): bool|\WP_Error
-    {
-        $auth = self::checkAuth($request, Capabilities::MANAGE_AUTOMATIONS);
-
-        if ($auth !== true) {
-            return $auth;
-        }
-
-        if (ApiAuthentication::isApiKeyRequest($request)) {
-            return true;
-        }
-
-        if (!current_user_can(Capabilities::USE_AI)) {
-            return new \WP_Error('rest_forbidden', __('Sorry, you are not allowed to do that.', 'mailerpress'), ['status' => 403]);
-        }
-
-        return true;
     }
 
     public static function canUpdateAutomationStatus($request): bool|\WP_Error

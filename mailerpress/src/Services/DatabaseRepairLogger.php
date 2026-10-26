@@ -7,59 +7,24 @@ namespace MailerPress\Services;
 \defined('ABSPATH') || exit;
 
 /**
- * Service de logging pour la réparation de la base de données
- * Fonctionne même sans WP_DEBUG activé
+ * Collects database repair messages in memory for the current request, so the
+ * Database repair screen can return and export them. Nothing is written to disk.
  */
 class DatabaseRepairLogger
 {
     protected static array $logs = [];
-    protected static string $logFile = '';
-
-    /**
-     * Initialise le système de logging
-     */
-    public static function init(): void
-    {
-        try {
-            // File output is opt-in (WP_DEBUG_LOG) and goes to the protected log directory.
-            // In-memory logs (getLogs()) keep working regardless.
-            $logDir = DebugFileLogger::getDirectory();
-            if (null === $logDir) {
-                self::$logFile = '';
-                return;
-            }
-
-            self::$logFile = $logDir . '/database-repair-' . date('Y-m-d') . '.log';
-        } catch (\Throwable $e) {
-            self::$logFile = '';
-        }
-    }
 
     /**
      * Ajoute un log
      */
     public static function log(string $message, string $level = 'INFO', array $context = []): void
     {
-        if (empty(self::$logFile)) {
-            self::init();
-        }
-
-        $timestamp = date('Y-m-d H:i:s');
-        $contextStr = !empty($context) ? ' | Context: ' . json_encode($context) : '';
-        $logEntry = "[{$timestamp}] [{$level}] {$message}{$contextStr}\n";
-
-        // Ajouter à la mémoire
         self::$logs[] = [
-            'timestamp' => $timestamp,
+            'timestamp' => date('Y-m-d H:i:s'),
             'level' => $level,
             'message' => $message,
             'context' => $context,
         ];
-
-        // Écrire dans le fichier (uniquement si WP_DEBUG_LOG est actif)
-        if ('' !== self::$logFile) {
-            @file_put_contents(self::$logFile, $logEntry, FILE_APPEND | LOCK_EX);
-        }
     }
 
     /**
@@ -106,93 +71,5 @@ class DatabaseRepairLogger
     public static function getLogs(): array
     {
         return self::$logs;
-    }
-
-    /**
-     * Récupère les logs du fichier
-     */
-    public static function getLogFileContent(int $lines = 1000): string
-    {
-        if (empty(self::$logFile) || !file_exists(self::$logFile)) {
-            return '';
-        }
-
-        $content = file_get_contents(self::$logFile);
-        if ($content === false) {
-            return '';
-        }
-
-        // Si on veut limiter le nombre de lignes
-        if ($lines > 0) {
-            $allLines = explode("\n", $content);
-            $recentLines = array_slice($allLines, -$lines);
-            return implode("\n", $recentLines);
-        }
-
-        return $content;
-    }
-
-    /**
-     * Récupère le chemin du fichier de log
-     */
-    public static function getLogFilePath(): string
-    {
-        if (empty(self::$logFile)) {
-            self::init();
-        }
-        return self::$logFile;
-    }
-
-    /**
-     * Exporte les logs au format JSON
-     */
-    public static function exportJson(): string
-    {
-        $data = [
-            'timestamp' => date('Y-m-d H:i:s'),
-            'wordpress_version' => get_bloginfo('version'),
-            'plugin_version' => defined('MAILERPRESS_VERSION') ? MAILERPRESS_VERSION : 'unknown',
-            'php_version' => PHP_VERSION,
-            'mysql_version' => self::getMysqlVersion(),
-            'logs' => self::getLogs(),
-            'log_file_content' => self::getLogFileContent(500),
-        ];
-
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-    }
-
-    /**
-     * Récupère la version MySQL
-     */
-    protected static function getMysqlVersion(): string
-    {
-        global $wpdb;
-        $version = $wpdb->get_var('SELECT VERSION()');
-        return $version ?: 'unknown';
-    }
-
-    /**
-     * Nettoie les anciens fichiers de logs (garde les 7 derniers jours)
-     */
-    public static function cleanup(): void
-    {
-        if (empty(self::$logFile)) {
-            self::init();
-        }
-
-        $logDir = DebugFileLogger::getDirectory();
-
-        if (null === $logDir || !is_dir($logDir)) {
-            return;
-        }
-
-        $files = glob($logDir . '/database-repair-*.log');
-        $cutoffTime = time() - (7 * 24 * 60 * 60); // 7 jours
-
-        foreach ($files as $file) {
-            if (filemtime($file) < $cutoffTime) {
-                @unlink($file);
-            }
-        }
     }
 }

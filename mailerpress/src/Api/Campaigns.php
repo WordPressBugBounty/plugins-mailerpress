@@ -26,10 +26,8 @@ use MailerPress\Core\Workflows\Repositories\AutomationRepository;
 use MailerPress\Models\Batch;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\CampaignHtmlOptionStorage;
-use MailerPress\Services\ClassicContactFetcher;
+use MailerPress\Services\ContactFetcherFactory;
 use MailerPress\Services\InactiveContactManager;
-use MailerPress\Services\ContactIdsFetcher;
-use MailerPress\Services\SegmentContactFetcher;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -37,6 +35,15 @@ use WP_REST_Response;
 class Campaigns
 {
     private const LISTING_MUTATION_CAMPAIGN_TYPES = ['newsletter', 'automated'];
+
+    /**
+     * A percentage formatted like the listing SQL: ROUND(COALESCE(100.0 * count / NULLIF(total, 0), 0), 2).
+     */
+    private static function trackingRate(int $count, int $total): string
+    {
+        // MySQL keeps five decimals for 100.0 * count / total before rounding to two.
+        return sprintf('%.2f', 0 === $total ? 0 : round(round(100 * $count / $total, 5), 2));
+    }
 
     private function shouldRestrictCampaignsToCurrentUser(\WP_REST_Request $request): bool
     {
@@ -503,6 +510,10 @@ class Campaigns
             return new WP_REST_Response(['error' => __('Invalid IDs provided', 'mailerpress')], 400);
         }
 
+        // Status polling from the listing does not need the email content.
+        $include_content = rest_sanitize_boolean($request->get_param('include_content') ?? true);
+        $content_select = $include_content ? 'c.content_html,' : '';
+
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
         $batches_table = $wpdb->prefix . 'mailerpress_email_batches';
@@ -515,7 +526,7 @@ class Campaigns
             c.status,
             c.batch_id AS batch,
             c.updated_at,
-            c.content_html,
+            {$content_select}
             c.config
         FROM {$table} AS c
         LEFT JOIN {$batches_table} AS b ON c.batch_id = b.id
@@ -657,7 +668,7 @@ class Campaigns
                 $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids_for_stats), '%d'));
                 $campaign_stats = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT campaign_id, total_click AS campaign_total_click, total_revenue AS campaign_total_revenue
+                        "SELECT campaign_id, total_click AS campaign_total_click
                          FROM {$campaignStatsTable}
                          WHERE campaign_id IN ($campaign_placeholders)",
                         ...$campaign_ids_for_stats
@@ -696,9 +707,11 @@ class Campaigns
         }
 
         foreach ($results as &$result) {
-            $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
-            if ( is_string( $result->content_html ) ) {
-                $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+            if ($include_content) {
+                $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
+                if ( is_string( $result->content_html ) ) {
+                    $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+                }
             }
             $result->config = !empty($result->config) ? json_decode($result->config, true) : null;
 
@@ -717,11 +730,9 @@ class Campaigns
                 ? $statistics_data[$result->batch['id']]
                 : null;
 
-            // Format revenue in statistics if present (only if it's numeric, not already formatted)
-            if ($statistics && isset($statistics['campaign_total_revenue'])) {
-                if (is_numeric($statistics['campaign_total_revenue'])) {
-                    $statistics['campaign_total_revenue'] = $this->formatRevenue((float)$statistics['campaign_total_revenue']);
-                }
+            if ($statistics) {
+                /** Filters the statistics of a campaign, e.g. to add metrics computed by an extension. */
+                $statistics = apply_filters('mailerpress_campaign_statistics', $statistics, (int) ($result->campaign_id ?? 0));
             }
 
             $result->statistics = $statistics;
@@ -887,7 +898,7 @@ class Campaigns
         );
 
         if (!$campaign) {
-            return new \WP_Error('campaign_not_found', __('Campaign not found', 'mailerpress'), ['status' => 404]);
+            return new \WP_Error('campaign_not_found', __('Campaign not found.', 'mailerpress'), ['status' => 404]);
         }
 
         $total_rows = (int)$wpdb->get_var(
@@ -999,7 +1010,7 @@ class Campaigns
             $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids_for_stats), '%d'));
             $campaign_stats = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT campaign_id, total_click AS campaign_total_click, total_revenue AS campaign_total_revenue
+                    "SELECT campaign_id, total_click AS campaign_total_click
                      FROM {$campaignStatsTable}
                      WHERE campaign_id IN ($campaign_placeholders)",
                     ...$campaign_ids_for_stats
@@ -1035,11 +1046,7 @@ class Campaigns
                 ],
                 $campaign_id && isset($campaign_stats_map[$campaign_id]) ? $campaign_stats_map[$campaign_id] : []
             );
-            // Format revenue if present
-            if (isset($merged_stats['campaign_total_revenue'])) {
-                $merged_stats['campaign_total_revenue'] = $this->formatRevenue((float)$merged_stats['campaign_total_revenue']);
-            }
-            $statistics_map[$batch_id] = $merged_stats;
+            $statistics_map[$batch_id] = apply_filters('mailerpress_campaign_statistics', $merged_stats, (int) $campaign_id);
         }
 
         // Construire les résultats
@@ -1089,6 +1096,8 @@ class Campaigns
 
         $paged = max(1, (int)($request->get_param('paged') ?? 1));
         $posts_per_page = max(1, (int)($request->get_param('perPages') ?? 10));
+        // Listings can skip the email content; previews load it from campaign/{id}.
+        $include_content = rest_sanitize_boolean($request->get_param('include_content') ?? true);
         $search = $request->get_param('search');
         $statusParam = $request->get_param('status');
 
@@ -1149,6 +1158,37 @@ class Campaigns
             $query_params[] = '%' . $wpdb->esc_like($search) . '%';
         }
 
+        $title_filter = $request->get_param('title');
+        if (null !== $title_filter && [] !== $title_filter) {
+            if (!is_array($title_filter) || 1 !== count($title_filter) || !is_array($title_filter[0] ?? null)) {
+                return new \WP_Error('invalid_title_filter', __('Invalid title filter.', 'mailerpress'), ['status' => 400]);
+            }
+
+            $operator = $title_filter[0]['operator'] ?? '';
+            $value = $title_filter[0]['value'] ?? '';
+            if (!in_array($operator, ['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty'], true) || !is_scalar($value)) {
+                return new \WP_Error('invalid_title_filter', __('Invalid title filter.', 'mailerpress'), ['status' => 400]);
+            }
+
+            $value = sanitize_text_field((string) $value);
+            if (!in_array($operator, ['is_empty', 'is_not_empty'], true) && '' === $value) {
+                return new \WP_Error('invalid_title_filter', __('Invalid title filter value.', 'mailerpress'), ['status' => 400]);
+            }
+
+            $title_where = match ($operator) {
+                'equals' => ' AND c.name = %s',
+                'not_equals' => ' AND (c.name IS NULL OR c.name <> %s)',
+                'contains' => ' AND c.name LIKE %s',
+                'is_empty' => " AND (c.name IS NULL OR c.name = '')",
+                'is_not_empty' => " AND (c.name IS NOT NULL AND c.name <> '')",
+            };
+            $query .= $title_where;
+            $countQuery .= $title_where;
+            if (!in_array($operator, ['is_empty', 'is_not_empty'], true)) {
+                $query_params[] = 'contains' === $operator ? '%' . $wpdb->esc_like($value) . '%' : $value;
+            }
+        }
+
         // Status filter
         // Status filter
         if (!empty($statuses)) {
@@ -1201,7 +1241,7 @@ class Campaigns
         }
 
         // Exclude non-standard newsletter campaigns from the default campaign listing.
-        $excludedCampaignTypes = ['automation', 'wp_email', 'wc_email', 'confirm_email'];
+        $excludedCampaignTypes = ['automation', 'wp_email', 'wc_email', 'confirm_email', 'transactional'];
         if (empty($campaignTypes)) {
             $excludedCampaignTypes[] = 'ab_test';
         }
@@ -1210,6 +1250,127 @@ class Campaigns
         $query .= " AND c.campaign_type NOT IN ($excludedPlaceholders)";
         $countQuery .= " AND c.campaign_type NOT IN ($excludedPlaceholders)";
         $query_params = array_merge($query_params, $excludedCampaignTypes);
+
+        // Column filters refine the active status tab and apply to bulk actions too.
+        $selected_statuses = [];
+        foreach ((array) $request->get_param('campaign_status') as $entry) {
+            if (is_array($entry) && isset($entry['id']) && is_string($entry['id'])) {
+                $status = sanitize_key($entry['id']);
+                if (in_array($status, ['draft', 'sent', 'in_progress', 'error', 'failed', 'scheduled', 'pending', 'active', 'inactive', 'trash'], true)) {
+                    $selected_statuses[] = $status;
+                }
+            }
+        }
+        if (!empty($selected_statuses)) {
+            $placeholders = implode(',', array_fill(0, count($selected_statuses), '%s'));
+            $query .= " AND c.status IN ($placeholders)";
+            $countQuery .= " AND c.status IN ($placeholders)";
+            $query_params = array_merge($query_params, $selected_statuses);
+        }
+
+        $date_sql = "CASE
+            WHEN c.status = 'scheduled' AND b.scheduled_at IS NOT NULL THEN b.scheduled_at
+            WHEN c.status = 'sent' THEN COALESCE(b.updated_at, c.updated_at)
+            ELSE COALESCE(c.updated_at, c.created_at)
+           END";
+        $date_conditions = [];
+		$date_range_conditions = [];
+		$date_range_params = [];
+        $now = current_datetime();
+        $utc = new \DateTimeZone('UTC');
+        $now_sql = $now->setTimezone($utc)->format('Y-m-d H:i:s');
+        foreach ((array) $request->get_param('date') as $entry) {
+            if (!is_array($entry) || !isset($entry['id']) || !is_string($entry['id'])) {
+                continue;
+            }
+            $period = sanitize_key($entry['id']);
+			if ( in_array( $period, [ 'from', 'to' ], true ) ) {
+				$value = $entry['value'] ?? null;
+				if ( ! is_string( $value ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
+					continue;
+				}
+				$date = \DateTimeImmutable::createFromFormat( '!Y-m-d', sanitize_text_field( $value ), wp_timezone() );
+				if ( false === $date || $value !== $date->format( 'Y-m-d' ) ) {
+					continue;
+				}
+				if ( 'from' === $period ) {
+					$date_range_conditions[] = "($date_sql >= %s)";
+					$date_range_params[] = $date->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+				} else {
+					$date_range_conditions[] = "($date_sql < %s)";
+					$date_range_params[] = $date->modify( '+1 day' )->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+				}
+				continue;
+			}
+            $days = ['last_7_days' => 7, 'last_30_days' => 30, 'last_90_days' => 90];
+            if (isset($days[$period])) {
+                $date_conditions[] = "($date_sql BETWEEN %s AND %s)";
+                $query_params[] = $now->modify('-' . $days[$period] . ' days')->setTimezone($utc)->format('Y-m-d H:i:s');
+                $query_params[] = $now_sql;
+            } elseif ('this_year' === $period) {
+                $year_start = $now->setDate((int) $now->format('Y'), 1, 1)->setTime(0, 0);
+                $date_conditions[] = "($date_sql >= %s AND $date_sql < %s)";
+                $query_params[] = $year_start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $query_params[] = $year_start->modify('+1 year')->setTimezone($utc)->format('Y-m-d H:i:s');
+            } elseif ('upcoming' === $period) {
+                $date_conditions[] = "($date_sql > %s)";
+                $query_params[] = $now_sql;
+            }
+        }
+        if (!empty($date_conditions)) {
+            $date_where = ' AND (' . implode(' OR ', $date_conditions) . ')';
+            $query .= $date_where;
+            $countQuery .= $date_where;
+        }
+		if ( ! empty( $date_range_conditions ) ) {
+			$date_where = ' AND (' . implode( ' AND ', $date_range_conditions ) . ')';
+			$query .= $date_where;
+			$countQuery .= $date_where;
+			$query_params = array_merge( $query_params, $date_range_params );
+		}
+
+		// Rates share the same expressions for display, filtering and sorting.
+		$tracking_table = Tables::get( Tables::MAILERPRESS_EMAIL_TRACKING );
+		$click_table = Tables::get( Tables::MAILERPRESS_CLICK_TRACKING );
+		$unique_count = static function ( string $condition ): string {
+			return "COUNT(DISTINCT CASE WHEN contact_id > 0 AND {$condition} THEN contact_id END)
+				+ COUNT(DISTINCT CASE WHEN contact_id = 0 AND {$condition} THEN anonymous_key END)";
+		};
+		$opens = $unique_count( 'opened_at IS NOT NULL' );
+		$unsubscribes = $unique_count( 'unsubscribed_at IS NOT NULL' );
+		$clicks = $unique_count( '1=1' );
+		$tracking_counts = [
+			'delivered'    => 'b.sent_emails',
+			'unique_opens' => "(SELECT {$opens} FROM {$tracking_table} WHERE batch_id = b.id)",
+			'unique_clicks' => "(SELECT {$clicks} FROM {$click_table} WHERE campaign_id = c.campaign_id)",
+			'unsubscribes' => "(SELECT {$unsubscribes} FROM {$tracking_table} WHERE batch_id = b.id)",
+		];
+		$tracking_rates = [];
+		foreach ( $tracking_counts as $field => $count_sql ) {
+			$denominator = 'delivered' === $field ? 'b.total_emails' : 'b.sent_emails';
+			$rate_sql = "CASE WHEN c.status = 'sent' AND b.id IS NOT NULL
+				THEN ROUND(COALESCE(100.0 * ({$count_sql}) / NULLIF({$denominator}, 0), 0), 2) ELSE NULL END";
+			$tracking_rates[ $field ] = $rate_sql;
+			$filter = $request->get_param( $field );
+			if ( null === $filter || [] === $filter ) {
+				continue;
+			}
+			if ( ! is_array( $filter ) || 1 !== count( $filter ) || ! is_array( $filter[0] ?? null ) ) {
+				return new \WP_Error( 'invalid_tracking_filter', __( 'Invalid tracking filter.', 'mailerpress' ), [ 'status' => 400 ] );
+			}
+			$operator = $filter[0]['operator'] ?? '';
+			$operators = [ 'equals' => '=', 'not_equals' => '<>', 'greater_than' => '>', 'less_than' => '<' ];
+			if ( in_array( $operator, [ 'is_empty', 'is_not_empty' ], true ) ) {
+				$where = ' AND (' . $rate_sql . ( 'is_empty' === $operator ? ') IS NULL' : ') IS NOT NULL' );
+			} elseif ( is_string( $operator ) && isset( $operators[ $operator ] ) && is_numeric( $filter[0]['value'] ?? null ) && is_finite( (float) $filter[0]['value'] ) ) {
+				$where = " AND ({$rate_sql}) {$operators[ $operator ]} %f";
+				$query_params[] = (float) $filter[0]['value'];
+			} else {
+				return new \WP_Error( 'invalid_tracking_filter', __( 'Invalid tracking filter.', 'mailerpress' ), [ 'status' => 400 ] );
+			}
+			$query .= $where;
+			$countQuery .= $where;
+		}
 
         // Resolve every campaign matching the listing filters for bulk actions.
         if ($request->get_param('idsOnly')) {
@@ -1221,19 +1382,16 @@ class Campaigns
         }
 
         // Ordering - Use whitelist to prevent SQL injection
-        $allowed_orderby = ['id', 'name', 'status', 'created_at', 'updated_at', 'user_id', 'campaign_type', 'date'];
+        $allowed_orderby = array_merge(['id', 'name', 'status', 'created_at', 'updated_at', 'user_id', 'campaign_type', 'date'], array_keys($tracking_rates));
         $allowed_order = ['ASC', 'DESC'];
         $orderby_param = $request->get_param('orderby');
         $order_param = strtoupper($request->get_param('order') ?? 'DESC');
         $orderby = in_array($orderby_param, $allowed_orderby, true) ? $orderby_param : 'updated_at';
         $order = in_array($order_param, $allowed_order, true) ? $order_param : 'DESC';
         $orderbySql = 'date' === $orderby
-            ? "CASE
-                WHEN c.status = 'scheduled' AND b.scheduled_at IS NOT NULL THEN b.scheduled_at
-                WHEN c.status = 'sent' THEN COALESCE(b.updated_at, c.updated_at)
-                ELSE COALESCE(c.updated_at, c.created_at)
-               END"
+            ? $date_sql
             : sprintf('c.%s', esc_sql($orderby === 'id' ? 'campaign_id' : $orderby));
+		$orderbySql = $tracking_rates[ $orderby ] ?? $orderbySql;
         $query .= sprintf(' ORDER BY %s %s', $orderbySql, esc_sql($order));
 
         // Pagination - Use prepare to prevent SQL injection
@@ -1248,6 +1406,7 @@ class Campaigns
         $results = [];
         if ($page_ids) {
             $page_placeholders = implode(',', array_fill(0, count($page_ids), '%d'));
+            $content_select = $include_content ? 'c.content_html,' : '';
             $results = $wpdb->get_results($wpdb->prepare(
                 "SELECT c.campaign_id AS id,
                         c.user_id,
@@ -1260,7 +1419,7 @@ class Campaigns
                         c.campaign_type,
                         c.editing_user_id,
                         c.editing_started_at,
-                        c.content_html,
+                        {$content_select}
                         c.config
                  FROM {$table_name} AS c
                  WHERE c.campaign_id IN ($page_placeholders)
@@ -1390,7 +1549,7 @@ class Campaigns
                 $campaign_placeholders = implode(',', array_fill(0, count($campaign_ids_for_stats), '%d'));
                 $campaign_stats = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT campaign_id, total_click AS campaign_total_click, total_revenue AS campaign_total_revenue
+                        "SELECT campaign_id, total_click AS campaign_total_click
                          FROM {$campaignStatsTable}
                          WHERE campaign_id IN ($campaign_placeholders)",
                         ...$campaign_ids_for_stats
@@ -1428,11 +1587,30 @@ class Campaigns
                     ],
                     $campaign_id && isset($campaign_stats_map[$campaign_id]) ? $campaign_stats_map[$campaign_id] : []
                 );
-                // Format revenue if present (only if it's numeric, not already formatted)
-                if (isset($merged_stats['campaign_total_revenue']) && is_numeric($merged_stats['campaign_total_revenue'])) {
-                    $merged_stats['campaign_total_revenue'] = $this->formatRevenue((float)$merged_stats['campaign_total_revenue']);
-                }
                 $statistics_data[$batch_id] = $merged_stats;
+            }
+        }
+
+        // Unique clickers per sent campaign, for the click rate.
+        $unique_clickers = [];
+        $sent_campaign_ids = array_map(
+            static fn($r) => (int) $r->id,
+            array_filter($results, static fn($r) => 'sent' === $r->status && !empty($r->batch))
+        );
+        if (!empty($sent_campaign_ids)) {
+            $sent_placeholders = implode(',', array_fill(0, count($sent_campaign_ids), '%d'));
+            $clicker_rows = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT campaign_id, {$clicks} AS unique_clickers
+                     FROM {$click_table}
+                     WHERE campaign_id IN ($sent_placeholders)
+                     GROUP BY campaign_id",
+                    ...$sent_campaign_ids
+                ),
+                ARRAY_A
+            );
+            foreach ($clicker_rows as $row) {
+                $unique_clickers[(int) $row['campaign_id']] = (int) $row['unique_clickers'];
             }
         }
 
@@ -1452,36 +1630,49 @@ class Campaigns
         // ✅ Appliquer les données préchargées
         foreach ($results as &$result) {
             // Décoder content_html et config (déjà dans la requête)
-            $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
-            if ( is_string( $result->content_html ) ) {
-                $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+            if ($include_content) {
+                $result->content_html = !empty($result->content_html) ? json_decode($result->content_html, true) : null;
+                if ( is_string( $result->content_html ) ) {
+                    $result->content_html = $this->sanitizeEmailHtml( $result->content_html );
+                }
             }
             $result->config = !empty($result->config) ? json_decode($result->config, true) : null;
 
             // Batch avec stats (préchargé)
             if (!empty($result->batch) && isset($batches_data[$result->batch])) {
+                $raw_stats = $statistics_data[$result->batch] ?? [];
+                $rate_batch = $batches_data[$result->batch];
                 $batch_data = $batches_data[$result->batch];
                 if (isset($statistics_data[$result->batch])) {
                     $batch_data = array_merge($batch_data, $statistics_data[$result->batch]);
                 }
                 $result->batch = $batch_data;
             } else {
+                $raw_stats = [];
+                $rate_batch = null;
                 $result->batch = null;
             }
+
+            // Same rates as the SQL used to filter and sort the listing, from the stats loaded above.
+            $is_sent = 'sent' === $result->status && null !== $rate_batch;
+            $sent_emails = (int) ($rate_batch['sent_emails'] ?? 0);
+            $result->delivered = $is_sent ? self::trackingRate($sent_emails, (int) ($rate_batch['total_emails'] ?? 0)) : null;
+            $result->unique_opens = $is_sent ? self::trackingRate((int) ($raw_stats['total_opens'] ?? 0), $sent_emails) : null;
+            $result->unique_clicks = $is_sent ? self::trackingRate($unique_clickers[(int) $result->id] ?? 0, $sent_emails) : null;
+            $result->unsubscribes = $is_sent ? self::trackingRate((int) ($raw_stats['total_unsubscribes'] ?? 0), $sent_emails) : null;
 
             $statistics = !empty($result->batch['id']) && isset($statistics_data[$result->batch['id']])
                 ? $statistics_data[$result->batch['id']]
                 : null;
 
-            // Format revenue in statistics if present (only if it's numeric, not already formatted)
-            if ($statistics && isset($statistics['campaign_total_revenue'])) {
-                if (is_numeric($statistics['campaign_total_revenue'])) {
-                    $statistics['campaign_total_revenue'] = $this->formatRevenue((float)$statistics['campaign_total_revenue']);
-                }
+            if ($statistics) {
+                $statistics = apply_filters('mailerpress_campaign_statistics', $statistics, (int) $result->id);
             }
 
             $result->statistics = $statistics;
-            $result->public_url = CampaignEmail::getPublicUrl((int)$result->id, (string)$result->title);
+            $result->public_url = CampaignEmail::isPrivate((int)$result->id, $result->config)
+                ? null
+                : CampaignEmail::getPublicUrl((int)$result->id, (string)$result->title);
 
             // Author (préchargé)
             if (!empty($result->user_id) && isset($users_data[$result->user_id])) {
@@ -1640,7 +1831,7 @@ class Campaigns
         ];
 
         // Add campaign_type if provided
-        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'ab_test', 'automated', 'automation', 'wp_email', 'wc_email', 'confirm_email'], true)) {
+        if (!empty($campaign_type) && in_array($campaign_type, ['newsletter', 'ab_test', 'automated', 'automation', 'wp_email', 'wc_email', 'confirm_email', 'transactional'], true)) {
             $data['campaign_type'] = $campaign_type;
         }
 
@@ -1733,7 +1924,7 @@ class Campaigns
         );
 
         if (empty($campaign_ids_to_delete)) {
-            return new \WP_Error('not_found', __('No matching campaign(s) found.', 'mailerpress'), ['status' => 404]);
+            return new \WP_Error('not_found', __('No matching campaigns found.', 'mailerpress'), ['status' => 404]);
         }
 
         $placeholders = implode(',', array_fill(0, \count($campaign_ids_to_delete), '%d'));
@@ -1750,7 +1941,7 @@ class Campaigns
         if (false === $deleted) {
             return new \WP_Error(
                 'db_delete_error',
-                __('Failed to delete the campaigns.', 'mailerpress'),
+                __('Failed to delete campaigns.', 'mailerpress'),
                 ['status' => 500]
             );
         }
@@ -1976,7 +2167,7 @@ class Campaigns
                     'success' => true,
                     'message' => sprintf(
                         /* translators: %d number of campaigns */
-                        __('%d campaign(s) status updated successfully.', 'mailerpress'),
+                        _n('Status updated for %d campaign.', 'Status updated for %d campaigns.', $updated, 'mailerpress'),
                         $updated
                     ),
                     'updated_ids' => 'all',
@@ -1997,7 +2188,7 @@ class Campaigns
         $ids = array_filter($ids);
 
         if (empty($ids)) {
-            return new \WP_Error('missing_id', __('No campaign ID(s) provided.', 'mailerpress'), ['status' => 400]);
+            return new \WP_Error('missing_id', __('No campaign IDs provided.', 'mailerpress'), ['status' => 400]);
         }
 
         // Build placeholders for IN clause
@@ -2016,7 +2207,7 @@ class Campaigns
         $existing_ids = array_map(static fn($campaign) => (int) $campaign['campaign_id'], $existing_campaigns);
 
         if (empty($existing_ids)) {
-            return new \WP_Error('not_found', __('No matching campaign(s) found.', 'mailerpress'), ['status' => 404]);
+            return new \WP_Error('not_found', __('No matching campaigns found.', 'mailerpress'), ['status' => 404]);
         }
 
         $scheduled_actions_cancelled = $status === 'trash'
@@ -2049,7 +2240,7 @@ class Campaigns
                 'success' => true,
                 'message' => sprintf(
                     /* translators: %d number of campaigns */
-                    __('%d campaign(s) status updated successfully.', 'mailerpress'),
+                    _n('Status updated for %d campaign.', 'Status updated for %d campaigns.', $updated, 'mailerpress'),
                     $updated
                 ),
                 'updated_ids' => $existing_ids,
@@ -2084,7 +2275,8 @@ class Campaigns
             if (empty($campaign_types)) {
                 return new \WP_REST_Response([
                     'success' => true,
-                    'message' => sprintf(__('All (%d) campaign(s) permanently deleted.', 'mailerpress'), 0),
+                    'message' => /* translators: %d: number of campaigns. */
+                    sprintf(_n('%d campaign permanently deleted.', '%d campaigns permanently deleted.', 0, 'mailerpress'), 0),
                     'deleted_ids' => 'all',
                     'deleted_batches' => 0,
                     'scheduled_actions_cancelled' => 0,
@@ -2151,7 +2343,8 @@ class Campaigns
 
             return new \WP_REST_Response([
                 'success' => true,
-                'message' => sprintf(__('All (%d) campaign(s) permanently deleted.', 'mailerpress'), $deleted),
+                'message' => /* translators: %d: number of campaigns. */
+                sprintf(_n('%d campaign permanently deleted.', '%d campaigns permanently deleted.', $deleted, 'mailerpress'), $deleted),
                 'deleted_ids' => 'all',
                 'deleted_batches' => $deleted_batches !== false ? $deleted_batches : 0,
                 'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
@@ -2167,7 +2360,7 @@ class Campaigns
         $ids = array_filter($ids);
 
         if (empty($ids)) {
-            return new \WP_Error('missing_id', __('No campaign ID(s) provided.', 'mailerpress'), ['status' => 400]);
+            return new \WP_Error('missing_id', __('No campaign IDs provided.', 'mailerpress'), ['status' => 400]);
         }
 
         // Build placeholders for IN clause
@@ -2179,7 +2372,7 @@ class Campaigns
         $existing_ids = $wpdb->get_col($wpdb->prepare($sql, ...$prepare_params));
 
         if (empty($existing_ids)) {
-            return new \WP_Error('not_found', __('No campaign(s) in trash found.', 'mailerpress'), ['status' => 404]);
+            return new \WP_Error('not_found', __('No campaigns found in the trash.', 'mailerpress'), ['status' => 404]);
         }
 
         // Cleanup countdown AS actions for these campaigns
@@ -2201,14 +2394,15 @@ class Campaigns
         if (false === $deleted) {
             return new \WP_Error(
                 'db_delete_error',
-                __('Failed to delete campaign(s).', 'mailerpress'),
+                __('Failed to delete campaigns.', 'mailerpress'),
                 ['status' => 500]
             );
         }
 
         return new \WP_REST_Response([
             'success' => true,
-            'message' => sprintf(__('Campaign(s) permanently deleted: %d', 'mailerpress'), $deleted),
+            'message' => /* translators: %d: number of campaigns. */
+            sprintf(_n('%d campaign permanently deleted.', '%d campaigns permanently deleted.', $deleted, 'mailerpress'), $deleted),
             'deleted_ids' => $existing_ids,
             'deleted_batches' => $deleted_batches !== false ? $deleted_batches : 0,
             'scheduled_actions_cancelled' => $scheduled_actions_cancelled,
@@ -2484,6 +2678,15 @@ class Campaigns
             'updated_at'   => current_time('mysql'),
         ];
 
+        $email_config = $request->get_param('emailConfig');
+        if (is_array($email_config)) {
+            $existing_config = json_decode($campaign->config ?: '{}', true);
+            $data['config'] = wp_json_encode(array_merge(is_array($existing_config) ? $existing_config : [], $email_config));
+            if (array_key_exists('campaignSubject', $email_config)) {
+                $data['subject'] = sanitize_text_field($email_config['campaignSubject']);
+            }
+        }
+
         $updated = $wpdb->update($table_name, $data, ['campaign_id' => $campaign_id]);
 
         if (false === $updated) {
@@ -2586,18 +2789,11 @@ class Campaigns
                 'cart_recovery_url' => $this->buildPreviewCartRecoveryUrl(),
             ];
 
-            // Add custom fields to variables
-            $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
-            $customFields = $wpdb->get_results($wpdb->prepare(
-                "SELECT field_key, field_value FROM {$customFieldsTable} WHERE contact_id = %d",
-                (int) $contactEntity->contact_id
-            ));
-
-            if ($customFields) {
-                foreach ($customFields as $customField) {
-                    // Add custom field to variables using field_key as the key
-                    $variables[$customField->field_key] = esc_html($customField->field_value ?? '');
-                }
+            // Extra merge tag variables, e.g. the custom fields added by MailerPress Pro.
+            $mergeContactId = (int) $contactEntity->contact_id;
+            $extraVariables = (array) apply_filters('mailerpress_contact_merge_variables', [], [$mergeContactId]);
+            foreach ((array) ($extraVariables[$mergeContactId] ?? []) as $key => $value) {
+                $variables[$key] = esc_html((string) ($value ?? ''));
             }
 
             $html = apply_filters( 'mailerpress/email/per_contact_html', $html, $html, (int) $contactEntity->contact_id );
@@ -2624,7 +2820,7 @@ class Campaigns
     public function getContactConditionalData( \WP_REST_Request $request ): \WP_REST_Response {
         $contactId = absint( $request->get_param( 'id' ) );
         if ( 0 === $contactId ) {
-            return new \WP_REST_Response( [ 'error' => __('Invalid contact ID', 'mailerpress') ], 400 );
+            return new \WP_REST_Response( [ 'error' => __('Invalid contact ID.', 'mailerpress') ], 400 );
         }
 
         $data = apply_filters( 'mailerpress/contact/conditional_data', [], $contactId );
@@ -2684,42 +2880,10 @@ class Campaigns
             return new \WP_REST_Response(null, 400);
         }
 
-        // Get frequency sending option with default fallback
-        $frequencySending = get_option('mailerpress_frequency_sending', [
-            "webHost" => "",
-            "frequency" => "recommended",
-            "settings" => [
-                "numberEmail" => 25,
-                "config" => [
-                    "value" => 5,
-                    "unit" => "minutes",
-                ],
-            ],
-        ]);
-
-        if (is_string($frequencySending)) {
-            $decoded = json_decode($frequencySending, true);
-            if (is_array($decoded)) {
-                $frequencySending = $decoded;
-            } else {
-                // fallback to default if decode fails
-                $frequencySending = [
-                    "webHost" => "",
-                    "frequency" => "recommended",
-                    "settings" => [
-                        "numberEmail" => 25,
-                        "config" => [
-                            "value" => 5,
-                            "unit" => "minutes",
-                        ],
-                    ],
-                ];
-            }
-        }
-
-        // Extract numberEmail and config properly from settings
-        $numberEmail = $frequencySending['settings']['numberEmail'] ?? 25;
-        $frequencyConfig = $frequencySending['settings']['config'] ?? ['value' => 5, 'unit' => 'minutes'];
+        $frequencySending = \MailerPress\Services\SendingFrequencyConfig::get();
+        $effectiveConfig = $frequencySending['effectiveConfig'];
+        $numberEmail = $effectiveConfig['numberEmail'];
+        $frequencyConfig = $effectiveConfig['frequency'];
 
         $contact_chunks = array_chunk($contacts, $numberEmail);
 
@@ -2902,67 +3066,21 @@ class Campaigns
         $servicesData = get_option( 'mailerpress_email_services', [] );
         $espKey = $servicesData['default_service'] ?? '';
 
-        // Create batch immediately so it can be displayed in the UI
-        // Convert scheduledAt (WP-timezone naive string) to UTC for consistent storage.
-        // The chunks table also stores scheduled_at in UTC; dateI18n on the frontend
-        // expects UTC and converts to WP timezone for display.
+        // Use the same absolute instant for storage and Action Scheduler.
         $status = ('future' === $sendType) ? 'scheduled' : 'pending';
-        $utcScheduledAt = null;
-        if (!empty($scheduledAt)) {
-            $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone(wp_timezone_string());
-            $dtForStorage = \DateTime::createFromFormat('Y-m-d H:i:s', $scheduledAt, $tz);
-            if ($dtForStorage) {
-                $utcScheduledAt = gmdate('Y-m-d H:i:s', $dtForStorage->getTimestamp());
-            }
-        }
-
-        // Calculate and validate the action time before creating a database batch.
         $scheduled_time = time() + 5;
-        if ('future' === $sendType && !empty($scheduledAt)) {
-            $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone(wp_timezone_string());
-            try {
-                if (is_string($scheduledAt)) {
-                    $dt = \DateTime::createFromFormat(\DateTime::ISO8601, $scheduledAt);
-                    if (!$dt) {
-                        $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $scheduledAt, $tz);
-                    }
-                    if (!$dt) {
-                        $dt = new \DateTime($scheduledAt, $tz);
-                    }
-                } else {
-                    $dt = new \DateTime($scheduledAt, $tz);
-                }
-
-                if ($dt) {
-                    $scheduled_timestamp = $dt->getTimestamp();
-                    if ($scheduled_timestamp <= time()) {
-                        return new \WP_Error(
-                            'mailerpress_scheduled_date_past',
-                            __('The scheduled date is in the past. Please select a future date and time.', 'mailerpress'),
-                            ['status' => 422]
-                        );
-                    }
-
-                    $scheduled_time = $scheduled_timestamp;
-                }
-            } catch (\Exception $e) {
-                \MailerPress\Services\Logger::error('Failed to parse scheduledAt', [
-                    'message' => $e->getMessage(),
-                    'scheduledAt' => $scheduledAt,
-                ]);
-                return new \WP_Error(
-                    'mailerpress_scheduled_date_invalid',
-                    __('Invalid scheduled date format.', 'mailerpress'),
-                    ['status' => 422]
-                );
+        if ('future' === $sendType) {
+            $requestedTimezone = $request->get_param('scheduledTimezone');
+            $resolved = \MailerPress\Services\CampaignScheduleTime::resolve(
+                $scheduledAt,
+                is_string($requestedTimezone) ? $requestedTimezone : null
+            );
+            if (is_wp_error($resolved)) {
+                return $resolved;
             }
+            $scheduled_time = $resolved->getTimestamp();
         }
-
-        // The date picker keeps a default future value even for immediate sends.
-        // Store the actual action time instead of that unused value.
-        if ('future' !== $sendType) {
-            $utcScheduledAt = gmdate('Y-m-d H:i:s', $scheduled_time);
-        }
+        $utcScheduledAt = gmdate('Y-m-d H:i:s', $scheduled_time);
 
         $wpdb->insert(
             $batchTable,
@@ -3126,7 +3244,7 @@ class Campaigns
         if (!$campaign) {
             return new \WP_Error(
                 'campaign_not_found',
-                __('Campaign not found', 'mailerpress'),
+                __('Campaign not found.', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -3143,7 +3261,7 @@ class Campaigns
         if ($updated === false) {
             return new \WP_Error(
                 'update_failed',
-                __('Failed to update campaign HTML content', 'mailerpress'),
+                __('Failed to update campaign HTML content.', 'mailerpress'),
                 ['status' => 500]
             );
         }
@@ -3574,7 +3692,7 @@ class Campaigns
         );
 
         if (!$campaign) {
-            return new \WP_REST_Response(['error' => __('Campaign not found', 'mailerpress')], 404);
+            return new \WP_REST_Response(['error' => __('Campaign not found.', 'mailerpress')], 404);
         }
 
         if ($campaign['campaign_type'] !== 'automated') {
@@ -3650,7 +3768,7 @@ class Campaigns
         );
 
         if (!$campaign) {
-            return new \WP_REST_Response(['error' => __('Campaign not found', 'mailerpress')], 404);
+            return new \WP_REST_Response(['error' => __('Campaign not found.', 'mailerpress')], 404);
         }
 
         if ($campaign['campaign_type'] !== 'automated') {
@@ -4222,9 +4340,9 @@ class Campaigns
                 }
             }
 
-            // Update A/B Test participant if this is an A/B test email
             if ($campaign_id && $userId) {
-                \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $userId);
+                // Lets extensions follow the email, e.g. the A/B test step of MailerPress Pro.
+                do_action('mailerpress_automation_email_opened', (int) $campaign_id, (int) $userId);
             }
 
             if ($userId) {
@@ -4423,11 +4541,11 @@ class Campaigns
                     }
                 }
 
-                // Update A/B Test participant if this is an A/B test email
+                // Lets extensions follow the email, e.g. the A/B test step of MailerPress Pro.
                 // Use contact_id as user_id if no WordPress user found (for non-subscribers)
                 $abTestUserId = $userId ?: $contact_id;
                 if ($campaign_id && $abTestUserId) {
-                    \MailerPress\Actions\Workflows\MailerPress\Actions\ABTestStepHandler::updateParticipantOpen($campaign_id, $abTestUserId);
+                    do_action('mailerpress_automation_email_opened', (int) $campaign_id, (int) $abTestUserId);
                 }
 
                 if ($userId) {
@@ -4619,8 +4737,11 @@ class Campaigns
             $campaign_id
         ));
 
+        // The editor polls this route, so it also reports unlock requests instead of a second poll.
+        $unlock_requests = get_transient("campaign_{$campaign_id}_unlock_requests") ?: [];
+
         if (!$lock || !$lock->editing_user_id) {
-            return new WP_REST_Response(['locked' => false]);
+            return new WP_REST_Response(['locked' => false, 'unlock_requests' => $unlock_requests]);
         }
 
         $user = get_userdata($lock->editing_user_id);
@@ -4629,7 +4750,8 @@ class Campaigns
             'user_id' => $lock->editing_user_id,
             'user_name' => $user ? $user->display_name : '',
             'locked_avatar' => get_avatar_url($lock->editing_user_id, ['size' => 256, 'default' => 'mystery']),
-            'timestamp' => $lock->editing_started_at
+            'timestamp' => $lock->editing_started_at,
+            'unlock_requests' => $unlock_requests,
         ]);
     }
 
@@ -4889,7 +5011,7 @@ class Campaigns
         if (!$campaign) {
             return new \WP_Error(
                 'not_found',
-                __('Campaign not found', 'mailerpress'),
+                __('Campaign not found.', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -5096,7 +5218,7 @@ class Campaigns
         if (!$campaign) {
             return new \WP_Error(
                 'not_found',
-                __('Campaign not found', 'mailerpress'),
+                __('Campaign not found.', 'mailerpress'),
                 ['status' => 404]
             );
         }
@@ -5142,7 +5264,7 @@ class Campaigns
                 'subject' => $log['subject'] ?? '',
                 'from_email' => $log['from_email'] ?? '',
                 'from_name' => $log['from_name'] ?? '',
-                'service' => $log['service'] ?? 'php',
+                'service' => $log['service'] ?? 'wordpress',
                 'status' => $log['status'] ?? 'pending',
                 'error_message' => $log['error_message'] ?? null,
                 'created_at' => $log['created_at'] ?? '',
@@ -5162,40 +5284,6 @@ class Campaigns
     }
 
     /**
-     * Format revenue using WooCommerce settings
-     *
-     * @param float $revenue The revenue amount to format
-     * @return string Formatted revenue with currency symbol
-     */
-    private function formatRevenue(float $revenue): string
-    {
-        if (!function_exists('WC')) {
-            // Fallback if WooCommerce not installed
-            return number_format($revenue, 2);
-        }
-
-        $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8');
-        $formatted_number = number_format(
-            $revenue,
-            wc_get_price_decimals(),
-            wc_get_price_decimal_separator(),
-            wc_get_price_thousand_separator()
-        );
-
-        switch (get_option('woocommerce_currency_pos', 'left')) {
-            case 'right':
-                return $formatted_number . ' ' . $currency_symbol;
-            case 'left_space':
-                return $currency_symbol . ' ' . $formatted_number;
-            case 'right_space':
-                return $formatted_number . ' ' . $currency_symbol;
-            case 'left': // default
-            default:
-                return $currency_symbol . $formatted_number;
-        }
-    }
-
-    /**
      * Get contact fetcher based on recipient targeting type
      *
      * @param string|null $recipientTargeting
@@ -5210,14 +5298,7 @@ class Campaigns
         array $tags,
         array $segment
     ): ?ContactFetcherInterface {
-        $type = $recipientTargeting ?? 'classic';
-
-        return match ($type) {
-            'classic' => new ClassicContactFetcher($lists, $tags),
-            'contact_ids' => new ContactIdsFetcher(is_array($segment) ? $segment : []),
-            'segment' => new SegmentContactFetcher(is_array($segment) ? $segment[0] : $segment),
-            default => null
-        };
+        return ContactFetcherFactory::make($recipientTargeting, $lists, $tags, $segment);
     }
 
     /**
@@ -5272,14 +5353,21 @@ class Campaigns
         $table = Tables::get(Tables::MAILERPRESS_CAMPAIGNS);
 
         $campaigns = $wpdb->get_results(
-            "SELECT campaign_id, name, created_at, updated_at
+            "SELECT campaign_id, name, created_at, updated_at, config
              FROM {$table}
              WHERE status = 'sent'
              ORDER BY created_at DESC",
             ARRAY_A
         );
 
-        return new \WP_REST_Response($campaigns ?: [], 200);
+        $campaigns = array_values(array_filter($campaigns ?: [], static fn(array $campaign): bool =>
+            !CampaignEmail::isPrivate((int) $campaign['campaign_id'], $campaign['config'])
+        ));
+        foreach ($campaigns as &$campaign) {
+            unset($campaign['config']);
+        }
+
+        return new \WP_REST_Response($campaigns, 200);
     }
 
     /**

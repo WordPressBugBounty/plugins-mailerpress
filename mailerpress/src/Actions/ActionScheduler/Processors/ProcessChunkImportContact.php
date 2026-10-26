@@ -9,8 +9,8 @@ namespace MailerPress\Actions\ActionScheduler\Processors;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Models\CustomFields;
+use MailerPress\Services\ContactImportFields;
 use MailerPress\Services\InactiveContactManager;
-use MailerPress\Services\Logger;
 
 class ProcessChunkImportContact
 {
@@ -51,10 +51,6 @@ class ProcessChunkImportContact
 
             if ($claimed === 0 || $claimed === false) {
                 // Chunk already claimed by another process or doesn't exist
-                $this->logImportEvent('debug', 'Import chunk was not claimed for processing.', [
-                    'chunk_id' => $chunk_id,
-                    'claimed_result' => $claimed,
-                ]);
                 return;
             }
 
@@ -66,18 +62,8 @@ class ProcessChunkImportContact
 
             if (!$chunk) {
                 // Chunk doesn't exist
-                $this->logImportEvent('warning', 'Import chunk was claimed but could not be loaded.', [
-                    'chunk_id' => $chunk_id,
-                ]);
                 return;
             }
-
-            $this->logImportEvent('info', 'Import chunk processing started.', [
-                'batch_id' => (int) $chunk->batch_id,
-                'chunk_id' => $chunk_id,
-                'force_update' => $forceUpdate,
-                'memory_usage' => memory_get_usage(),
-            ]);
 
             $batch = $wpdb->get_row(
                 $wpdb->prepare("SELECT * FROM {$contactBatch} WHERE batch_id = %d", $chunk->batch_id),
@@ -86,10 +72,6 @@ class ProcessChunkImportContact
 
             if (!$batch) {
                 // Mark chunk as failed with error message
-                $this->logImportEvent('error', 'Import chunk failed because the parent batch was not found.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                ]);
                 $wpdb->update($importChunks, [
                     'processed' => 3,
                     'error_message' => 'Batch not found'
@@ -107,32 +89,16 @@ class ProcessChunkImportContact
             $contacts_json_error = json_last_error_msg();
 
             if (!is_array($contactTags)) {
-                $this->logImportEvent('warning', 'Import batch tags payload is invalid; continuing without tags.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                    'json_error' => $tags_json_error,
-                ]);
                 $contactTags = [];
             }
 
             if (!is_array($contactLists)) {
-                $this->logImportEvent('warning', 'Import batch lists payload is invalid; continuing without lists.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                    'json_error' => $lists_json_error,
-                ]);
                 $contactLists = [];
             }
 
             // Validate contacts array
             if (!is_array($contacts)) {
                 // Mark chunk as failed - invalid data
-                $this->logImportEvent('error', 'Import chunk contains invalid contacts data.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                    'json_error' => $contacts_json_error,
-                    'payload_size' => is_string($chunk->chunk_data) ? strlen($chunk->chunk_data) : 0,
-                ]);
                 $wpdb->update($importChunks, [
                     'processed' => 3,
                     'error_message' => $this->truncateLogMessage('Invalid contacts data: ' . $contacts_json_error)
@@ -141,15 +107,7 @@ class ProcessChunkImportContact
                 return;
             }
 
-            // Count total contacts in this chunk for tracking
-            $total_contacts_in_chunk = count($contacts);
             $processed_contacts = 0;
-            $created_contacts = 0;
-            $updated_contacts = 0;
-            $existing_contacts = 0;
-            $invalid_contacts = 0;
-            $failed_contacts = 0;
-            $chunk_contact_offset = $this->getChunkContactOffset($importChunks, (int) $chunk->batch_id, $chunk_id);
 
             // Memory management: Track initial memory and set threshold
             $initial_memory = memory_get_usage();
@@ -167,37 +125,19 @@ class ProcessChunkImportContact
 
                     // If approaching memory limit, stop processing and reschedule remainder
                     if ($current_memory > $memory_threshold) {
-                        $this->logImportEvent('warning', 'Import chunk is being rescheduled because memory usage is close to the PHP limit.', [
-                            'batch_id' => (int) $chunk->batch_id,
-                            'chunk_id' => $chunk_id,
-                            'processed_contacts' => $processed_contacts,
-                            'chunk_row' => $index + 1,
-                            'estimated_csv_line' => $chunk_contact_offset + $index + 2,
-                            'current_memory' => $current_memory,
-                            'memory_limit' => $memory_limit,
-                        ]);
 
                         // Save progress and reschedule chunk with remaining contacts
                         $this->reschedulePartialChunk($chunk_id, $chunk->batch_id, $contacts, $index, $forceUpdate);
 
                         // Update processed count for contacts we did complete
                         if ($processed_contacts > 0) {
-                            $count_updated = $wpdb->query(
+                            $wpdb->query(
                                 $wpdb->prepare(
                                     "UPDATE {$contactBatch} SET processed_count = processed_count + %d WHERE batch_id = %d",
                                     $processed_contacts,
                                     $chunk->batch_id
                                 )
                             );
-
-                            if (false === $count_updated) {
-                                $this->logImportEvent('error', 'Failed to update import batch processed count before rescheduling.', [
-                                    'batch_id' => (int) $chunk->batch_id,
-                                    'chunk_id' => $chunk_id,
-                                    'processed_contacts' => $processed_contacts,
-                                    'db_error' => $wpdb->last_error,
-                                ]);
-                            }
                         }
 
                         return;
@@ -210,15 +150,7 @@ class ProcessChunkImportContact
                 }
 
                 if (!is_array($contact)) {
-                    $invalid_contacts++;
                     $processed_contacts++;
-                    $this->logImportEvent('warning', 'Skipping malformed import row because it is not an object.', [
-                        'batch_id' => (int) $chunk->batch_id,
-                        'chunk_id' => $chunk_id,
-                        'chunk_row' => $index + 1,
-                        'estimated_csv_line' => $chunk_contact_offset + $index + 2,
-                        'value_type' => gettype($contact),
-                    ]);
                     continue;
                 }
 
@@ -229,13 +161,7 @@ class ProcessChunkImportContact
                 // Validate email before processing
                 if (empty($email) || !is_email($email)) {
                     // Skip invalid emails but still count them as processed
-                    $invalid_contacts++;
                     $processed_contacts++;
-                    $this->logImportEvent('warning', 'Skipping import row because the email is missing or invalid.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                        'email_value' => isset($contact['email']) && is_scalar($contact['email'])
-                            ? $this->redactValue((string) $contact['email'])
-                            : null,
-                    ]));
                     continue;
                 }
 
@@ -250,60 +176,41 @@ class ProcessChunkImportContact
 
                 if (null === $contact_id) {
                     // Insert new contact
-                    // Extract and clean first_name and last_name
-                    // Handle both array_key_exists and isset to catch empty strings
-                    $first_name = '';
-                    $last_name = '';
-
-                    if (array_key_exists('first_name', $contact)) {
-                        $first_name = is_string($contact['first_name']) ? trim($contact['first_name'], ' "\'') : '';
-                    }
-
-                    if (array_key_exists('last_name', $contact)) {
-                        $last_name = is_string($contact['last_name']) ? trim($contact['last_name'], ' "\'') : '';
-                    }
+                    $names = ContactImportFields::names($contact);
+                    $dates = ContactImportFields::dates($contact);
 
                     $contact_data = [
                         'email' => $contact['email'],
-                        'first_name' => sanitize_text_field($first_name),
-                        'last_name' => sanitize_text_field($last_name),
+                        'first_name' => $names['first_name'] ?? '',
+                        'last_name' => $names['last_name'] ?? '',
                         'subscription_status' => $contact_status ?? 'pending',
                         'unsubscribe_token' => wp_generate_uuid4(),
-                        'created_at' => $current_time,
-                        'updated_at' => $current_time,
+                        'created_at' => $dates['created_at'] ?? $current_time,
+                        'updated_at' => $dates['updated_at'] ?? $dates['created_at'] ?? $current_time,
                         'opt_in_source' => 'batch_import_file',
                         'access_token' => bin2hex(random_bytes(32))
                     ];
                     $contact_data = array_merge($contact_data, $this->lifecycleFieldsForStatus((string) ($contact_status ?? 'pending'), $current_time));
+                    if ('pending' === ($contact_status ?? 'pending')) {
+                        $contact_data['pending_since'] = $current_time;
+                    }
 
                     $result = $wpdb->insert($contactTable, $contact_data);
 
                     if (false !== $result) {
                         $contactId = $wpdb->insert_id;
-                        $created_contacts++;
-
                         $this->attachContactRelations(
                             (int) $contactId,
                             $contactTags,
                             Tables::get(Tables::CONTACT_TAGS),
-                            'tag_id',
-                            'tag',
-                            $chunk,
-                            $index,
-                            $contact,
-                            $chunk_contact_offset
+                            'tag_id'
                         );
 
                         $this->attachContactRelations(
                             (int) $contactId,
                             $contactLists,
                             Tables::get(Tables::MAILERPRESS_CONTACT_LIST),
-                            'list_id',
-                            'list',
-                            $chunk,
-                            $index,
-                            $contact,
-                            $chunk_contact_offset
+                            'list_id'
                         );
 
                         // Insert custom fields - skip standard fields that shouldn't be in custom_fields
@@ -334,11 +241,6 @@ class ProcessChunkImportContact
                                 ]);
 
                                 if (false === $custom_field_result) {
-                                    $this->logImportEvent('error', 'Failed to insert custom field during contact import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                        'contact_id' => (int) $contactId,
-                                        'field_key' => sanitize_text_field($field_key),
-                                        'db_error' => $wpdb->last_error,
-                                    ]));
                                     continue;
                                 }
 
@@ -349,40 +251,19 @@ class ProcessChunkImportContact
                         $processed_contacts++;
                     } else {
                         // Insert failed, but still count as processed (attempted)
-                        $failed_contacts++;
                         $processed_contacts++;
-                        $this->logImportEvent('error', 'Failed to insert contact during import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                            'db_error' => $wpdb->last_error,
-                        ]));
                     }
                 } else {
                     // Update existing contact
                     // Always count existing contacts as processed, even if not updated
-                    $existing_contacts++;
                     $processed_contacts++;
 
                     if (true === $forceUpdate || '1' === $forceUpdate) {
-                        // Extract and clean first_name and last_name
-                        // Handle both array_key_exists and isset to catch empty strings
-                        $first_name = '';
-                        $last_name = '';
-
-                        if (array_key_exists('first_name', $contact)) {
-                            $first_name = is_string($contact['first_name']) ? trim($contact['first_name'], ' "\'') : '';
-                        }
-
-                        if (array_key_exists('last_name', $contact)) {
-                            $last_name = is_string($contact['last_name']) ? trim($contact['last_name'], ' "\'') : '';
-                        }
-
+                        // The import status only applies to new contacts: existing contacts keep their subscription status.
                         $update_data = array_merge(
-                            [
-                                'subscription_status' => $contact_status,
-                                'updated_at' => $current_time,
-                                'first_name' => sanitize_text_field($first_name),
-                                'last_name' => sanitize_text_field($last_name),
-                            ],
-                            $this->lifecycleFieldsForStatus((string) $contact_status, $current_time)
+                            ['updated_at' => $current_time],
+                            ContactImportFields::names($contact),
+                            ContactImportFields::dates($contact)
                         );
 
                         $result = $wpdb->update(
@@ -392,30 +273,18 @@ class ProcessChunkImportContact
                         );
 
                         if (false !== $result) {
-                            $updated_contacts++;
-
                             $this->attachContactRelations(
                                 (int) $contact_id,
                                 $contactTags,
                                 Tables::get(Tables::CONTACT_TAGS),
-                                'tag_id',
-                                'tag',
-                                $chunk,
-                                $index,
-                                $contact,
-                                $chunk_contact_offset
+                                'tag_id'
                             );
 
                             $this->attachContactRelations(
                                 (int) $contact_id,
                                 $contactLists,
                                 Tables::get(Tables::MAILERPRESS_CONTACT_LIST),
-                                'list_id',
-                                'list',
-                                $chunk,
-                                $index,
-                                $contact,
-                                $chunk_contact_offset
+                                'list_id'
                             );
 
                             // Insert custom fields for existing contact (update if exists)
@@ -455,13 +324,13 @@ class ProcessChunkImportContact
                                         : sanitize_text_field((string) $sanitized_value);
 
                                     if ($existing) {
-                                        $custom_field_result = $wpdb->update(
+                                        $wpdb->update(
                                             Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS),
                                             ['field_value' => $db_value],
                                             ['field_id' => $existing]
                                         );
                                     } else {
-                                        $custom_field_result = $wpdb->insert(
+                                        $wpdb->insert(
                                             Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS),
                                             [
                                                 'contact_id' => $contact_id,
@@ -470,22 +339,8 @@ class ProcessChunkImportContact
                                             ]
                                         );
                                     }
-
-                                    if (false === $custom_field_result) {
-                                        $this->logImportEvent('error', 'Failed to save custom field for existing contact during import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                            'contact_id' => (int) $contact_id,
-                                            'field_key' => sanitize_text_field($field_key),
-                                            'db_error' => $wpdb->last_error,
-                                        ]));
-                                    }
                                 }
                             }
-                        } else {
-                            $failed_contacts++;
-                            $this->logImportEvent('error', 'Failed to update existing contact during import.', $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                                'contact_id' => (int) $contact_id,
-                                'db_error' => $wpdb->last_error,
-                            ]));
                         }
                     }
                 }
@@ -494,58 +349,23 @@ class ProcessChunkImportContact
             // Update processed_count once for all contacts in this chunk
             // This ensures accurate counting even if some contacts fail to process
             if ($processed_contacts > 0) {
-                $count_updated = $wpdb->query(
+                $wpdb->query(
                     $wpdb->prepare(
                         "UPDATE {$contactBatch} SET processed_count = processed_count + %d WHERE batch_id = %d",
                         $processed_contacts,
                         $chunk->batch_id
                     )
                 );
-
-                if (false === $count_updated) {
-                    $this->logImportEvent('error', 'Failed to update import batch processed count.', [
-                        'batch_id' => (int) $chunk->batch_id,
-                        'chunk_id' => $chunk_id,
-                        'processed_contacts' => $processed_contacts,
-                        'db_error' => $wpdb->last_error,
-                    ]);
-                }
             }
 
             // Clear any remaining cached data before marking complete
             wp_cache_flush();
 
             // Mark the chunk as processed successfully
-            $chunk_updated = $wpdb->update($importChunks, [
+            $wpdb->update($importChunks, [
                 'processed' => 1,
                 'processing_completed_at' => current_time('mysql')
             ], ['id' => $chunk_id]);
-
-            if (false === $chunk_updated) {
-                $this->logImportEvent('error', 'Failed to mark import chunk as completed.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                    'db_error' => $wpdb->last_error,
-                ]);
-            }
-
-            $this->logImportEvent(
-                ($invalid_contacts > 0 || $failed_contacts > 0) ? 'warning' : 'info',
-                'Import chunk processing completed.',
-                [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'chunk_id' => $chunk_id,
-                    'total_contacts_in_chunk' => $total_contacts_in_chunk,
-                    'processed_contacts' => $processed_contacts,
-                    'created_contacts' => $created_contacts,
-                    'existing_contacts' => $existing_contacts,
-                    'updated_contacts' => $updated_contacts,
-                    'invalid_contacts' => $invalid_contacts,
-                    'failed_contacts' => $failed_contacts,
-                    'memory_usage' => memory_get_usage(),
-                    'peak_memory_usage' => memory_get_peak_usage(),
-                ]
-            );
 
             // Schedule next chunks for processing (parallel approach)
             $this->scheduleNextChunk($chunk->batch_id);
@@ -590,11 +410,6 @@ class ProcessChunkImportContact
                 // Mark batch as completed (status = 'done')
                 // This removes it from the pending imports list
                 $wpdb->update($contactBatch, ['status' => 'done'], ['batch_id' => $chunk->batch_id]);
-                $this->logImportEvent('info', 'Import batch completed.', [
-                    'batch_id' => (int) $chunk->batch_id,
-                    'total_contacts' => isset($batch_info['count']) ? (int) $batch_info['count'] : null,
-                    'processed_contacts' => isset($batch_info['processed_count']) ? (int) $batch_info['processed_count'] : null,
-                ]);
             }
         } catch (\Throwable $e) {
             // Get current retry count
@@ -604,15 +419,6 @@ class ProcessChunkImportContact
             ));
 
             $retry_count = isset($chunk_info->retry_count) ? (int)$chunk_info->retry_count : 0;
-            $this->logImportEvent('error', 'Import chunk processing threw an exception.', [
-                'batch_id' => $chunk_info && isset($chunk_info->batch_id) ? (int) $chunk_info->batch_id : null,
-                'chunk_id' => $chunk_id,
-                'retry_count' => $retry_count,
-                'exception_class' => get_class($e),
-                'exception_message' => $e->getMessage(),
-                'exception_file' => $e->getFile(),
-                'exception_line' => $e->getLine(),
-            ]);
 
             // Maximum retries - filterable for reliability tuning
             $max_retries = apply_filters('mailerpress_import_max_retries', 3);
@@ -628,12 +434,6 @@ class ProcessChunkImportContact
 
                 // Schedule retry with exponential backoff (1min, 2min, 4min)
                 $delay = pow(2, $retry_count) * 60;
-                $this->logImportEvent('warning', 'Import chunk scheduled for retry.', [
-                    'batch_id' => $chunk_info && isset($chunk_info->batch_id) ? (int) $chunk_info->batch_id : null,
-                    'chunk_id' => $chunk_id,
-                    'next_retry_count' => $retry_count + 1,
-                    'delay_seconds' => $delay,
-                ]);
                 if (function_exists('as_schedule_single_action')) {
                     as_schedule_single_action(
                         time() + $delay,
@@ -648,12 +448,6 @@ class ProcessChunkImportContact
                     'processed' => 3,
                     'error_message' => $this->truncateLogMessage('Max retries reached: ' . get_class($e) . ': ' . $e->getMessage())
                 ], ['id' => $chunk_id]);
-                $this->logImportEvent('error', 'Import chunk permanently failed after reaching the retry limit.', [
-                    'batch_id' => $chunk_info && isset($chunk_info->batch_id) ? (int) $chunk_info->batch_id : null,
-                    'chunk_id' => $chunk_id,
-                    'retry_count' => $retry_count,
-                    'max_retries' => $max_retries,
-                ]);
             }
 
             // Schedule next chunks anyway to prevent entire batch from stalling
@@ -667,38 +461,17 @@ class ProcessChunkImportContact
         int $contactId,
         array $relations,
         string $table,
-        string $relationColumn,
-        string $relationName,
-        object $chunk,
-        int $index,
-        array $contact,
-        int $chunk_contact_offset
+        string $relationColumn
     ): void {
         global $wpdb;
 
         foreach ($relations as $relation) {
             if (!is_array($relation) || empty($relation['id'])) {
-                $this->logImportEvent(
-                    'warning',
-                    "Skipping invalid {$relationName} relation during contact import.",
-                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                        'contact_id' => $contactId,
-                        $relationName => $relation,
-                    ])
-                );
                 continue;
             }
 
             $relationId = (int) $relation['id'];
             if ($relationId <= 0) {
-                $this->logImportEvent(
-                    'warning',
-                    "Skipping invalid {$relationName} relation during contact import.",
-                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                        'contact_id' => $contactId,
-                        $relationName => $relation,
-                    ])
-                );
                 continue;
             }
 
@@ -712,7 +485,7 @@ class ProcessChunkImportContact
                 continue;
             }
 
-            $result = $wpdb->insert(
+            $wpdb->insert(
                 $table,
                 [
                     'contact_id' => $contactId,
@@ -720,18 +493,6 @@ class ProcessChunkImportContact
                 ],
                 ['%d', '%d']
             );
-
-            if (false === $result) {
-                $this->logImportEvent(
-                    'error',
-                    "Failed to attach {$relationName} during contact import.",
-                    $this->getRowLogContext($chunk, $index, $contact, $chunk_contact_offset, [
-                        'contact_id' => $contactId,
-                        $relationColumn => $relationId,
-                        'db_error' => $wpdb->last_error,
-                    ])
-                );
-            }
         }
     }
 
@@ -931,33 +692,6 @@ class ProcessChunkImportContact
         }
     }
 
-    private function getChunkContactOffset(string $importChunks, int $batch_id, int $chunk_id): int
-    {
-        global $wpdb;
-
-        $previous_chunks = $wpdb->get_col(
-            $wpdb->prepare(
-                "SELECT chunk_data FROM {$importChunks} WHERE batch_id = %d AND id < %d ORDER BY id ASC",
-                $batch_id,
-                $chunk_id
-            )
-        );
-
-        if (empty($previous_chunks)) {
-            return 0;
-        }
-
-        $offset = 0;
-        foreach ($previous_chunks as $chunk_data) {
-            $decoded = json_decode((string) $chunk_data, true);
-            if (is_array($decoded)) {
-                $offset += count($decoded);
-            }
-        }
-
-        return $offset;
-    }
-
     private function lifecycleFieldsForStatus(string $status, string $now): array
     {
         if (!$this->contactHasLifecycleColumns()) {
@@ -1003,177 +737,6 @@ class ProcessChunkImportContact
         $hasColumns = count(array_intersect($required, $columns)) === count($required);
 
         return $hasColumns;
-    }
-
-    private function getRowLogContext(object $chunk, int $index, array $contact, int $chunk_contact_offset, array $extra = []): array
-    {
-        $context = [
-            'batch_id' => (int) $chunk->batch_id,
-            'chunk_id' => (int) $chunk->id,
-            'chunk_row' => $index + 1,
-            'estimated_csv_line' => $chunk_contact_offset + $index + 2,
-            'email' => isset($contact['email']) && is_scalar($contact['email'])
-                ? $this->maskEmail((string) $contact['email'])
-                : null,
-            'fields' => array_values(array_filter(
-                array_keys($contact),
-                static fn($field) => is_string($field) && !str_starts_with($field, '_')
-            )),
-        ];
-
-        if (isset($contact['_mailerpress_csv_row']) && is_numeric($contact['_mailerpress_csv_row'])) {
-            $context['csv_line'] = (int) $contact['_mailerpress_csv_row'];
-        }
-
-        return array_merge($context, $extra);
-    }
-
-    private function logImportEvent(string $level, string $message, array $context = []): void
-    {
-        if (!$this->isImportDebugEnabled()) {
-            return;
-        }
-
-        $level = strtoupper($level);
-        $context = $this->sanitizeLogContext($context);
-
-        try {
-            Logger::log($level, '[ContactImport] ' . $message, $context);
-        } catch (\Throwable $e) {
-            // Logging must never interrupt imports.
-        }
-
-        $this->writeImportLogFile($level, $message, $context);
-
-        $write_to_php_error_log = apply_filters('mailerpress_import_log_to_php_error_log', true);
-        if (!$write_to_php_error_log) {
-            return;
-        }
-
-        $encoded_context = function_exists('wp_json_encode')
-            ? wp_json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-            : json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        error_log(sprintf(
-            '[MailerPress Contact Import] [%s] %s%s',
-            $level,
-            $message,
-            $encoded_context ? ' | ' . $encoded_context : ''
-        ));
-    }
-
-    private function isImportDebugEnabled(): bool
-    {
-        return defined('WP_DEBUG')
-            && true === WP_DEBUG
-            && defined('WP_DEBUG_LOG')
-            && true === WP_DEBUG_LOG;
-    }
-
-    private function writeImportLogFile(string $level, string $message, array $context): void
-    {
-        try {
-            $upload_dir = wp_upload_dir();
-            $base_dir = empty($upload_dir['basedir']) ? WP_CONTENT_DIR . '/uploads' : $upload_dir['basedir'];
-            $log_dir = trailingslashit($base_dir) . 'mailerpress-logs';
-
-            if (!file_exists($log_dir)) {
-                wp_mkdir_p($log_dir);
-            }
-
-            if (!is_dir($log_dir) || !is_writable($log_dir)) {
-                return;
-            }
-
-            $htaccess_file = trailingslashit($log_dir) . '.htaccess';
-            if (!file_exists($htaccess_file)) {
-                @file_put_contents($htaccess_file, "deny from all\n");
-            }
-
-            $index_file = trailingslashit($log_dir) . 'index.html';
-            if (!file_exists($index_file)) {
-                @file_put_contents($index_file, '');
-            }
-
-            $encoded_context = function_exists('wp_json_encode')
-                ? wp_json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-                : json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-            $log_entry = sprintf(
-                "[%s] [%s] %s%s\n",
-                current_time('mysql'),
-                $level,
-                $message,
-                $encoded_context ? ' | ' . $encoded_context : ''
-            );
-
-            @file_put_contents(
-                trailingslashit($log_dir) . 'contact-import-' . current_time('Y-m-d') . '.log',
-                $log_entry,
-                FILE_APPEND | LOCK_EX
-            );
-        } catch (\Throwable $e) {
-            // Logging must never interrupt imports.
-        }
-    }
-
-    private function sanitizeLogContext(array $context): array
-    {
-        $sanitized = [];
-
-        foreach ($context as $key => $value) {
-            if (is_array($value)) {
-                $sanitized[$key] = $this->sanitizeLogContext($value);
-                continue;
-            }
-
-            if (is_object($value)) {
-                $sanitized[$key] = get_class($value);
-                continue;
-            }
-
-            if (is_string($value)) {
-                $sanitized[$key] = $this->truncateLogMessage(sanitize_text_field($value), 500);
-                continue;
-            }
-
-            if (is_scalar($value) || null === $value) {
-                $sanitized[$key] = $value;
-                continue;
-            }
-
-            $sanitized[$key] = gettype($value);
-        }
-
-        return $sanitized;
-    }
-
-    private function maskEmail(string $email): string
-    {
-        $email = trim($email);
-        if (!str_contains($email, '@')) {
-            return $this->redactValue($email);
-        }
-
-        [$local, $domain] = explode('@', $email, 2);
-        $visible_local = substr($local, 0, min(2, strlen($local)));
-
-        return $visible_local . '***@' . $domain;
-    }
-
-    private function redactValue(string $value): string
-    {
-        $value = trim(sanitize_text_field($value));
-
-        if ('' === $value) {
-            return '';
-        }
-
-        if (str_contains($value, '@')) {
-            return $this->maskEmail($value);
-        }
-
-        return substr($value, 0, 2) . '***' . (strlen($value) > 8 ? substr($value, -2) : '');
     }
 
     private function truncateLogMessage(string $message, int $length = 255): string

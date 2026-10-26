@@ -49,8 +49,9 @@
     border: 1px solid var(--button-and-input-color);
     border-radius: 0;
 
-    &:focus {
-      outline: none;
+    &:focus-visible {
+      outline: 2px solid var(--button-and-input-color);
+      outline-offset: 1px;
     }
   }
 
@@ -59,8 +60,9 @@
     border: none;
     border-radius: 0;
 
-    &:focus {
-      outline: none;
+    &:focus-visible {
+      outline: 2px solid var(--button-and-input-color);
+      outline-offset: 2px;
     }
   }
 }

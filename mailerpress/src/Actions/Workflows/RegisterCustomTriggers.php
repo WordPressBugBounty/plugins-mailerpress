@@ -9,8 +9,6 @@ namespace MailerPress\Actions\Workflows;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactOptinTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactTagAddedTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactListAddedTrigger;
-use MailerPress\Actions\Workflows\MailerPress\Triggers\ContactCustomFieldUpdatedTrigger;
-use MailerPress\Actions\Workflows\MailerPress\Triggers\BirthdayCheckTrigger;
 use MailerPress\Actions\Workflows\MailerPress\Triggers\CustomTrigger;
 use MailerPress\Actions\Workflows\WooCommerce\OrderStatusChanged;
 use MailerPress\Actions\Workflows\WooCommerce\ProductPurchased;
@@ -65,8 +63,6 @@ class RegisterCustomTriggers
         ContactOptinTrigger::register($manager);
         ContactTagAddedTrigger::register($manager);
         ContactListAddedTrigger::register($manager);
-        ContactCustomFieldUpdatedTrigger::register($manager);
-        BirthdayCheckTrigger::register($manager);
         CustomTrigger::register($manager);
 
         // Only register WooCommerce triggers if WooCommerce is active

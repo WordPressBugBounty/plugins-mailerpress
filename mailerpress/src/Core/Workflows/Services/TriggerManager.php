@@ -115,7 +115,8 @@ class TriggerManager
     private function handleTrigger(string $triggerKey, array $args, ?callable $contextBuilder): void
     {
         // Scheduled scanner triggers build their own context and should not be processed by the generic hook handler.
-        if (in_array($triggerKey, ['birthday_check', 'woocommerce_customer_inactive'], true)) {
+        $scheduledTriggers = (array) apply_filters('mailerpress_workflow_scheduled_triggers', ['woocommerce_customer_inactive']);
+        if (in_array($triggerKey, $scheduledTriggers, true)) {
             return;
         }
 
@@ -633,11 +634,11 @@ class TriggerManager
                 ],
                 'output_fields' => [
                     ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
-                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
                     ['key' => 'user_login', 'label' => __('Username', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                     ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                     ['key' => 'user_registered', 'label' => __('Registration Date', 'mailerpress'), 'type' => 'date', 'group' => 'user'],
                 ],
@@ -675,11 +676,11 @@ class TriggerManager
                 ],
                 'output_fields' => [
                     ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
-                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
                     ['key' => 'user_login', 'label' => __('Username', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                     ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                 ],
             ]
@@ -707,10 +708,10 @@ class TriggerManager
                 'category' => 'user',
                 'output_fields' => [
                     ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
-                    ['key' => 'user_email', 'label' => __('User Email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
-                    ['key' => 'display_name', 'label' => __('Display Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'first_name', 'label' => __('First Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
-                    ['key' => 'last_name', 'label' => __('Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'user_email', 'label' => __('User email', 'mailerpress'), 'type' => 'email', 'group' => 'user'],
+                    ['key' => 'display_name', 'label' => __('Display name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'first_name', 'label' => __('First name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
+                    ['key' => 'last_name', 'label' => __('Last name', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                     ['key' => 'user_role', 'label' => __('User Role', 'mailerpress'), 'type' => 'string', 'group' => 'user'],
                 ],
                 'settings_schema' => [
@@ -935,8 +936,8 @@ class TriggerManager
                 ['key' => 'user_id', 'label' => __('User ID', 'mailerpress'), 'type' => 'number', 'group' => 'user'],
                 ['key' => 'post_id', 'label' => __('Post ID', 'mailerpress'), 'type' => 'number', 'group' => 'content'],
                 ['key' => 'post_type', 'label' => __('Post Type', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
-                ['key' => 'post_title', 'label' => __('Post Title', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
-                ['key' => 'post_excerpt', 'label' => __('Post Excerpt', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_title', 'label' => __('Post title', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
+                ['key' => 'post_excerpt', 'label' => __('Post excerpt', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
                 ['key' => 'post_url', 'label' => __('Post URL', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
                 ['key' => 'post_thumbnail_url', 'label' => __('Featured Image URL', 'mailerpress'), 'type' => 'string', 'group' => 'content'],
             ],

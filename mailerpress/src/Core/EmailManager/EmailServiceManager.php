@@ -8,8 +8,60 @@ namespace MailerPress\Core\EmailManager;
 
 class EmailServiceManager
 {
+    /**
+     * Former service keys and their replacement.
+     */
+    private const LEGACY_SERVICE_KEYS = ['php' => 'wordpress'];
+
+    /**
+     * Service that sends emails when the primary service is no longer registered.
+     */
+    public const FALLBACK_SERVICE_KEY = 'wordpress';
+
     protected array $services = [];
     protected ?EmailServiceInterface $activeService = null;
+
+    public static function normalizeServiceKey(string $key): string
+    {
+        return self::LEGACY_SERVICE_KEYS[$key] ?? $key;
+    }
+
+    /**
+     * Replace former service keys in the mailerpress_email_services option.
+     */
+    public static function normalizeConfigurations(array $configurations): array
+    {
+        foreach (self::LEGACY_SERVICE_KEYS as $legacyKey => $key) {
+            if (!\is_array($configurations['services'] ?? null) || !isset($configurations['services'][$legacyKey])) {
+                continue;
+            }
+
+            $legacy = (array) $configurations['services'][$legacyKey];
+            unset($configurations['services'][$legacyKey]);
+
+            if (!isset($configurations['services'][$key])) {
+                $configurations['services'][$key] = $legacy;
+            } elseif ($legacyKey === ($configurations['default_service'] ?? null)) {
+                // The legacy service was primary: keep its sender and the settings saved for the new key (e.g. Pro bounce provider).
+                $current = (array) $configurations['services'][$key];
+                $current['conf'] = array_merge((array) ($current['conf'] ?? []), (array) ($legacy['conf'] ?? []));
+                $configurations['services'][$key] = $current;
+            }
+        }
+
+        if (\is_string($configurations['default_service'] ?? null)) {
+            $configurations['default_service'] = self::normalizeServiceKey($configurations['default_service']);
+        }
+
+        if (\is_array($configurations['activated'] ?? null)) {
+            $configurations['activated'] = array_values(array_unique(array_map(
+                static fn($key) => \is_string($key) ? self::normalizeServiceKey($key) : $key,
+                $configurations['activated']
+            )));
+        }
+
+        return $configurations;
+    }
 
     public function registerService(string $key, EmailServiceInterface $service): void
     {
@@ -22,6 +74,43 @@ class EmailServiceManager
     }
 
     /**
+     * Primary service that is configured but no longer registered, e.g. a Pro ESP
+     * after MailerPress Pro was deactivated. WordPress then sends in its place.
+     */
+    public function getUnavailableServiceKey(?array $configurations = null): ?string
+    {
+        $configurations = $configurations ?? $this->getConfigurations();
+        $key = $configurations['default_service'] ?? null;
+
+        if (!\is_string($key) || '' === $key || isset($this->services[$key])
+            || !isset($this->services[self::FALLBACK_SERVICE_KEY])) {
+            return null;
+        }
+
+        // MailerPress Pro registers its services on init (priority 100).
+        if (\defined('MAILERPRESS_PRO_VERSION') && (!did_action('init') || doing_action('init'))) {
+            return null;
+        }
+
+        return $key;
+    }
+
+    /**
+     * Service that actually sends emails: the primary service, or the fallback.
+     */
+    public function getEffectiveServiceKey(?array $configurations = null): ?string
+    {
+        $configurations = $configurations ?? $this->getConfigurations();
+        $key = $configurations['default_service'] ?? null;
+
+        if (\is_string($key) && isset($this->services[$key])) {
+            return $key;
+        }
+
+        return null !== $this->getUnavailableServiceKey($configurations) ? self::FALLBACK_SERVICE_KEY : null;
+    }
+
+    /**
      * @throws \Exception
      */
     public function getActiveService(): ?EmailServiceInterface
@@ -29,9 +118,10 @@ class EmailServiceManager
         // Always reload configuration from DB to ensure fresh sender settings
         $configurations = $this->getConfigurations();
 
-        $defaultServiceKey = $configurations['default_service'] ?? null;
+        $configuredServiceKey = $configurations['default_service'] ?? null;
+        $defaultServiceKey = $this->getEffectiveServiceKey($configurations);
 
-        if (null === $defaultServiceKey || !isset($this->services[$defaultServiceKey])) {
+        if (null === $defaultServiceKey) {
             throw new \Exception(
                 esc_html__(
                     'No active service is set up, or the configured service is not registered.',
@@ -43,6 +133,17 @@ class EmailServiceManager
         // Charger le service actif
         $service = $this->services[$defaultServiceKey];
         $config = $configurations['services'][$defaultServiceKey] ?? [];
+
+        if ($defaultServiceKey !== $configuredServiceKey) {
+            // Keep the sender chosen for the unavailable service.
+            $configuredConf = (array) ($configurations['services'][$configuredServiceKey]['conf'] ?? []);
+            $config['conf'] = (array) ($config['conf'] ?? []);
+            foreach (['default_email', 'default_name'] as $field) {
+                if (!empty($configuredConf[$field])) {
+                    $config['conf'][$field] = $configuredConf[$field];
+                }
+            }
+        }
 
         // Pour le service PHP, si la config est vide, passer un tableau vide
         // La méthode connect() du service gérera le cas des plugins tiers
@@ -67,6 +168,7 @@ class EmailServiceManager
      */
     public function getActiveServiceByKey(string $defaultServiceKey): ?EmailServiceInterface
     {
+        $defaultServiceKey = self::normalizeServiceKey($defaultServiceKey);
 
         // Récupérer la configuration en base
         $configurations = $this->getConfigurations();
@@ -105,6 +207,7 @@ class EmailServiceManager
 
     public function setActiveService(string $key): void
     {
+        $key = self::normalizeServiceKey($key);
         $configurations = $this->getConfigurations();
 
         if (!isset($this->services[$key])) {
@@ -119,11 +222,11 @@ class EmailServiceManager
             );
         }
 
-        // Pour le service PHP, permettre une config vide si un plugin tiers est détecté
+        // Le service WordPress fonctionne sans configuration (expéditeur par défaut).
         $config = $configurations['services'][$key] ?? [];
 
         // Pour les autres services, exiger une configuration
-        if ($key !== 'php' && empty($config)) {
+        if ('wordpress' !== $key && empty($config)) {
             throw new \Exception(
                 esc_html(
                     \sprintf(
@@ -151,6 +254,10 @@ class EmailServiceManager
         $this->activeService = $service;
 
         // Sauvegarder le service actif en BDD
+        \MailerPress\Services\SendingFrequencyConfig::switchProvider(
+            (string) ($configurations['default_service'] ?? 'wordpress'),
+            $key
+        );
         $this->saveConfigurations([
             'default_service' => $key,
             'activated' => $configurations['activated'],
@@ -160,14 +267,15 @@ class EmailServiceManager
 
     public function getConfigurations(): array
     {
+        $siteName = get_option('blogname', '');
         $defaultConfig = [
-            'default_service' => 'php',
-            'activated' => ['php'],
+            'default_service' => 'wordpress',
+            'activated' => ['wordpress'],
             'services' => [
-                'php' => [
+                'wordpress' => [
                     'conf' => [
                         'default_email' => get_option('admin_email', ''),
-                        'default_name' => get_option('blogname', ''),
+                        'default_name' => wp_specialchars_decode($siteName, ENT_QUOTES),
                     ],
                 ],
             ],
@@ -195,11 +303,24 @@ class EmailServiceManager
             $config['activated'] = array_values($config['activated']);
         }
 
+        if (!\is_array($config)) {
+            return $defaultConfig;
+        }
+
+        $config = self::normalizeConfigurations($config);
+
+        // Decode site-derived sender names saved before HTML entities were handled.
+        if ($siteName === ($config['services']['wordpress']['conf']['default_name'] ?? null)) {
+            $config['services']['wordpress']['conf']['default_name'] = $defaultConfig['services']['wordpress']['conf']['default_name'];
+        }
+
         return $config;
     }
 
     public function getServiceByKey(string $key): ?EmailServiceInterface
     {
+        $key = self::normalizeServiceKey($key);
+
         if (!isset($this->services[$key])) {
             throw new \Exception(
                 esc_html(
@@ -231,6 +352,7 @@ class EmailServiceManager
 
     public function saveServiceConfiguration(string $key, array $config, ?bool $activated = null): void
     {
+        $key = self::normalizeServiceKey($key);
         $configurations = $this->getConfigurations();
 
         if (null !== $activated) {
@@ -254,6 +376,8 @@ class EmailServiceManager
 
     public function removeService(string $key): void
     {
+        $key = self::normalizeServiceKey($key);
+
         // Retrieve the current configurations
         $configurations = $this->getConfigurations();
 

@@ -30,82 +30,28 @@ class TriggerConditionChecker
             'tag_added' => $this->checkTagAdded($settings, $context),
             'list_added' => $this->checkListAdded($settings, $context),
             'woocommerce_subscription_status_changed' => $this->checkWoocommerceSubscriptionStatusChanged($settings, $context),
-            'contact_custom_field_updated' => $this->checkContactCustomFieldUpdated($settings, $context),
             'surecart_order_created' => $this->checkSurecartOrderCreated($settings, $context),
             'woocommerce_product_purchased' => $this->checkWoocommerceProductPurchased($settings, $context),
             'optin_form_submitted', 'optin_lead_magnet_delivered' => $this->checkOptinFormTrigger($settings, $context),
-            // Goal-only events
-            'mp_goal_email_opened' => $this->checkGoalEmailOpened($settings, $context),
-            'mp_goal_email_clicked' => $this->checkGoalEmailClicked($settings, $context),
-            'mp_goal_tag_removed' => $this->checkTagAdded($settings, $context),
-            'mp_goal_list_removed' => $this->checkListAdded($settings, $context),
-            'mp_goal_automation_completed' => $this->checkGoalAutomationCompleted($settings, $context),
-            default => true,
+            // Triggers registered by extensions check their own settings, e.g. those of MailerPress Pro.
+            default => (bool) apply_filters('mailerpress_workflow_trigger_conditions_met', true, $triggerKey, $settings, $context, $userId),
         };
-    }
-
-    private function checkGoalEmailOpened(array $settings, array $context): bool
-    {
-        return $this->checkCampaignFilter($settings, $context);
-    }
-
-    private function checkGoalEmailClicked(array $settings, array $context): bool
-    {
-        if (!$this->checkCampaignFilter($settings, $context)) {
-            return false;
-        }
-
-        $requiredUrl = trim((string) ($settings['link_url'] ?? ''));
-
-        if ('' === $requiredUrl) {
-            return true;
-        }
-
-        $clickedUrl = (string) ($context['link_url'] ?? '');
-
-        if ('' === $clickedUrl) {
-            return false;
-        }
-
-        return false !== stripos($clickedUrl, $requiredUrl);
-    }
-
-    private function checkGoalAutomationCompleted(array $settings, array $context): bool
-    {
-        $requiredAutomationId = $settings['completed_automation_id'] ?? null;
-
-        if (is_array($requiredAutomationId)) {
-            $requiredAutomationId = reset($requiredAutomationId);
-        }
-
-        if (null === $requiredAutomationId || '' === $requiredAutomationId) {
-            return true;
-        }
-
-        return (int) ($context['completed_automation_id'] ?? 0) === (int) $requiredAutomationId;
-    }
-
-    /**
-     * Shared campaign filter for the email goals. An empty setting accepts any
-     * campaign.
-     */
-    private function checkCampaignFilter(array $settings, array $context): bool
-    {
-        $requiredCampaignId = $settings['campaign_id'] ?? null;
-
-        if (is_array($requiredCampaignId)) {
-            $requiredCampaignId = reset($requiredCampaignId);
-        }
-
-        if (null === $requiredCampaignId || '' === $requiredCampaignId || 0 === (int) $requiredCampaignId) {
-            return true;
-        }
-
-        return (int) ($context['campaign_id'] ?? 0) === (int) $requiredCampaignId;
     }
 
     private function checkOptinFormTrigger(array $settings, array $context): bool
     {
+        // OptinFlare emits a "submitted" event and, after a double opt-in, a
+        // "confirmed" one. "subscribed" mode waits until the contact is really
+        // subscribed; the default mode only reacts to the submission itself.
+        $event = (string) ($context['optin_event'] ?? 'submitted');
+        if ('subscribed' === ($settings['trigger_on'] ?? 'submitted')) {
+            if ('confirmed' !== $event && empty($context['contact_subscribed'])) {
+                return false;
+            }
+        } elseif ('confirmed' === $event) {
+            return false;
+        }
+
         $formId = $settings['form_id'] ?? null;
 
         if (is_array($formId)) {
@@ -332,17 +278,6 @@ class TriggerConditionChecker
         $subscriptionStatus = $settings['subscription_status'] ?? null;
         if ($subscriptionStatus && isset($context['subscription_status'])) {
             if ($context['subscription_status'] !== $subscriptionStatus) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private function checkContactCustomFieldUpdated(array $settings, array $context): bool
-    {
-        $requiredFieldKey = $settings['field_key'] ?? null;
-        if ($requiredFieldKey && isset($context['field_key'])) {
-            if ($context['field_key'] !== $requiredFieldKey) {
                 return false;
             }
         }

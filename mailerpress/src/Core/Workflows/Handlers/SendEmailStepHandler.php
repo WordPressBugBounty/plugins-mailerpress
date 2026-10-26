@@ -36,7 +36,7 @@ class SendEmailStepHandler implements StepHandlerInterface
     {
         return [
             'key' => 'send_email',
-            'label' => __('Send Email', 'mailerpress'),
+            'label' => __('Send email', 'mailerpress'),
             'description' => __('Send a personalized email using a campaign template. You can specify a custom recipient email address or leave it empty to use the contact/user email. You can customize the subject line and use all available workflow variables for dynamic content.', 'mailerpress'),
             'icon' => '<svg viewBox="-4 -4 24 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.73578 1.5L8 6.01219L13.2642 1.5H2.73578ZM14.5 2.41638L8.48809 7.56944L8 7.98781L7.51191 7.56944L1.5 2.41638V10C1.5 10.2761 1.72386 10.5 2 10.5H14C14.2761 10.5 14.5 10.2761 14.5 10V2.41638ZM0 2C0 0.89543 0.89543 0 2 0H14C15.1046 0 16 0.895431 16 2V10C16 11.1046 15.1046 12 14 12H2C0.895431 12 0 11.1046 0 10V2Z"></path></svg>',
             'category' => 'communication',
@@ -68,7 +68,7 @@ class SendEmailStepHandler implements StepHandlerInterface
                 ],
                 [
                     'key' => 'subject',
-                    'label' => __('Subject *', 'mailerpress'),
+                    'label' => __('Subject', 'mailerpress') . ' *',
                     'type' => 'text',
                     'required' => true,
                     'help' => __('Override template subject (leave empty to use template default)', 'mailerpress'),
@@ -255,23 +255,30 @@ class SendEmailStepHandler implements StepHandlerInterface
         $mailer = Kernel::getContainer()->get(EmailServiceManager::class)->getActiveService();
         $config = $mailer->getConfig();
 
-        if (
-            empty($config['conf']['default_email'])
-            || empty($config['conf']['default_name'])
-        ) {
-            $globalSender = \get_option('mailerpress_default_settings');
-
-            if ($globalSender) {
-                if (is_string($globalSender)) {
-                    $globalSender = json_decode($globalSender, true);
-                }
-
-                if (is_array($globalSender)) {
-                    $config['conf']['default_email'] = $globalSender['fromAddress'] ?? '';
-                    $config['conf']['default_name'] = $globalSender['fromName'] ?? '';
-                }
-            }
+        $defaultSettings = \get_option('mailerpress_default_settings', []);
+        if (is_string($defaultSettings)) {
+            $defaultSettings = json_decode($defaultSettings, true);
         }
+        if (!is_array($defaultSettings)) {
+            $defaultSettings = [];
+        }
+
+        // Resolve the default sender through the same settings as campaigns.
+        $senderConfig = \mailerpress_resolve_sender_config([
+            'senderId' => 'default',
+            'fromName' => $defaultSettings['fromName'] ?? ($config['conf']['default_name'] ?? ''),
+            'fromTo' => $defaultSettings['fromAddress'] ?? ($config['conf']['default_email'] ?? ''),
+        ]);
+        $config['conf']['default_name'] = $senderConfig['fromName'] ?? '';
+        $config['conf']['default_email'] = $senderConfig['fromTo'] ?? '';
+
+        // Same Reply-To as campaigns: the default settings, falling back to the sender.
+        $replyToName = !empty($defaultSettings['replyToName'])
+            ? $defaultSettings['replyToName']
+            : ($config['conf']['default_name'] ?? '');
+        $replyToAddress = !empty($defaultSettings['replyToAddress'])
+            ? $defaultSettings['replyToAddress']
+            : ($config['conf']['default_email'] ?? '');
 
         try {
             $emailPayload = [
@@ -281,6 +288,8 @@ class SendEmailStepHandler implements StepHandlerInterface
                 'subject' => $subject,
                 'sender_name' => $config['conf']['default_name'] ?? '',
                 'sender_to' => $config['conf']['default_email'] ?? '',
+                'reply_to_name' => $replyToName,
+                'reply_to_address' => $replyToAddress,
                 'apiKey' => $config['conf']['api_key'] ?? '',
             ];
 
@@ -296,9 +305,16 @@ class SendEmailStepHandler implements StepHandlerInterface
                 ];
             }
 
-            $sent = $mailer->sendEmail($emailPayload);
+            $sent = \MailerPress\Services\SendingFrequencyLimiter::send($mailer, $emailPayload);
 
-            if (!$sent) {
+            if (is_wp_error($sent) && 'mailerpress_sending_deferred' === $sent->get_error_code()) {
+                $timestamp = time() + (int) $sent->get_error_data()['retry_after'];
+                \MailerPress\Core\Workflows\Services\ActionSchedulerManager::scheduleContinue($timestamp, (int) $job->getId(), $step->getStepId());
+                $job->setStatus('WAITING');
+                $job->setScheduledAt(gmdate('Y-m-d H:i:s', $timestamp));
+                return StepResult::success($step->getStepId(), ['email_sent' => false, 'sending_deferred' => true]);
+            }
+            if (true !== $sent) {
                 return StepResult::failed('Failed to send email via MailerPress service');
             }
 

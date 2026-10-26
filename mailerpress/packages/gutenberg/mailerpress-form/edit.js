@@ -25,7 +25,6 @@ import {
     SelectControl,
     FormTokenField,
     TextControl,
-    ToggleControl,
 } from '@wordpress/components';
 
 /**
@@ -131,28 +130,37 @@ export default function Edit({attributes, setAttributes, clientId}) {
                             ...lists
                         ]}
                     />
-                    <FormTokenField
-                        __experimentalExpandOnFocus
+                    <div className="mailerpress-form-tags-control">
+                        <FormTokenField
+                            __experimentalExpandOnFocus
+                            __next40pxDefaultSize
+                            __nextHasNoMarginBottom
+                            label={__('Tags', 'mailerpress')}
+                            value={tags.map((tagId) => {
+                                const match = availableTags.find(t => t.value === tagId);
+                                return match ? match.label : tagId;
+                            })}
+                            suggestions={availableTags.map(tag => tag.label)}
+                            onChange={(selectedLabels) => {
+                                const selectedTagIds = selectedLabels
+                                    .map(label => availableTags.find(tag => tag.label === label)?.value)
+                                    .filter(Boolean);
+                                setAttributes({tags: selectedTagIds});
+                            }}
+                        />
+                    </div>
+                    <SelectControl
                         __next40pxDefaultSize
-                        label={__('Tags', 'mailerpress')}
-                        value={tags.map((tagId) => {
-                            const match = availableTags.find(t => t.value === tagId);
-                            return match ? match.label : tagId;
-                        })}
-                        suggestions={availableTags.map(tag => tag.label)}
-                        onChange={(selectedLabels) => {
-                            const selectedTagIds = selectedLabels
-                                .map(label => availableTags.find(tag => tag.label === label)?.value)
-                                .filter(Boolean);
-                            setAttributes({tags: selectedTagIds});
-                        }}
-                    />
-                    <ToggleControl
                         __nextHasNoMarginBottom
-                        label={__('Enable Double Opt-in', 'mailerpress')}
-                        help={__('When enabled, users will receive a confirmation email and must confirm their subscription before being added to your list.', 'mailerpress')}
-                        checked={attributes.double_optin ?? true}
-                        onChange={(value) => setAttributes({double_optin: value})}
+                        label={__('Double opt-in', 'mailerpress')}
+                        help={__('Use the global signup confirmation setting or choose a setting for this form.', 'mailerpress')}
+                        value={attributes.double_optin === undefined ? 'global' : attributes.double_optin ? 'enabled' : 'disabled'}
+                        options={[
+                            {label: __('Use global setting', 'mailerpress'), value: 'global'},
+                            {label: __('Enabled', 'mailerpress'), value: 'enabled'},
+                            {label: __('Disabled', 'mailerpress'), value: 'disabled'},
+                        ]}
+                        onChange={(value) => setAttributes({double_optin: value === 'global' ? undefined : value === 'enabled'})}
                     />
                     <TextControl
                         help={__('This message will be displayed when a user successfully subscribes.', 'mailerpress')}

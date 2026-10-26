@@ -57,13 +57,23 @@ function mailerpress_templates_importer(string $dir): void
 }
 
 /**
- * @param mixed $data
+ * Create or update a contact through MailerPress validation and lifecycle hooks.
+ *
+ * Signup confirmation applies by default to new subscriptions, including an explicit
+ * subscribed status. Existing unsubscribed contacts keep their status unless
+ * allow_resubscribe is true after a new, explicit opt-in. The manual source is
+ * reserved for trusted administrative actions that bypass signup confirmation.
+ *
+ * @param array $data Contact fields, lists/tags, opt_in_source and allow_resubscribe.
+ * @param bool $apply_global_signup_confirmation Apply the global confirmation setting.
+ *     Pass false only when a trusted caller has already resolved its own opt-in setting.
+ * @return array Success, contact_id and upsert data, or success and error on failure.
  *
  * @throws DependencyException
  * @throws NotFoundException
  * @throws Exception
  */
-function add_mailerpress_contact($data): array
+function add_mailerpress_contact($data, bool $apply_global_signup_confirmation = true): array
 {
     global $wpdb;
 
@@ -146,28 +156,47 @@ function add_mailerpress_contact($data): array
     $contactModel = Kernel::getContainer()->get(\MailerPress\Models\Contacts::class);
     $existingContact = $contactModel->getContactByEmail($email);
 
-    $hasStatus = !empty($data['subscription_status']) || !empty($data['contactStatus']) || !empty($data['subscriptionStatus']);
-    $isResubscription = $existingContact && $existingContact->subscription_status === 'unsubscribed';
-    if ((!$existingContact || $isResubscription) && !$hasStatus) {
-        $signupConfirmation = mailerpress_get_signup_confirmation_option();
-        $source = $data['opt_in_source'] ?? 'custom_form';
-        $data['subscription_status'] = ($source !== 'manual' && !empty($signupConfirmation) && true === $signupConfirmation['enableSignupConfirmation'])
-            ? 'pending'
-            : 'subscribed';
-    }
+	$is_unsubscribed = $existingContact && 'unsubscribed' === $existingContact->subscription_status;
+	$allow_resubscribe = true === filter_var( $data['allow_resubscribe'] ?? false, FILTER_VALIDATE_BOOLEAN );
+	$is_resubscription = $is_unsubscribed && $allow_resubscribe;
+	$source = $data['opt_in_source'] ?? ( $existingContact && ! $is_resubscription ? ( $existingContact->opt_in_source ?? 'custom_form' ) : 'custom_form' );
+	$status = sanitize_text_field( (string) ( $data['contactStatus'] ?? $data['subscription_status'] ?? $data['subscriptionStatus'] ?? '' ) );
+	if ( ! in_array( $status, array( 'subscribed', 'pending', 'unsubscribed', 'inactive' ), true ) ) {
+		$status = '';
+	}
+
+	if ( $is_unsubscribed && ! $allow_resubscribe ) {
+		$status = 'unsubscribed';
+	} elseif ( ! $existingContact || $is_resubscription ) {
+		$signup_confirmation = mailerpress_get_signup_confirmation_option();
+		if ( '' === $status || 'subscribed' === $status ) {
+			$status = ( $apply_global_signup_confirmation && 'manual' !== $source && ! empty( $signup_confirmation['enableSignupConfirmation'] ) )
+				? 'pending'
+				: 'subscribed';
+		}
+	} elseif ( 'pending' === $existingContact->subscription_status && 'subscribed' === $status && 'manual' !== ( $data['opt_in_source'] ?? 'custom_form' ) ) {
+		// An integration update is not proof of signup confirmation.
+		$status = 'pending';
+	}
+
+	// Canonicalize aliases so none can override the consent decision in the service.
+	unset( $data['contactStatus'], $data['subscriptionStatus'], $data['subscription_status'] );
+	if ( '' !== $status ) {
+		$data['subscription_status'] = $status;
+	}
 
     $result = (new \MailerPress\Services\ContactUpsertService())->upsert(array_merge($data, [
         'email' => $email,
         'update_existing' => true,
         'assign_default_list' => true,
         'auto_map_custom_fields' => true,
-        'opt_in_source' => $data['opt_in_source'] ?? ($existingContact && !$isResubscription ? ($existingContact->opt_in_source ?? 'custom_form') : 'custom_form'),
+        'opt_in_source' => $source,
     ]));
 
     if (empty($result['success'])) {
         return [
             'success' => false,
-            'error' => $result['error'] ?? __('Unknown error.', 'mailerpress'),
+            'error' => $result['error'] ?? __('Unknown error', 'mailerpress'),
         ];
     }
 
@@ -1029,6 +1058,8 @@ Thank you,
         'confirmRedirectUrl' => '',
         'enableReminders' => false,
         'reminderIntervalDays' => 7,
+        'automaticallyDeleteUnconfirmedContacts' => false,
+        'unconfirmedContactRetentionDays' => 30,
         'campaign_id' => null,
     ];
 

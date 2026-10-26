@@ -172,22 +172,22 @@ class SubscriptionActivated
     public static function getSubscriptionOutputFields(): array
     {
         return [
-            ['key' => 'customer_email', 'label' => __('Customer Email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
+            ['key' => 'customer_email', 'label' => __('Customer email', 'mailerpress'), 'type' => 'email', 'group' => 'customer'],
             ['key' => 'customer_first_name', 'label' => __('Customer First Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
             ['key' => 'customer_last_name', 'label' => __('Customer Last Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
             ['key' => 'customer_name', 'label' => __('Customer Full Name', 'mailerpress'), 'type' => 'string', 'group' => 'customer'],
             ['key' => 'customer_id', 'label' => __('Customer ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
             ['key' => 'user_id', 'label' => __('WordPress User ID', 'mailerpress'), 'type' => 'number', 'group' => 'customer'],
             ['key' => 'subscription_id', 'label' => __('Subscription ID', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
-            ['key' => 'subscription_status', 'label' => __('Subscription Status', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
-            ['key' => 'item_name', 'label' => __('Product Name', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
+            ['key' => 'subscription_status', 'label' => __('Subscription status', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
+            ['key' => 'item_name', 'label' => __('Product name', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
             ['key' => 'billing_interval', 'label' => __('Billing Interval', 'mailerpress'), 'type' => 'string', 'group' => 'subscription'],
             ['key' => 'recurring_amount', 'label' => __('Recurring Amount', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
             ['key' => 'recurring_total', 'label' => __('Recurring Total', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
             ['key' => 'next_billing_date', 'label' => __('Next Billing Date', 'mailerpress'), 'type' => 'date', 'group' => 'subscription'],
             ['key' => 'trial_days', 'label' => __('Trial Days', 'mailerpress'), 'type' => 'number', 'group' => 'subscription'],
             ['key' => 'order_id', 'label' => __('Order ID', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
-            ['key' => 'order_total', 'label' => __('Order Total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
+            ['key' => 'order_total', 'label' => __('Order total', 'mailerpress'), 'type' => 'number', 'group' => 'order'],
             ['key' => 'order_currency', 'label' => __('Order Currency', 'mailerpress'), 'type' => 'string', 'group' => 'order'],
         ];
     }

@@ -17,7 +17,6 @@ class WorkflowManager
     private WorkflowExecutor $executor;
     private TriggerManager $triggerManager;
     private ActionSchedulerManager $schedulerManager;
-    private GoalManager $goalManager;
 
     public function __construct(
         ?AutomationRepository $automationRepo = null,
@@ -31,10 +30,6 @@ class WorkflowManager
         $this->executor = $executor ?? new WorkflowExecutor($this->automationRepo, $this->stepRepo, $this->jobRepo);
         $this->triggerManager = new TriggerManager($this->executor, $this->automationRepo, $this->stepRepo, $this->jobRepo);
         $this->schedulerManager = new ActionSchedulerManager($this->executor);
-        $this->goalManager = new GoalManager($this->executor, $this->automationRepo, $this->stepRepo, $this->jobRepo);
-
-        // Step handlers resolve the goal manager through this shared instance.
-        GoalManager::setInstance($this->goalManager);
     }
 
     public function getAutomation(int $id): ?Automation
@@ -103,45 +98,10 @@ class WorkflowManager
 
         $firstStep = reset($triggerStep);
 
-        // Additional validation for birthday_check trigger
-        // This ensures the date check is always performed, even if startWorkflow is called directly
-        if ($firstStep->getKey() === 'birthday_check' && isset($context['birthday_date'])) {
-            $birthdayDateStr = $context['birthday_date'];
-            $todayDateTime = new \DateTime('now', function_exists('wp_timezone') ? wp_timezone() : null);
-
-            try {
-                // Parse the birthday date from context
-                $birthdayDateTime = null;
-                if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $birthdayDateStr, $matches)) {
-                    $birthdayDateTime = \DateTime::createFromFormat('Y-m-d', $birthdayDateStr);
-                } else {
-                    $timestamp = strtotime($birthdayDateStr);
-                    if ($timestamp !== false) {
-                        $birthdayDateTime = new \DateTime();
-                        $birthdayDateTime->setTimestamp($timestamp);
-                    }
-                }
-
-                if ($birthdayDateTime) {
-                    // Ensure both dates use the same timezone
-                    $timezone = function_exists('wp_timezone') ? wp_timezone() : null;
-                    if ($timezone) {
-                        $birthdayDateTime->setTimezone($timezone);
-                    }
-
-                    // Compare only month and day (ignore year)
-                    $birthdayMonth = (int) $birthdayDateTime->format('m');
-                    $birthdayDay = (int) $birthdayDateTime->format('d');
-                    $todayMonth = (int) $todayDateTime->format('m');
-                    $todayDay = (int) $todayDateTime->format('d');
-
-                    if ($birthdayMonth !== $todayMonth || $birthdayDay !== $todayDay) {
-                        return null;
-                    }
-                }
-            } catch (\Exception $e) {
-                return null;
-            }
+        // Extensions can refuse the start, e.g. MailerPress Pro checks a birthday trigger is still due today.
+        // Checked here so it applies even when startWorkflow is called directly.
+        if (!apply_filters('mailerpress_workflow_can_start', true, $firstStep->getKey(), $context, $automationId, $userId)) {
+            return null;
         }
 
         $job = $this->jobRepo->create(
@@ -184,22 +144,6 @@ class WorkflowManager
     public function getTriggerManager(): TriggerManager
     {
         return $this->triggerManager;
-    }
-
-    public function getGoalManager(): GoalManager
-    {
-        return $this->goalManager;
-    }
-
-    /**
-     * Build the goal catalogue and bind its hooks.
-     *
-     * Must be called after triggers have been registered, since goals promote
-     * trigger definitions.
-     */
-    public function bootGoals(): void
-    {
-        $this->goalManager->boot($this->triggerManager);
     }
 
     public function getExecutor(): WorkflowExecutor
