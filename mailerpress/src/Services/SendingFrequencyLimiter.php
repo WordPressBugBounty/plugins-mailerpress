@@ -202,6 +202,46 @@ class SendingFrequencyLimiter {
 	}
 
 	/**
+	 * Describe current usage and, when sending is on hold, why and until when.
+	 *
+	 * @param string|null $provider ESP key, or the primary provider.
+	 * @return array{dailyUsed: int, dailyLimit: int, monthlyUsed: int, monthlyLimit: int, resumesAt: int|null, reason: string|null}
+	 */
+	public static function status( ?string $provider = null ): array {
+		$provider = $provider ?? SendingFrequencyConfig::activeProvider();
+		$config   = SendingFrequencyConfig::get( $provider )['effectiveConfig'];
+		$state    = get_option( self::option( $provider ), array() );
+		$state    = is_array( $state ) ? $state : array();
+		$now      = time();
+		$daily    = array_filter( $state['daily'] ?? array(), static fn( $bucket ) => (int) $bucket + 60 > $now - DAY_IN_SECONDS, ARRAY_FILTER_USE_KEY );
+		$status   = array(
+			'dailyUsed'    => (int) array_sum( $daily ),
+			'dailyLimit'   => (int) ( $config['daily_limit'] ?? 0 ),
+			'monthlyUsed'  => ( $state['month'] ?? '' ) === gmdate( 'Y-m' ) ? (int) ( $state['monthly_count'] ?? 0 ) : 0,
+			'monthlyLimit' => (int) ( $config['monthly_limit'] ?? 0 ),
+			'resumesAt'    => null,
+			'reason'       => null,
+		);
+		// Keep the latest resume time when several holds apply.
+		$holds = array();
+		if ( (int) ( $state['paused_until'] ?? 0 ) > $now ) {
+			$holds['provider'] = (int) $state['paused_until'];
+		}
+		if ( $status['dailyLimit'] > 0 && $status['dailyUsed'] >= $status['dailyLimit'] && $daily ) {
+			$holds['daily_limit'] = (int) min( array_keys( $daily ) ) + DAY_IN_SECONDS + 60;
+		}
+		if ( $status['monthlyLimit'] > 0 && $status['monthlyUsed'] >= $status['monthlyLimit'] ) {
+			$holds['monthly_limit'] = (int) strtotime( 'first day of next month 00:00:00 UTC' );
+		}
+		if ( $holds ) {
+			arsort( $holds );
+			$status['reason']    = (string) array_key_first( $holds );
+			$status['resumesAt'] = reset( $holds );
+		}
+		return $status;
+	}
+
+	/**
 	 * Describe a temporary sending pause.
 	 *
 	 * @param int $delay Retry delay in seconds.

@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.2\n"
+"Project-Id-Version: MailerPress 2.2.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-26T08:36:04+00:00\n"
+"POT-Creation-Date: 2026-11-16T15:20:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mailerpress\n"
@@ -40,15 +40,15 @@ msgstr ""
 
 #: packages/gutenberg/mailerpress-archive/render.php:55
 #: src/Actions/Shortcodes/CampaignArchive.php:48
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 msgid "No campaigns found."
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php:126
-#: src/Api/Contacts.php:3349
+#: src/Api/Contacts.php:3355
 #: src/functions.php:1043
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Confirm your subscription to [site:title]"
 msgstr ""
 
@@ -72,16 +72,16 @@ msgstr ""
 msgid "Your MailerPress Export is Ready"
 msgstr ""
 
-#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:277
-#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:415
-#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:430
+#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:319
+#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:457
+#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:472
 msgid "Yes, keep me subscribed"
 msgstr ""
 
-#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:303
-#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:459
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:345
+#: src/Actions/ActionScheduler/Processors/InactiveReengagementProcessor.php:501
+#: build/8594.4b700fc2850579437909.js:1
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:18
 #: build/html-email-editor.e337ff0240e81615f544.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:2
@@ -108,8 +108,8 @@ msgid "Return to Dashboard"
 msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:247
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mailerpress-pro-workflow.js:1
@@ -135,7 +135,7 @@ msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:275
 #: src/Actions/Widgets/Overview.php:282
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:7
@@ -144,7 +144,7 @@ msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:276
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:118
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
@@ -163,13 +163,13 @@ msgid "Webhooks"
 msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:279
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:2
 msgid "Tools"
 msgstr ""
 
 #: src/Actions/Admin/AdminMenu.php:280
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:18
@@ -256,7 +256,7 @@ msgid "Parent Blocks:"
 msgstr ""
 
 #: src/Actions/Admin/Cpt.php:37
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "No blocks found"
 msgstr ""
@@ -307,8 +307,8 @@ msgid "Invalid contact token."
 msgstr ""
 
 #: src/Actions/Ajax/ManageSubscription.php:56
-#: src/Api/Contacts.php:3332
-#: src/Api/Contacts.php:3468
+#: src/Api/Contacts.php:3338
+#: src/Api/Contacts.php:3474
 #: src/Api/ContactTabs.php:48
 #: build/dist/js/mail-editor.js:2
 msgid "Contact not found."
@@ -395,8 +395,8 @@ msgstr ""
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:126
 #: templates/manage-subscription.php:66
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:3
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:3
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
@@ -412,7 +412,7 @@ msgid "Confirm unsubscribe"
 msgstr ""
 
 #: src/Actions/Pages/Pages.php:317
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 #: build/html-email-editor.e337ff0240e81615f544.js:1
@@ -503,7 +503,7 @@ msgid "Go to Plugins"
 msgstr ""
 
 #: src/Actions/Setup/ApiAuthFilters.php:112
-#: src/Api/Contacts.php:979
+#: src/Api/Contacts.php:985
 msgid "Security check failed. Please try again."
 msgstr ""
 
@@ -521,15 +521,15 @@ msgstr ""
 msgid "Ecommerce"
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:89
+#: src/Actions/Setup/TableManager.php:90
 msgid "Database migration failed. Please check error logs."
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:90
+#: src/Actions/Setup/TableManager.php:91
 msgid "Recover now"
 msgstr ""
 
-#: src/Actions/Setup/TableManager.php:151
+#: src/Actions/Setup/TableManager.php:172
 msgid "Default list"
 msgstr ""
 
@@ -555,7 +555,7 @@ msgstr ""
 #: src/Actions/Shortcodes/MyLists.php:638
 #: templates/manage-subscription.php:200
 #: build/8125.76accc088934599705bf.js:1
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/html-email-editor.e337ff0240e81615f544.js:1
@@ -602,7 +602,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:713
 #: templates/manage-subscription.php:72
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
@@ -630,7 +630,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:714
 #: templates/manage-subscription.php:78
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
@@ -670,7 +670,7 @@ msgstr ""
 #: templates/manage-subscription.php:63
 #: templates/manage-subscription.php:104
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
@@ -711,8 +711,8 @@ msgstr ""
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:64
 #: templates/manage-subscription.php:55
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:9
 #: build/dist/js/editor-blocks.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
@@ -723,7 +723,7 @@ msgstr ""
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:7
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: packages/gutenberg/mailerpress-form-input/edit.js:75
@@ -834,7 +834,7 @@ msgid "Get advanced automation, integrations, personalization, and more."
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:220
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:10
@@ -937,7 +937,7 @@ msgid "MailerPress Pro v%s"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:609
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
@@ -948,7 +948,7 @@ msgstr ""
 #: src/Actions/Widgets/Overview.php:610
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:67
 #: src/Blocks/TemplatesCategories.php:155
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 msgid "Newsletter"
 msgstr ""
@@ -974,7 +974,7 @@ msgstr ""
 
 #: src/Actions/Widgets/Overview.php:615
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Confirmation email"
 msgstr ""
 
@@ -1009,9 +1009,9 @@ msgid "%1$s - updated %2$s"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:657
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:15
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
@@ -1022,31 +1022,31 @@ msgid "Draft"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:658
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:14
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:5
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:14
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Scheduled"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:659
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "In progress"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:660
 #: templates/test-email.php:24
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:14
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:14
+#: build/8594.4b700fc2850579437909.js:15
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
@@ -1060,12 +1060,12 @@ msgstr ""
 #: src/Api/Workflows.php:219
 #: src/Core/DynamicOrderRenderer.php:805
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:5
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
@@ -1078,10 +1078,10 @@ msgid "Pending"
 msgstr ""
 
 #: src/Actions/Widgets/Overview.php:662
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:2
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
@@ -1094,8 +1094,8 @@ msgstr[1] ""
 #: src/Actions/Widgets/Overview.php:663
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:60
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:52
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:15
 #: build/dist/js/mail-editor.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
@@ -1111,9 +1111,9 @@ msgstr ""
 
 #: src/Actions/Widgets/Overview.php:664
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:15
 #: build/dist/js/mail-editor.js:2
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
@@ -1144,9 +1144,9 @@ msgstr ""
 #: src/Actions/Workflows/FluentCart/OrderCreated.php:33
 #: src/Actions/Workflows/FluentCart/OrderCreated.php:44
 #: src/Core/DynamicOrderRenderer.php:811
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:6
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 #: build/screen-MigrationsView.64ab5a34d6ad2532a644.js:1
@@ -1176,7 +1176,7 @@ msgstr ""
 #: src/Actions/Workflows/FluentCart/OrderCreated.php:40
 #: src/Actions/Workflows/WooCommerce/CustomerInactiveTrigger.php:547
 #: src/Core/DynamicOrderRenderer.php:806
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
@@ -1186,7 +1186,7 @@ msgstr ""
 #: src/Actions/Workflows/FluentCart/OrderCreated.php:41
 #: src/Actions/Workflows/WooCommerce/CustomerInactiveTrigger.php:548
 #: src/Core/DynamicOrderRenderer.php:808
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 #: build/dist/js/mail-editor.js:2
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 #: build/screen-MigrationsView.64ab5a34d6ad2532a644.js:1
@@ -1209,7 +1209,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:62
 #: src/Core/DynamicOrderRenderer.php:809
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:54
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-MigrationsView.64ab5a34d6ad2532a644.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
@@ -1237,7 +1237,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:47
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:68
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:180
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
@@ -1380,7 +1380,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:176
 #: src/Api/Workflows.php:236
 #: src/Api/Workflows.php:248
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
@@ -1420,7 +1420,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:85
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:67
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:178
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Order Date"
@@ -1467,7 +1467,7 @@ msgstr ""
 
 #: src/Actions/Workflows/FluentCart/OrderPaid.php:51
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:77
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Billing Address"
@@ -1616,8 +1616,8 @@ msgid "Renewal Order Total"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:42
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:20
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:2
@@ -1633,8 +1633,8 @@ msgid "Create a new MailerPress campaign automatically within your workflow. Use
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:50
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
@@ -1647,9 +1647,9 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:57
 #: src/Core/Workflows/Handlers/SendEmailStepHandler.php:71
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:5
+#: build/8594.4b700fc2850579437909.js:9
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Subject"
 msgstr ""
@@ -1659,20 +1659,20 @@ msgid "Email subject line"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:64
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 msgid "Campaign type"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:68
-#: build/8594.682194ec5127d784f61c.js:16
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:20
+#: build/9385.51802016d5200578ab7a.js:6
 #: build/dist/js/mail-editor.js:2
 msgid "Automated"
 msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Actions/CreateCampaignStepHandler.php:69
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/workflow-editor.fde90fdb3953b896143f.js:8
@@ -1784,8 +1784,8 @@ msgstr ""
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:81
 #: src/Core/Migration/Sources/NewsletterMigrationSource.php:78
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:5
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
@@ -1799,9 +1799,9 @@ msgstr ""
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:136
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:88
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
@@ -1817,7 +1817,7 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:149
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:165
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Opt-in source"
 msgstr ""
 
@@ -1827,8 +1827,8 @@ msgstr ""
 
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:151
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/8594.4b700fc2850579437909.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 msgid "Created at"
@@ -1933,7 +1933,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/CustomerFirstOrder.php:82
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:64
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:175
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Order Number"
@@ -2155,7 +2155,7 @@ msgid "Shipping Last Name"
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/OrderStatusChanged.php:85
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Shipping Address"
@@ -2178,7 +2178,7 @@ msgid "Triggered when a specific product is purchased in an order. Perfect for s
 msgstr ""
 
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:73
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Products"
 msgstr ""
 
@@ -2361,13 +2361,13 @@ msgid "%d actions processed"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:132
-#: src/Api/Contacts.php:2274
-#: src/Api/Contacts.php:2938
+#: src/Api/Contacts.php:2280
+#: src/Api/Contacts.php:2944
 msgid "Batch ID is required"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:146
-#: src/Api/Contacts.php:2356
+#: src/Api/Contacts.php:2362
 #: src/Api/Recovery.php:344
 msgid "Batch not found"
 msgstr ""
@@ -2412,7 +2412,7 @@ msgstr ""
 #: src/Api/Permissions.php:697
 #: src/Api/Permissions.php:723
 #: src/Api/Tags.php:276
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Campaign not found."
 msgstr ""
 
@@ -2597,7 +2597,7 @@ msgid "Revision not found"
 msgstr ""
 
 #: src/Api/CampaignRevisions.php:146
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 #: build/screen-ExportImportSettings.1d3bfc57b3f5756011e2.js:3
 msgid "Unknown"
@@ -2620,9 +2620,9 @@ msgid "Invalid IDs provided"
 msgstr ""
 
 #: src/Api/Campaigns.php:823
-#: src/Api/Contacts.php:2339
-#: src/Api/Contacts.php:2409
-#: src/Api/Contacts.php:2475
+#: src/Api/Contacts.php:2345
+#: src/Api/Contacts.php:2415
+#: src/Api/Contacts.php:2481
 #: src/Api/Recovery.php:143
 #: src/Api/Recovery.php:328
 msgid "Invalid batch ID"
@@ -2666,8 +2666,8 @@ msgstr ""
 #: src/Api/Campaigns.php:1944
 #: src/Api/Campaigns.php:2339
 #: src/Api/Campaigns.php:2397
-#: build/8594.682194ec5127d784f61c.js:7
-#: build/8594.682194ec5127d784f61c.js:8
+#: build/8594.4b700fc2850579437909.js:7
+#: build/8594.4b700fc2850579437909.js:8
 msgid "Failed to delete campaigns."
 msgstr ""
 
@@ -2726,7 +2726,7 @@ msgstr ""
 #: src/Api/Campaigns.php:2279
 #: src/Api/Campaigns.php:2347
 #: src/Api/Campaigns.php:2405
-#: build/8594.682194ec5127d784f61c.js:8
+#: build/8594.4b700fc2850579437909.js:8
 #, php-format,js-format
 msgid "%d campaign permanently deleted."
 msgid_plural "%d campaigns permanently deleted."
@@ -2921,249 +2921,259 @@ msgstr ""
 msgid "Contact #%d"
 msgstr ""
 
-#: src/Api/Contacts.php:116
+#: src/Api/Contacts.php:119
+#, php-format
+msgid "Sent automation email \"%s\""
+msgstr ""
+
+#: src/Api/Contacts.php:120
 #, php-format
 msgid "Sent campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:124
+#: src/Api/Contacts.php:129
+#, php-format
+msgid "Opened automation email \"%s\""
+msgstr ""
+
+#: src/Api/Contacts.php:130
 #, php-format
 msgid "Opened campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:134
+#: src/Api/Contacts.php:140
 #, php-format
 msgid "Unsubscribed from campaign \"%s\""
 msgstr ""
 
-#: src/Api/Contacts.php:152
+#: src/Api/Contacts.php:158
 #, php-format
 msgid "Clicked link in campaign \"%s\": %s"
 msgstr ""
 
-#: src/Api/Contacts.php:158
+#: src/Api/Contacts.php:164
 #, php-format
 msgid " — clicked %d times"
 msgstr ""
 
-#: src/Api/Contacts.php:308
-#: src/Api/Contacts.php:313
+#: src/Api/Contacts.php:314
+#: src/Api/Contacts.php:319
 msgid "Export not found."
 msgstr ""
 
-#: src/Api/Contacts.php:318
+#: src/Api/Contacts.php:324
 msgid "Invalid token."
 msgstr ""
 
-#: src/Api/Contacts.php:323
+#: src/Api/Contacts.php:329
 msgid "Link expired."
 msgstr ""
 
-#: src/Api/Contacts.php:335
+#: src/Api/Contacts.php:341
 msgid "File not found."
 msgstr ""
 
-#: src/Api/Contacts.php:407
+#: src/Api/Contacts.php:413
 msgid "Failed to insert contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:440
+#: src/Api/Contacts.php:446
 msgid "Note content cannot be empty."
 msgstr ""
 
-#: src/Api/Contacts.php:455
-#: src/Api/Contacts.php:517
+#: src/Api/Contacts.php:461
+#: src/Api/Contacts.php:523
 msgid "Note not found."
 msgstr ""
 
-#: src/Api/Contacts.php:477
+#: src/Api/Contacts.php:483
 msgid "Failed to update contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:531
+#: src/Api/Contacts.php:537
 msgid "Failed to delete contact note."
 msgstr ""
 
-#: src/Api/Contacts.php:536
+#: src/Api/Contacts.php:542
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 msgid "Note deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:961
+#: src/Api/Contacts.php:967
 msgid "API key missing required scope: contacts:write"
 msgstr ""
 
-#: src/Api/Contacts.php:1008
+#: src/Api/Contacts.php:1014
 msgid "Too many submission attempts. Please try again later."
 msgstr ""
 
-#: src/Api/Contacts.php:1077
-#: src/Api/Contacts.php:1152
-#: src/Api/Contacts.php:1228
+#: src/Api/Contacts.php:1083
+#: src/Api/Contacts.php:1158
+#: src/Api/Contacts.php:1234
 msgid "Contact added successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1094
+#: src/Api/Contacts.php:1100
 #: src/Services/ContactUpsertService.php:39
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/Api/Contacts.php:1130
+#: src/Api/Contacts.php:1136
 msgid "Unable to save contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1153
-#: src/Api/Contacts.php:1187
-#: src/Api/Contacts.php:1891
+#: src/Api/Contacts.php:1159
+#: src/Api/Contacts.php:1193
+#: src/Api/Contacts.php:1897
 #: src/functions.php:389
 msgid "Contact updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1533
+#: src/Api/Contacts.php:1539
 msgid "This email address is already in use by another contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1653
+#: src/Api/Contacts.php:1659
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Contacts updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1686
+#: src/Api/Contacts.php:1692
 #: src/functions.php:281
 msgid "Missing contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:1911
+#: src/Api/Contacts.php:1917
 msgid "Contact IDs must be an array and cannot be empty"
 msgstr ""
 
-#: src/Api/Contacts.php:1928
+#: src/Api/Contacts.php:1934
 msgid "One or more contacts were not found."
 msgstr ""
 
-#: src/Api/Contacts.php:1944
+#: src/Api/Contacts.php:1950
 msgid "Contacts deleted successfully"
 msgstr ""
 
-#: src/Api/Contacts.php:1951
+#: src/Api/Contacts.php:1957
 msgid "Failed to delete the contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1974
+#: src/Api/Contacts.php:1980
 msgid "Missing contact_id or list_id."
 msgstr ""
 
-#: src/Api/Contacts.php:1995
-#: src/Api/Contacts.php:2065
+#: src/Api/Contacts.php:2001
+#: src/Api/Contacts.php:2071
 msgid "Database error occurred."
 msgstr ""
 
-#: src/Api/Contacts.php:2002
-#: src/Api/Contacts.php:2072
+#: src/Api/Contacts.php:2008
+#: src/Api/Contacts.php:2078
 msgid "No matching record found."
 msgstr ""
 
-#: src/Api/Contacts.php:2013
+#: src/Api/Contacts.php:2019
 msgid "List removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:2044
+#: src/Api/Contacts.php:2050
 msgid "Missing contact_id or tag_id."
 msgstr ""
 
-#: src/Api/Contacts.php:2083
+#: src/Api/Contacts.php:2089
 msgid "Tag removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:2115
+#: src/Api/Contacts.php:2121
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Failed to delete contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:2120
+#: src/Api/Contacts.php:2126
 msgid "All contacts have been deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:2142
+#: src/Api/Contacts.php:2148
 msgid "Failed to create delete batch."
 msgstr ""
 
-#: src/Api/Contacts.php:2195
+#: src/Api/Contacts.php:2201
 msgid "Delete batch created successfully. Deletion in progress..."
 msgstr ""
 
-#: src/Api/Contacts.php:2288
+#: src/Api/Contacts.php:2294
 msgid "Delete batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2322
+#: src/Api/Contacts.php:2328
 msgid "Delete batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:2426
+#: src/Api/Contacts.php:2432
 msgid "No failed chunks to retry"
 msgstr ""
 
-#: src/Api/Contacts.php:2457
+#: src/Api/Contacts.php:2463
 #, php-format
 msgid "Retrying %d failed chunks"
 msgstr ""
 
-#: src/Api/Contacts.php:2526
+#: src/Api/Contacts.php:2532
 #, php-format
 msgid "Reset %d stuck chunks and scheduled %d chunks for processing"
 msgstr ""
 
-#: src/Api/Contacts.php:2604
+#: src/Api/Contacts.php:2610
 msgid "No contacts to export."
 msgstr ""
 
-#: src/Api/Contacts.php:2654
+#: src/Api/Contacts.php:2660
 msgid "Export started"
 msgstr ""
 
-#: src/Api/Contacts.php:2764
+#: src/Api/Contacts.php:2770
 msgid "Failed to create import batch"
 msgstr ""
 
-#: src/Api/Contacts.php:2799
+#: src/Api/Contacts.php:2805
 msgid "Batch ID and chunk data are required"
 msgstr ""
 
-#: src/Api/Contacts.php:2813
-#: src/Api/Contacts.php:2952
+#: src/Api/Contacts.php:2819
+#: src/Api/Contacts.php:2958
 msgid "Import batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:3020
+#: src/Api/Contacts.php:3026
 msgid "Import batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:3263
+#: src/Api/Contacts.php:3269
 #: src/Api/MyLists.php:142
 msgid "Invalid email address."
 msgstr ""
 
-#: src/Api/Contacts.php:3340
-#: src/Api/Contacts.php:3476
+#: src/Api/Contacts.php:3346
+#: src/Api/Contacts.php:3482
 msgid "This contact is not in pending status."
 msgstr ""
 
-#: src/Api/Contacts.php:3432
-#: src/Api/Contacts.php:3440
+#: src/Api/Contacts.php:3438
+#: src/Api/Contacts.php:3446
 msgid "Failed to send confirmation reminder email."
 msgstr ""
 
-#: src/Api/Contacts.php:3447
+#: src/Api/Contacts.php:3453
 msgid "Confirmation reminder email sent successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:3487
+#: src/Api/Contacts.php:3493
 msgid "Failed to confirm contact."
 msgstr ""
 
-#: src/Api/Contacts.php:3494
+#: src/Api/Contacts.php:3500
 msgid "Contact confirmed successfully."
 msgstr ""
 
@@ -3487,7 +3497,7 @@ msgstr ""
 #: src/Api/Options.php:910
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ExportImportSettings.1d3bfc57b3f5756011e2.js:1
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Sending frequency"
 msgstr ""
 
@@ -3524,7 +3534,7 @@ msgstr ""
 
 #: src/Api/Options.php:950
 #: build/screen-ExportImportSettings.1d3bfc57b3f5756011e2.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Sign-up Confirmation"
 msgstr ""
 
@@ -3751,7 +3761,7 @@ msgstr ""
 #: src/Api/Templates.php:422
 #: src/Api/Templates.php:451
 #: src/Api/Templates.php:493
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Template not found."
 msgstr ""
 
@@ -4162,7 +4172,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/ConditionStepHandler.php:34
 #: src/Core/Workflows/Handlers/ConditionStepHandler.php:42
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Condition"
@@ -4454,7 +4464,7 @@ msgid "SMTP error: %1$s (Server: %2$s:%3$s, Encryption: %4$s)"
 msgstr ""
 
 #: src/Core/EmailManager/services/SmtpService.php:222
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Custom SMTP"
 msgstr ""
 
@@ -4478,7 +4488,7 @@ msgstr ""
 
 #: src/Core/EmailManager/services/WordPressService.php:143
 #: build/dist/js/mail-editor.js:18
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:1
 msgid "WordPress"
 msgstr ""
@@ -4573,7 +4583,7 @@ msgstr ""
 
 #: src/Core/Migration/Sources/MailPoetMigrationSource.php:132
 #: src/Core/Migration/Sources/NewsletterMigrationSource.php:115
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 #: build/workflow-editor.fde90fdb3953b896143f.js:7
@@ -4804,7 +4814,7 @@ msgid "LiteSpeed Cache plugin detected. Some REST API endpoints used by MailerPr
 msgstr ""
 
 #: src/Core/Notifications/Messages/LiteSpeedActivatedNotification.php:65
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Fix it"
 msgstr ""
 
@@ -4827,7 +4837,7 @@ msgid "%s plugin is not activated. This plugin can enhance your MailerPress expe
 msgstr ""
 
 #: src/Core/Notifications/Messages/PluginNotActivatedNotification.php:43
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:15
 #: build/workflow-editor.fde90fdb3953b896143f.js:8
 msgid "Activate"
 msgstr ""
@@ -4866,7 +4876,7 @@ msgid "Welcome to MailerPress! 🎉 Start by creating your first campaign or con
 msgstr ""
 
 #: src/Core/Notifications/Messages/WelcomeNotification.php:33
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Get started"
 msgstr ""
 
@@ -4901,7 +4911,7 @@ msgstr ""
 #: src/Core/Promotions/PromotionRegistry.php:144
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:6
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Recommended"
 msgstr ""
 
@@ -4999,7 +5009,7 @@ msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:116
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
@@ -5008,7 +5018,7 @@ msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:117
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
@@ -5287,7 +5297,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:63
 #: build/dist/js/mail-editor.js:18
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Days"
 msgstr ""
@@ -5449,9 +5459,9 @@ msgid "Fixed date"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:41
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:14
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
@@ -5540,11 +5550,11 @@ msgid "Every %s"
 msgstr ""
 
 #: src/Core/Workflows/Services/EmailContentRenderer.php:1347
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:15
 #: build/dataview.492e3cfb35cacc7c7ed5.js:4
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:18
@@ -5762,7 +5772,7 @@ msgid "Optional: Filter by post meta value (requires meta key)"
 msgstr ""
 
 #: src/Core/Workflows/Services/TriggerManager.php:939
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:17
 msgid "Post title"
@@ -6137,17 +6147,17 @@ msgstr ""
 msgid "The retention period must be a positive integer in days."
 msgstr ""
 
-#: src/Services/SendingFrequencyConfig.php:304
+#: src/Services/SendingFrequencyConfig.php:418
 msgid "Please enter a valid sending profile, batch size, interval and sending limits."
 msgstr ""
 
-#: src/Services/SendingFrequencyLimiter.php:213
+#: src/Services/SendingFrequencyLimiter.php:253
 msgid "The sending limit has been reached. Sending will resume when capacity is available."
 msgstr ""
 
 #: src/Services/ThemeStyles.php:78
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:10
 #: build/dist/js/mail-editor.js:11
 #: build/dist/js/mail-editor.js:17
@@ -6205,8 +6215,8 @@ msgid "No mailing lists available."
 msgstr ""
 
 #: templates/manage-subscription.php:128
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:14
@@ -6389,7 +6399,7 @@ msgid "Could not load the automation preview."
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 #: build/dist/js/mail-editor.js:18
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
@@ -6485,7 +6495,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:9
@@ -6666,7 +6676,7 @@ msgid "Select or create tag"
 msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 msgid "Updated at"
 msgstr ""
@@ -6762,19 +6772,19 @@ msgid "Import"
 msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "(completed, go back to this step)"
 msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "(completed)"
 msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "Optional"
 msgstr ""
@@ -6799,7 +6809,7 @@ msgid "Switch to light mode"
 msgstr ""
 
 #: build/4209.ea75bd1636fda9af39d9.js:1
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dataview.492e3cfb35cacc7c7ed5.js:2
 #: build/dataview.492e3cfb35cacc7c7ed5.js:3
 #: build/dist/js/mail-editor.js:3
@@ -6826,7 +6836,7 @@ msgid "Replace"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 #: build/dataview.492e3cfb35cacc7c7ed5.js:3
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:4
@@ -6853,7 +6863,7 @@ msgid "Action"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 #: build/workflow-editor.fde90fdb3953b896143f.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Send newsletter"
@@ -7010,11 +7020,11 @@ msgid "Zoom"
 msgstr ""
 
 #: build/8125.76accc088934599705bf.js:1
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
-#: build/9385.4615e0cd4c42819a9524.js:3
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:2
+#: build/9385.51802016d5200578ab7a.js:7
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dataview.492e3cfb35cacc7c7ed5.js:1
 #: build/dataview.492e3cfb35cacc7c7ed5.js:2
 #: build/dataview.492e3cfb35cacc7c7ed5.js:4
@@ -7059,110 +7069,110 @@ msgstr ""
 msgid "Save and apply"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Equals"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Does not equal"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Contains"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "After"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Greater than"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Before"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Less than"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Is empty"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Is not empty"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Value"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Select a value"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/8594.4b700fc2850579437909.js:1
+#: build/9385.51802016d5200578ab7a.js:2
+#: build/9385.51802016d5200578ab7a.js:7
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Recipients"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Openers"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:9
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Clicks"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:11
 msgid "Total clicks"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Posts"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Pages"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
 #: packages/gutenberg/mailerpress-archive/edit.js:128
 msgid "Newest first"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
 #: packages/gutenberg/mailerpress-archive/edit.js:129
 msgid "Oldest first"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "A to Z"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Z to A"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:14
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:2
 #: build/screen-ContactTagsView.11267ef2ebe85cd9a4a5.js:2
@@ -7172,29 +7182,29 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:17
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:21
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:8
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 msgid "To"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dataview.492e3cfb35cacc7c7ed5.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Details"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Service"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:17
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:21
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:8
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
@@ -7202,20 +7212,20 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:5
 msgid "Sent at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 msgid "No additional data"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:9
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:6
 #: build/dist/js/mail-editor.js:8
@@ -7230,17 +7240,17 @@ msgstr ""
 msgid "All"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Success"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "No email logs found"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:4
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
@@ -7251,7 +7261,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
@@ -7259,83 +7269,83 @@ msgstr ""
 msgid "Never"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Contact"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Email marketing"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Bounced"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Last engagement"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Contact form 7"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Fluent Forms"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Manual"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Batch import from file upload"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Opened at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "First clicked at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "First opened at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Unsubscribed at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "No contacts match your current filters."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 msgid "No contacts found"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:16
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:20
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:3
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:2
@@ -7344,180 +7354,180 @@ msgstr ""
 msgid "Reset all filters"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Contacts could not be loaded."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/mail-editor.js:5
 msgid "Try again"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Track engagement, explore clicks and see which contacts responded to this campaign."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Overview"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Heatmap"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #, js-format
 msgid "Opened (%d)"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
-#: build/8594.682194ec5127d784f61c.js:2
+#: build/8594.4b700fc2850579437909.js:1
+#: build/8594.4b700fc2850579437909.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 msgid "Clicked"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #, js-format
 msgid "Clicked (%d)"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #, js-format
 msgid "Unsubscribed (%d)"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Campaign performance"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Engagement counts are unique contacts."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 msgid "Campaign audience"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:1
+#: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Opened"
 msgstr ""
 
 #. translators: %s: percentage.
-#: build/8594.682194ec5127d784f61c.js:2
-#: build/8594.682194ec5127d784f61c.js:3
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:2
+#: build/8594.4b700fc2850579437909.js:3
+#: build/8594.4b700fc2850579437909.js:4
 #, js-format
 msgid "%s of recipients"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "View contacts"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Click-to-open rate"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Contacts who clicked among those who opened."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Link clicks"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Unique clicks per contact and link."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Chunk #"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:10
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:10
 msgid "Scheduled at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Started at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Completed at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Retries"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:1
 msgid "Actions"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Chunk index"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "No chunks found"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Are you sure you want to cancel this batch? The automated campaign will continue with future scheduled sends."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
+#: build/8594.4b700fc2850579437909.js:4
 msgid "Failed to cancel batch"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:4
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:4
+#: build/8594.4b700fc2850579437909.js:5
 #, js-format
 msgid "Campaign name: %s"
 msgstr ""
 
 #. translators: %1$s is the number of sent emails, %2$s is the total number of emails, %3$s is the percentage (e.g., "25/1000 (2.50%)").
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:5
+#: build/8594.4b700fc2850579437909.js:16
 #, js-format
 msgid "Currently sending - %1$s/%2$s (%3$s)"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "Cancel this batch"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "Not sent"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "No new content matched the campaign criteria, so no emails were sent."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "No sending history is available for this automated campaign."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Desktop"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Mobile"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:14
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
@@ -7531,512 +7541,541 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "Select how to filter your contacts"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "List & tags"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "Custom segment"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:1
 msgid "Contact lists"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 #: build/screen-ContactTagsView.11267ef2ebe85cd9a4a5.js:1
 msgid "Contact tags"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Custom segments are available only in the Pro version of MailerPress."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:5
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Segment"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 msgid "No audience selected"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:5
+#: build/8594.4b700fc2850579437909.js:5
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:11
 msgid "Total contacts"
 msgstr ""
 
 #. translators: %d: number of contacts
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 #, js-format
 msgid "%d contact"
 msgid_plural "%d contacts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Trash"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 msgid "No campaigns match the current selection"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Delivered"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 msgid "Unique opens"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 msgid "Unique clicks"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Unsubscribes"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:6
+#: build/8594.4b700fc2850579437909.js:9
+#: build/8594.4b700fc2850579437909.js:14
 #: build/dist/js/mail-editor.js:17
 #: build/dist/js/mail-editor.js:18
 msgid "Title"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 msgid "Manage and track all your email campaigns."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:6
+#: build/8594.4b700fc2850579437909.js:6
 msgid "Your campaigns"
 msgstr ""
 
 #. translators: %d: number of campaigns.
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 #, js-format
 msgid "%d campaign moved to the trash."
 msgid_plural "%d campaigns moved to the trash."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Failed to move campaigns to Trash"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Are you sure you want to move all selected campaigns to Trash? You will still be able to restore them later."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 msgid "Campaign preview"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Are you sure you want to move this campaign to Trash? You will still be able to restore it later."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Delete campaign"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Are you sure you want to permanently delete all campaigns in the Trash? This action is irreversible."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Trash emptied successfully"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Empty trash"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Delete permanently"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:7
+#: build/8594.4b700fc2850579437909.js:7
 msgid "Are you sure? This action is irreversible."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:8
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:8
+#: build/8594.4b700fc2850579437909.js:20
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
 msgid "Restore"
 msgstr ""
 
 #. translators: %d: number of campaigns.
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #, js-format
 msgid "%d campaign restored."
 msgid_plural "%d campaigns restored."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Failed to restore campaigns"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Last modification date"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Mine"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "No configuration"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "On"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Anonymously"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Off"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:5
 msgid "From name"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:5
 msgid "From email"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Delivery"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Schedule"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Immediate"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/8594.4b700fc2850579437909.js:9
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Tracking"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 msgid "Opens"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:9
+#: build/8594.4b700fc2850579437909.js:9
 msgid "Info"
 msgstr ""
 
 #. translators: %1$s sent count, %2$s total count
-#: build/8594.682194ec5127d784f61c.js:10
+#: build/8594.4b700fc2850579437909.js:10
 #, js-format
 msgid "%1$s / %2$s emails"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:10
+#: build/8594.4b700fc2850579437909.js:10
 msgid "ESP"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:10
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:10
+#: build/8594.4b700fc2850579437909.js:20
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
 msgid "Author"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:10
+#: build/8594.4b700fc2850579437909.js:10
 msgid "Query block"
 msgstr ""
 
 #. translators: %d: query block index
-#: build/8594.682194ec5127d784f61c.js:11
+#: build/8594.4b700fc2850579437909.js:11
 #, js-format
 msgid "Query %d"
 msgstr ""
 
 #. translators: %d: query result limit
-#: build/8594.682194ec5127d784f61c.js:12
+#: build/8594.4b700fc2850579437909.js:12
 #, js-format
 msgid "Limit %d"
 msgstr ""
 
 #. translators: %s: author IDs
-#: build/8594.682194ec5127d784f61c.js:13
+#: build/8594.4b700fc2850579437909.js:13
 #, js-format
 msgid "Authors: %s"
 msgstr ""
 
 #. translators: %d: number of post meta filters
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:14
 #, js-format
 msgid "%d meta filter"
 msgid_plural "%d meta filters"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:14
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 msgid "Created"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:14
 #, js-format
 msgid "Locked by %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:14
+#: build/8594.4b700fc2850579437909.js:14
 msgid "Last modified"
 msgstr ""
 
 #. translators: %1$s: campaign date, %2$s: campaign time
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:15
 #, js-format
 msgid "%1$s at %2$s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:15
 msgid "Are you sure you want to deactivate this automated campaign?"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:15
 #: build/workflow-editor.fde90fdb3953b896143f.js:8
 msgid "Deactivate"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:15
+#: build/8594.4b700fc2850579437909.js:15
 msgid "Are you sure you want to re-activate this automated campaign?"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:16
 msgid "Current batch: Processing now..."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:16
 msgid "Next batch: Starting soon..."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#. translators: %1$s is a date and time, %2$s is a number of emails.
+#: build/8594.4b700fc2850579437909.js:17
+#, js-format
+msgid "Paused until %1$s: the daily limit of %2$s emails is reached."
+msgstr ""
+
+#. translators: %1$s is a date and time, %2$s is a number of emails.
+#: build/8594.4b700fc2850579437909.js:18
+#, js-format
+msgid "Paused until %1$s: the monthly limit of %2$s emails is reached."
+msgstr ""
+
+#. translators: %s is a date and time.
+#: build/8594.4b700fc2850579437909.js:19
+#, js-format
+msgid "Paused until %s: your email provider asked MailerPress to slow down."
+msgstr ""
+
+#. translators: %s is a date and time.
+#: build/8594.4b700fc2850579437909.js:20
+#, js-format
+msgid "Paused until %s, waiting for sending capacity."
+msgstr ""
+
+#: build/8594.4b700fc2850579437909.js:20
+#: build/9385.51802016d5200578ab7a.js:6
+msgid "Change sending limits"
+msgstr ""
+
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Next batch in: %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Batch chunks details for %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "View batch details"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Are you sure you want to cancel sending this campaign?"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Campaign has been reset to draft"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Failed to reset campaign"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Cancel sending"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 msgid "Failure"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Are you sure you want to cancel sending this campaign? It will be moved back to Draft status."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Cancel it"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Post published · Automation"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Raw HTML"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Classic editor"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 msgid "Visual editor"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "A/B Split test"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "A/B Winner test"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "This campaign will be sent to %d contact"
 msgid_plural "This campaign will be sent to %d contacts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Variation %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Sending details"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "This campaign is actually inactive"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "This campaign will automatically send"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "every day at %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "every %s at %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "on the %s of each month at %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Next run - %s %s %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "at"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Automated campaign sending details"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Public link"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
-#: build/9385.4615e0cd4c42819a9524.js:4
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/8594.4b700fc2850579437909.js:20
+#: build/9385.51802016d5200578ab7a.js:8
+#: build/9385.51802016d5200578ab7a.js:11
 #: build/dist/js/mail-editor.js:18
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "View"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "No campaigns match your current filters."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "You haven’t created any campaigns yet. Click the button below to get started."
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Campaign moved to Trash successfully"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "View statistics"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Statistics for %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
 msgid "View logs"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Email logs for %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Copy public link"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Public link copied to clipboard"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Failed to copy link"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 msgid "Edit settings"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #, js-format
 msgid "Edit settings: %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/dist/js/mail-editor.js:4
 #: build/dist/js/mail-editor.js:5
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
@@ -8046,13 +8085,13 @@ msgstr ""
 msgid "Duplicate"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #, js-format
 msgid "Duplicate campaign: %s"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:16
+#: build/8594.4b700fc2850579437909.js:20
 #: build/dist/js/mail-editor.js:14
 #: build/dist/js/mail-editor.js:15
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
@@ -8063,13 +8102,13 @@ msgid "Rename"
 msgstr ""
 
 #. translators: 1: membership category, 2: total number of memberships.
-#: build/8594.682194ec5127d784f61c.js:17
+#: build/8594.4b700fc2850579437909.js:21
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:8
 #, js-format
 msgid "%1$s: show all (%2$d)"
 msgstr ""
 
-#: build/8594.682194ec5127d784f61c.js:17
+#: build/8594.4b700fc2850579437909.js:21
 #: build/dist/js/mail-editor.js:18
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:8
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
@@ -8077,51 +8116,51 @@ msgid "Clear"
 msgstr ""
 
 #: build/9032.7078141cdacdabfba588.js:1
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Conditional display test"
 msgstr ""
 
 #: build/9032.7078141cdacdabfba588.js:1
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Unable to generate the test email."
 msgstr ""
 
 #: build/9032.7078141cdacdabfba588.js:1
-#: build/9385.4615e0cd4c42819a9524.js:3
-#: build/9385.4615e0cd4c42819a9524.js:4
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:7
+#: build/9385.51802016d5200578ab7a.js:8
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Unable to send the test email."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "The campaign name is only visible from the WordPress administration interface."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Campaign name *"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "This text will be displayed in the title of the email your recipients will receive."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Campaign subject *"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start composing your email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Failed to fetch categories."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Template name"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:6
 #: build/dist/js/mail-editor.js:8
@@ -8130,61 +8169,61 @@ msgstr ""
 msgid "Category"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Template type"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Newsletter templates are for manual campaigns. Automation templates are for automated workflows."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Failed to update template."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Template name cannot be empty."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Add template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "No templates match your current filters."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "No templates available"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "It looks like you don't have any templates yet. Create one to get started."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start with this template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "More template actions"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Edit template details"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Edit template content"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Are you sure you want to delete this item?"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:11
@@ -8192,291 +8231,291 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Your templates"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Templates saved by your team. The ones you used recently come first."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "No templates yet"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Save an email as a template to reuse its layout in your next campaigns."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Previous emails"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start from a copy of an email you already sent or drafted."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "No previous emails"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "The emails you create will appear here, so you can reuse their design."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "MailerPress library"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Ready-made designs provided by MailerPress, to adapt to your brand."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "No designs in the library"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "The MailerPress library could not be loaded. Try again later."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Premium template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Used recently"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #, js-format
 msgid "Edited %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Blank email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start from an empty email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #, js-format
 msgid "Sent · %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #, js-format
 msgid "Draft · %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Starter design"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "This design could not be loaded. Choose another one or start with a blank email."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "The design was applied, but could not be fully updated. Please check your email."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Unable to apply this design."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 msgid "Choose a design"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start with a blank email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Search designs"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "No designs found"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Try another name, or look in another tab."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dataview.492e3cfb35cacc7c7ed5.js:2
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 msgid "Preview"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "This template cannot be previewed."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Uncategorized"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Pre-designed layouts for your emails."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Could not update the template favorite."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Premium"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:7
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 msgid "Source"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Add to favorites"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Remove from favorites"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Favorite"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Your template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 msgid "Version"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Preview device"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Select a template to preview it."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Search blocks..."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "ACF Field Block - Pro Feature"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "ACF fields are only available for Pro users. "
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Upgrade to unlock ACF fields and create custom content."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Columns"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Browse all"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Add block"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #, js-format
 msgid "Moving %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dataview.492e3cfb35cacc7c7ed5.js:2
 #: build/workflow-editor.fde90fdb3953b896143f.js:2
 #: build/workflow-editor.fde90fdb3953b896143f.js:6
 msgid "Select"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start from draft"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start from a previous campaign"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "About this campaign"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Campaign details"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid ""
 "This name is only visible to you in your WordPress dashboard.\n"
 ""
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid ""
 "This will appear as the email’s subject line for your recipients.\n"
 ""
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Who should receive this email?"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Choose your recipients"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "List *"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "You have no campaigns to duplicate"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Start from this campaign"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Template name *"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Give your template a descriptive name."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
@@ -8485,248 +8524,248 @@ msgstr ""
 msgid "Creating…"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Create template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Drag to resize"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Use left and right arrow keys to resize the canvas."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 msgid "New link"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 msgid "Add link"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 msgid "Add social profile"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:17
 msgid "SVG images are not supported, please try another image."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Media library"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Insert from URL"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 msgid "Image URL"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "https://example.com/image.jpg"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Insert"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:17
 msgid "Generate image with AI"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:17
 msgid "AI image generation is available only in the Pro version of MailerPress."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mail-editor.js:17
 msgid "Upgrade to unlock AI image generation and create custom images."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "AI generation"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:17
 msgid "Video URL"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "https://www.youtube.com/watch?v=dDq0v-wdSUk"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:17
 msgid "YouTube, Vimeo or Dailymotion URL"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 msgid "Customer name"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 msgid "Order Items"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:18
 msgid "Subscription Details"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Choose a model"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Create my own template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Return"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Order Summary"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "With Customer"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Full Details"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "2 Columns Layout"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Addresses Only"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Create your custom order template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:17
 msgid "Column"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "No blocks added yet"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Available blocks"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Add column"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:8
 msgid "Insert this template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Type / to choose a block"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:1
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:18
 msgid "Write with AI"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Close block inserter"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Add block to column"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Divide into columns. Select a layout:"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "This block has no content"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 msgid "Resize image"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:1
+#: build/9385.51802016d5200578ab7a.js:1
 #, js-format
 msgid "Resize columns %1$d and %2$d"
 msgstr ""
 
 #. translators: 1: control label, 2: column widths
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "%1$s: %2$s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:17
 #: build/dist/js/mail-editor.js:18
 msgid "Personalization Tags"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "This email was sent to you because you opted in to receive our newsletter"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:18
 msgid "Made with MailerPress"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:18
 msgid "You are receiving this email because it contains information related to your account, activity, or request."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:18
 msgid "Company name - Company address"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
 #: build/html-email-editor.e337ff0240e81615f544.js:1
@@ -8734,289 +8773,289 @@ msgstr ""
 msgid "Email preview"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "Choose a template for \"%s\", or start from a blank canvas."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Available merge tags:"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
 #: build/workflow-editor.fde90fdb3953b896143f.js:1
 msgid "WooCommerce"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:2
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
 msgid "Use this template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Empty canvas"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Start blank"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Start from a blank email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Please choose a layout below to begin:"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Or select a default design to start with"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:2
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:7
 msgid "Browse all templates"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Open template library"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Use this starter"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "%d web font is not installed (%s): recipients see the fallback font. Installing it loads it from your website on every email open."
 msgid_plural "%d web fonts are not installed (%s): recipients see the fallback font. Installing them loads them from your website on every email open."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Install…"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Add an Unsubscribe or Manage Subscription link to comply with GDPR."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "You can include a footer in this email. If the recipient is not a subscribed contact in your MailerPress audience, it will be removed automatically."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Add footer"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Your email should display correctly, but some MJML issues were found. Reviewing them is recommended for best safety."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Review code"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:6
 msgid "Your primary provider is disabled."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:6
 msgid "MailerPress will therefore not be able to send your emails correctly. Please activate your default sending email or choose another active primary service."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 msgid "Go to sending options"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Choose a template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Create a new template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Back to list"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Before we begin..."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Please setup the plugin before starting"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "This content is displayed based on the current query and may change if new posts are published."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Hidden"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "1 variant"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "variants"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "Editing %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Editing default"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Edit default value"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Personalization"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Default value"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Used when this value is unavailable. Leave empty to show nothing."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Leave empty if none"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:8
 msgid "Update"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "Email size: %s KB"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "This email template no longer exists. You can create a new one from the settings."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "This campaign no longer exists or has been deleted."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Back to email settings"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/editor-skeleton.2e97607e8b6e092c673c.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/html-email-editor.e337ff0240e81615f544.js:1
 msgid "Back to campaigns"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "SandBox"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "%1$s — %2$s default"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Current site time:"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Schedule for later"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Send date"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Pick a date"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Invalid date selected. Date set to minimum future time."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Cannot schedule in the past. Date set to minimum future time."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Sending steps"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Cannot save settings: campaign ID is missing"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Draft saved."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
 #: build/screen-RateLimitingSettings.9a328b7e5b4c5ffc99b6.js:1
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Failed to save settings"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "The scheduled date must be in the future. Please update the date and try again."
 msgstr ""
 
 #. translators: %s is the scheduled date and time formatted as "DD/MM/YYYY at HH:mm:ss"
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "Your newsletter has been scheduled for %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Your newsletter is on it's way"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Failed to send campaign"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Failed to save settings before sending"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Your campaign is now scheduled to send automatically"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Filter by"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
@@ -9024,538 +9063,566 @@ msgstr ""
 msgid "Lists and tags"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Contacts from any selected list are included. Tags narrow this audience to contacts with at least one selected tag. With tags only, contacts with any selected tag are included."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Select at least one list or tag"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Upgrade to create advanced targeting rules and reuse your saved segments."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "%d contact matched"
 msgid_plural "%d contacts matched"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "No contacts match the selected segment. Try choosing a different segment."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "No contacts match both the selected lists and tags. Try removing the tag filter."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "No contacts have the selected tags. Try a different tag or select a list first."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "The selected lists have no contacts yet."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 msgid "Sending"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Content settings"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Subject line"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "A subject line is required"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Preview text"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Snippet shown in email clients below the subject line"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Track opens"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Anonymize open tracking (GDPR)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "Track clicks"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 msgid "Anonymize click tracking (GDPR)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:2
 #, js-format
 msgid "%d contact will receive this campaign"
 msgid_plural "%d contacts will receive this campaign"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#. translators: %1$s is the monthly limit, %2$s is the number of emails already sent this month.
+#: build/9385.51802016d5200578ab7a.js:3
+#, js-format
+msgid "Your monthly sending limit is %1$s emails and %2$s were already sent this month. Part of this campaign will wait until next month."
+msgstr ""
+
+#. translators: %1$s is the daily limit, %2$s is a date and time, %3$d is a number of days.
+#: build/9385.51802016d5200578ab7a.js:4
+#, js-format
+msgid "Your daily sending limit of %1$s emails has been reached. This campaign will start sending on %2$s and finish about %3$d day later."
+msgid_plural "Your daily sending limit of %1$s emails has been reached. This campaign will start sending on %2$s and finish about %3$d days later."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %1$s is the daily limit, %2$s is a date and time.
+#: build/9385.51802016d5200578ab7a.js:5
+#, js-format
+msgid "Your daily sending limit of %1$s emails has been reached. This campaign will be sent on %2$s."
+msgstr ""
+
+#. translators: %1$s is the daily limit, %2$s is the number of emails sent in the last 24 hours, %3$s is the number of emails sent right away, %4$d is a number of days.
+#: build/9385.51802016d5200578ab7a.js:6
+#, js-format
+msgid "Your daily sending limit is %1$s emails and %2$s were sent in the last 24 hours. %3$s emails will be sent now and the rest over about %4$d more day."
+msgid_plural "Your daily sending limit is %1$s emails and %2$s were sent in the last 24 hours. %3$s emails will be sent now and the rest over about %4$d more days."
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Schedule at recommended time"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 #, js-format
 msgid "Best time to send today: %s — Based on your audience's open history."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Each published post creates a separate newsletter in Campaigns, using this design and audience. Recipient subscriptions, delivery and statistics follow the normal newsletter process."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "When a post is published"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Create draft"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Send mode"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Live"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Automated campaigns can only be used with dynamic content. Please include a Query block in your email to automatically send to new matching contacts when new content is published. Static content alone will not trigger automated sending."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "This automated campaign sends emails based on the content retrieved by your Query block. When new matching content (e.g., published posts or products) appears, an email will be automatically sent following the frequency you have set, using the template you designed."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Frequency"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Every day"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Every week"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Every month"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "At"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 #, js-format
 msgid "Recommended: %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Days of the week"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Monday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Tuesday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Wednesday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Thursday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Friday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Saturday"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:2
+#: build/9385.51802016d5200578ab7a.js:6
 msgid "Sunday"
 msgstr ""
 
 #. translators: %s: day of the week
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 #, js-format
 msgid "%s — Best day"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Days of the month"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Add one day at a time (1-31)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Will be sent on"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "This matches your best performing time slot."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 #, js-format
 msgid "Tip: Your audience tends to open more around %s on this day."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 #, js-format
 msgid "Sending in %ds…"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Save draft"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Next"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Newsletter setup saved. Each published post will create its own campaign."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Could not save the newsletter setup."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Save setup"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Publish automation"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Send now"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Schedule sending"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Select at least one recipient list to send."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "The scheduled date must be in the future."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Send a test"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:7
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Your test email has been sent to your recipients"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "(no subject)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Sender name"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Loading email preview..."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Unable to generate the email preview."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Preview as"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Loading contacts…"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Select a contact"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "No contacts available"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Simulate the rendering that one of your contacts will receive"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Add recipients in the Recipients step to preview as a contact."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:3
+#: build/9385.51802016d5200578ab7a.js:7
 msgid "Resize settings panel"
 msgstr ""
 
 #. translators: %d: width in pixels
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #, js-format
 msgid "%d pixels"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Drag to resize. Double-click to reset."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 msgid "This campaign requires MailerPress Pro."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Welcome to the email editor"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Build your email one block at a time. Use the + button to add text, images, buttons, or ready-made patterns, then drag them into your email."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Make it your own"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Open Styles in the right sidebar to set the typography, colors, and background for your whole email. Choose a style or customize it to match your brand."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Keep your email organized"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Open List view in the top toolbar to find and reorder your blocks. Use Undo and Redo to try changes and step back whenever you need to."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Fine-tune each block"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Select a block in your email to open its settings in the Block sidebar. Adjust spacing, typography, alignment, and colors, with separate controls for desktop and mobile."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Select text and choose Write with AI in the block toolbar. Improve clarity, fix grammar, shorten your copy, or describe the changes you want. Review the suggestion before applying it to your email."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/html-email-editor.e337ff0240e81615f544.js:1
 msgid "Preview & Send"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Open Preview & Send to check your email on desktop and mobile and send a test. Review the sender, subject, and preview text, then choose your audience and sending options before confirming the send."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #, js-format
 msgid "Shift Command %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #, js-format
 msgid "Control Shift %s"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Importing this template will replace your current content. Changes will not be saved until you save the draft. Are you sure you want to continue?"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Show and hide the WordPress admin interface"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Fullscreen mode"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Access all block and email tools in a single place"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Top toolbar"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Focus on one block at a time"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Could not save Spotlight mode. Please try again."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Spotlight mode"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 msgid "Editor"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Code editor (MJML)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:11
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:7
 msgid "Fonts"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Font manager"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 msgid "Save as template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Export email as JSON"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Invalid email JSON format."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Failed to parse JSON file."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Import email from JSON"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "This will replace your current content with the default WooCommerce template. Are you sure?"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Template reset to default."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Reset to default template"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Copy all blocks"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/dist/js/mail-editor.js:2
 msgid "Help"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Welcome Guide"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:5
 msgid "Send a test email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Test email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Send yourself a test email to check how your email looks in different email clients."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:5
 msgid "Send to"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Separate up to 5 addresses with commas."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Send test email"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:4
+#: build/9385.51802016d5200578ab7a.js:8
 msgid "Tablet"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:5
+#: build/9385.51802016d5200578ab7a.js:9
 #, js-format
 msgid "%1$d × %2$d"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:6
+#: build/9385.51802016d5200578ab7a.js:10
 #, js-format
 msgid "%d × auto"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 #, js-format
 msgid "%1$s (%2$s)"
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Preview desktop viewport."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Preview tablet viewport."
 msgstr ""
 
-#: build/9385.4615e0cd4c42819a9524.js:7
+#: build/9385.51802016d5200578ab7a.js:11
 msgid "Preview mobile viewport."
 msgstr ""
 
@@ -10283,7 +10350,7 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ExportImportSettings.1d3bfc57b3f5756011e2.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "General"
 msgstr ""
 
@@ -12107,7 +12174,7 @@ msgid "Selection"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:10
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Automatic"
 msgstr ""
 
@@ -17116,7 +17183,7 @@ msgid "Re-engagement email"
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Failed to create template"
 msgstr ""
 
@@ -17125,7 +17192,7 @@ msgid "Template is missing"
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Failed to open editor"
 msgstr ""
 
@@ -17143,9 +17210,9 @@ msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
 #: build/screen-RateLimitingSettings.9a328b7e5b4c5ffc99b6.js:1
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Save settings"
 msgstr ""
 
@@ -17215,7 +17282,7 @@ msgid "Each inactive contact receives this email only once. Opening the email do
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Email content"
 msgstr ""
 
@@ -17224,7 +17291,7 @@ msgid "You can use [contact:firstName], [contact:lastName], [contact:email], and
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Email subject"
 msgstr ""
 
@@ -17237,7 +17304,7 @@ msgid "Email design"
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Use designed email template"
 msgstr ""
 
@@ -17250,12 +17317,12 @@ msgid "Your re-engagement email will be sent as simple text. Enable this option 
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Edit design"
 msgstr ""
 
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Design template"
 msgstr ""
 
@@ -17892,283 +17959,359 @@ msgstr ""
 msgid "Create dynamic segments based on contact properties, behavior, and engagement to send highly targeted campaigns."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Sending with WordPress works for testing and small lists. For larger lists, set up an email provider."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Micro (Shared hosting - very limited)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "For very weak shared hosting"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Conservative (shared hosting or SMTP plugin)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Safe for shared hosting and most SMTP plugins"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Standard (VPS or SMTP plugin)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "For a VPS or a well-configured SMTP plugin"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Performance (dedicated SMTP provider)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "For dedicated SMTP providers with high throughput"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Custom SMTP deliverability depends on your SMTP provider. While better than sending from your web host, dedicated ESPs (Brevo, SendGrid, Postmark) offer better deliverability, analytics, and support. Common providers: Gmail SMTP (limited), Office365, third-party SMTP servers."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Conservative (Gmail SMTP, free providers)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Safe for Gmail SMTP or free SMTP providers with strict limits"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Balanced (Recommended - Most SMTP servers)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Safe and reliable for most third-party SMTP servers"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Performance (Dedicated SMTP servers)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "For dedicated/enterprise SMTP servers"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "%s per day"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "%s per month"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Set up an email provider"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Several months"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "About %d day"
+msgid_plural "About %d days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "%d min"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "%s hr"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Choose a sending pace that fits your email provider and server."
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Choose a sending pace that fits your email provider and server, and set the limits of your provider plan if it has any."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "Sending with %s. Change provider"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Change provider"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Settings saved"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Sending is paused until %1$s: the daily limit of %2$s emails is reached. Raise or remove the limit below, then save, to resume now."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Sending is paused until %1$s: the monthly limit of %2$s emails is reached. Raise or remove the limit below, then save, to resume now."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Sending is paused until %s: your email provider asked MailerPress to slow down."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "How should emails be sent?"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Pick the level of control you need. You can change this at any time."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Configuration mode"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "MailerPress chooses a safe pace for your provider and server."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Choose a profile"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Pick a preset that matches your provider plan."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Set it yourself"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Control batch size, interval and rate limit."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "Selected profile: %s"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Choose a provider profile"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Choose the preset that matches your provider plan."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Sending profile"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "Up to %s emails per hour before your provider's own limits."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Apply these limits"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "This profile matches a plan with a quota of %s. MailerPress only pauses sending at the limits you set in Sending limits."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Set your sending pace"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Use your provider's documented limits when entering these values."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Emails per batch"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Emails sent together before the next interval."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "Time between batches (%s)"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Maximum emails per second"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "The speed limit within a batch. Zero disables this limit."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Daily sending limit"
-msgstr ""
-
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Maximum send attempts over 24 hours. Zero disables this limit."
-msgstr ""
-
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Monthly sending limit"
-msgstr ""
-
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Maximum send attempts per UTC calendar month. Zero disables this limit."
-msgstr ""
-
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Intervals less than 3 minutes may overload ActionScheduler and your WordPress server."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Your web host cannot handle rate limits above 50 emails/second. This will cause failures and potential IP blacklisting."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Sending limits"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "If your provider plan has a quota, enter it here. When a limit is reached, MailerPress pauses sending and resumes automatically, so your provider does not reject emails. 0 means no limit."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Maximum emails per 24 hours"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "0 means no daily limit."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Maximum emails per month"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Counted per calendar month (UTC). 0 means no monthly limit."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Known plan quotas for %s:"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Use %s"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+#, js-format
+msgid "Sent with MailerPress in the last 24 hours: %1$s. This month: %2$s."
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Your sending pace"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Preview for the selected mode. Save settings to apply it."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "These are your saved settings."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Batch schedule"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "emails every %d %s"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Per hour"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Per day, theoretical"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Maximum per second"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "No limit"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Daily sending limit"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "Monthly sending limit"
+msgstr ""
+
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "This schedule averages %.2f emails per second, above the configured limit of %d. Sending will be throttled."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
-msgid "Daily and monthly limits pause queued campaigns until capacity is available. Limits count MailerPress campaign and workflow attempts only; leave room for other sends on your account."
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
+msgid "When a limit is reached, campaigns and workflows pause and resume automatically once capacity is available. Limits count MailerPress sends only; leave room for other sends on your account."
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Estimate delivery time"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 #, js-format
 msgid "%s contacts"
 msgstr ""
 
-#: build/screen-SendingFrequency.a0e549559b7c6bdcadf5.js:1
+#: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
 msgid "Estimates assume continuous sending. Campaigns larger than a daily or monthly quota require multiple quota periods."
 msgstr ""
 
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "Page or URL"
 msgstr ""
 
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "Select page"
 msgstr ""
 
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 msgid "Search for a page..."
 msgstr ""
@@ -18413,83 +18556,83 @@ msgstr ""
 msgid "Already have Pro? Install and activate the Pro plugin to access the page design settings."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Reminders"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Unconfirmed contacts"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Enable sign-up confirmation"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "If you enable this option, your subscribers will first receive a confirmation email after they subscribe. Once they confirm their subscription (via this email), they will be marked as 'confirmed' and will begin to receive your email newsletters. Read more about Double Opt-in confirmation."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "New subscribers will be automatically confirmed without having to confirm their subscription. This is not recommended!"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Redirect after confirmation"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Search for a WordPress page or enter a custom URL to redirect users after they confirm their subscription."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Leave empty to use the default confirmation page."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Search for a page or enter a custom URL..."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Available variables: [contact:email], [contact:firstName], [contact:lastName], [site:title], [site:homeURL], [activation_link]...[/activation_link]"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Your confirmation email will use the designed template. The email content will be automatically injected into it."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Your confirmation email will be sent as simple text. Enable this option to customize the visual design (header, footer, colors, images)."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Enable automatic reminders"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Automatically send a reminder email to pending contacts who haven't confirmed their subscription."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Send reminder after"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Number of days after the initial confirmation email to send a single reminder."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Automatically delete unconfirmed contacts"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Permanently delete contacts who remain pending beyond the retention period. This also applies to existing pending contacts."
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Delete unconfirmed contacts after"
 msgstr ""
 
-#: build/screen-SignUpConfirmation.64eebf580dbf8073640e.js:1
+#: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Enter a positive whole number of days. Editing a contact or resending a confirmation email does not restart this period."
 msgstr ""
 

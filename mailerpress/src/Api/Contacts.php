@@ -108,12 +108,16 @@ class Contacts
             // Utiliser les stats préchargées
             $statsRows = $stats_by_campaign[(int)$campaign->campaign_id] ?? [];
 
+            $isAutomationEmail = 'automation' === ($campaign->campaign_type ?? '');
+
             foreach ($statsRows as $stats) {
                 // Sent
                 $activities[] = [
                     'type' => 'sent',
                     'timestamp' => $stats->created_at,
-                    'details' => sprintf(__('Sent campaign "%s"', 'mailerpress'), $campaign->name),
+                    'details' => $isAutomationEmail
+                        ? sprintf(__('Sent automation email "%s"', 'mailerpress'), $campaign->name)
+                        : sprintf(__('Sent campaign "%s"', 'mailerpress'), $campaign->name),
                 ];
 
                 // Opened
@@ -121,7 +125,9 @@ class Contacts
                     $activities[] = [
                         'type' => 'opened',
                         'timestamp' => $stats->updated_at ?: $stats->created_at,
-                        'details' => sprintf(__('Opened campaign "%s"', 'mailerpress'), $campaign->name),
+                        'details' => $isAutomationEmail
+                            ? sprintf(__('Opened automation email "%s"', 'mailerpress'), $campaign->name)
+                            : sprintf(__('Opened campaign "%s"', 'mailerpress'), $campaign->name),
                     ];
                     $campaignScore = max($campaignScore, 80);
                 }

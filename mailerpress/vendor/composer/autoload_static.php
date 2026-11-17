@@ -845,6 +845,7 @@ class ComposerStaticInit2f51c1817df22ed3f51e9e34953234b2
         'MailerPress\\Actions\\ActionScheduler\\Processors\\ChunkWorker' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/ChunkWorker.php',
         'MailerPress\\Actions\\ActionScheduler\\Processors\\ConfirmationReminderTask' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php',
         'MailerPress\\Actions\\ActionScheduler\\Processors\\ContactEmailChunk' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/ContactEmailChunk.php',
+        'MailerPress\\Actions\\ActionScheduler\\Processors\\DeferredWorkflowSends' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/DeferredWorkflowSends.php',
         'MailerPress\\Actions\\ActionScheduler\\Processors\\EmailBatchesTask' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/EmailBatchesTask.php',
         'MailerPress\\Actions\\ActionScheduler\\Processors\\ExportContact' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/ExportContact.php',
         'MailerPress\\Actions\\ActionScheduler\\Processors\\ImportContactBatchTask' => __DIR__ . '/../..' . '/src/Actions/ActionScheduler/Processors/ImportContactBatchTask.php',

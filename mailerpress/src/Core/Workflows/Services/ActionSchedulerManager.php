@@ -94,10 +94,26 @@ class ActionSchedulerManager
      * Static form of cancelJobActions(), so callers do not have to build an
      * instance (which would drag a WorkflowExecutor along) just to cancel.
      */
-    public static function cancelActionsForJob(int $jobId, string $hook = self::HOOK_CONTINUE): void
+    public static function cancelActionsForJob(int $jobId, string $hook = self::HOOK_CONTINUE, ?array $pending = null): void
     {
-        if (!function_exists('as_get_scheduled_actions') || !function_exists('as_unschedule_action')) {
+        if (!function_exists('as_unschedule_action')) {
             return;
+        }
+
+        foreach (($pending ?? self::pendingArgsByJob($hook))[$jobId] ?? [] as $args) {
+            as_unschedule_action($hook, $args, self::GROUP);
+        }
+    }
+
+    /**
+     * Load the pending actions of a hook once, indexed by job, so many jobs can be cancelled in one pass.
+     *
+     * @return array<int, array<int, array>> Action arguments by job ID.
+     */
+    public static function pendingArgsByJob(string $hook = self::HOOK_CONTINUE): array
+    {
+        if (!function_exists('as_get_scheduled_actions')) {
+            return [];
         }
 
         $query = [
@@ -113,23 +129,20 @@ class ActionSchedulerManager
         $actions = as_get_scheduled_actions($query);
 
         if (empty($actions) || !is_array($actions)) {
-            return;
+            return [];
         }
 
+        $byJob = [];
         foreach ($actions as $action) {
             if (!is_object($action) || !method_exists($action, 'get_args')) {
                 continue;
             }
 
             $args = $action->get_args();
-            $normalized = self::normalizeArgs($args);
-
-            if ((int) ($normalized['job_id'] ?? 0) !== $jobId) {
-                continue;
-            }
-
-            as_unschedule_action($hook, $args, self::GROUP);
+            $byJob[(int) (self::normalizeArgs($args)['job_id'] ?? 0)][] = $args;
         }
+
+        return $byJob;
     }
 
     /**

@@ -13,16 +13,22 @@ namespace MailerPress\Services;
 
 \defined( 'ABSPATH' ) || exit;
 
+use MailerPress\Actions\ActionScheduler\Processors\ChunkWorker;
+use MailerPress\Actions\ActionScheduler\Processors\InactiveReengagementProcessor;
 use MailerPress\Core\EmailManager\EmailServiceManager;
+use MailerPress\Core\Enums\Tables;
+use MailerPress\Core\Workflows\Services\ActionSchedulerManager;
 
 /**
  * Resolves sending settings from the shared ESP catalog.
  */
 class SendingFrequencyConfig {
 
-	public const OPTION            = 'mailerpress_frequency_sending';
-	private const PROVIDER_OPTIONS = 'mailerpress_frequency_sending_by_provider';
-	private const LEGACY_PROFILES  = array(
+	public const OPTION                 = 'mailerpress_frequency_sending';
+	public const RELEASE_WORKFLOWS_HOOK = 'mailerpress_release_deferred_workflow_sends';
+	private const PROVIDER_OPTIONS      = 'mailerpress_frequency_sending_by_provider';
+	private const RELEASE_BATCH         = 200;
+	private const LEGACY_PROFILES       = array(
 		'php_micro'   => 'wordpress_micro',
 		'php_prudent' => 'wordpress_conservative',
 	);
@@ -131,7 +137,62 @@ class SendingFrequencyConfig {
 		$stored[ $provider ] = $result;
 		update_option( self::PROVIDER_OPTIONS, $stored, false );
 		update_option( self::OPTION, wp_json_encode( $result ), false );
+		self::releaseDeferredSends();
 		return $result;
+	}
+
+	/**
+	 * Retry the sends postponed by the previous limits, so new limits apply right away.
+	 * The limiter postpones them again if the new limits are still reached.
+	 *
+	 * @return void
+	 */
+	public static function releaseDeferredSends(): void {
+		global $wpdb;
+		$chunks  = Tables::get( Tables::MAILERPRESS_EMAIL_CHUNKS );
+		$batches = Tables::get( Tables::MAILERPRESS_EMAIL_BATCHES );
+		$now     = gmdate( 'Y-m-d H:i:s' );
+		// Only chunks postponed by the limiter keep a start time: planned and retried chunks keep their pace.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Queue update on MailerPress tables named by Tables::get().
+		$released = $wpdb->query( $wpdb->prepare( "UPDATE {$chunks} c INNER JOIN {$batches} b ON b.id = c.batch_id SET c.scheduled_at = %s WHERE c.status = 'pending' AND c.started_at IS NOT NULL AND c.scheduled_at > %s AND b.status IN ('pending','scheduled','in_progress')", $now, $now ) );
+		if ( $released ) {
+			ChunkWorker::ensureWorkerRunning();
+		}
+
+		// Workflow jobs can number in the thousands: release them in the background, in batches.
+		if ( function_exists( 'as_enqueue_async_action' ) && ! as_has_scheduled_action( self::RELEASE_WORKFLOWS_HOOK, array(), 'mailerpress' ) ) {
+			as_enqueue_async_action( self::RELEASE_WORKFLOWS_HOOK, array(), 'mailerpress' );
+		}
+
+		InactiveReengagementProcessor::releasePostponedChunks();
+	}
+
+	/**
+	 * Retry a batch of workflow sends postponed by the previous limits, and queue the next batch.
+	 *
+	 * @return void
+	 */
+	public static function releaseDeferredWorkflowSends(): void {
+		global $wpdb;
+		$now = gmdate( 'Y-m-d H:i:s' );
+		// Only a postponed send leaves a workflow job waiting with a future date: conditions and goals wait without one.
+		$jobs  = Tables::get( Tables::MAILERPRESS_AUTOMATIONS_JOBS );
+		$steps = Tables::get( Tables::MAILERPRESS_AUTOMATIONS_STEPS );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Workflow queue on MailerPress tables named by Tables::get().
+		$waiting = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT j.id, j.next_step_id FROM {$jobs} j INNER JOIN {$steps} s ON s.automation_id = j.automation_id AND s.step_id = j.next_step_id WHERE j.status = 'WAITING' AND j.scheduled_at > %s AND s.`key` IN ('send_email', 'send_mail') ORDER BY j.id LIMIT %d", $now, self::RELEASE_BATCH ) );
+		if ( empty( $waiting ) ) {
+			return;
+		}
+		// Released jobs leave this query, so the next batch picks up the rest, even if this request times out.
+		if ( count( $waiting ) === self::RELEASE_BATCH ) {
+			as_enqueue_async_action( self::RELEASE_WORKFLOWS_HOOK, array(), 'mailerpress' );
+		}
+		$pending = ActionSchedulerManager::pendingArgsByJob();
+		foreach ( $waiting as $job ) {
+			ActionSchedulerManager::cancelActionsForJob( (int) $job->id, ActionSchedulerManager::HOOK_CONTINUE, $pending );
+			$wpdb->update( $jobs, array( 'scheduled_at' => $now ), array( 'id' => (int) $job->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Workflow queue update.
+			ActionSchedulerManager::scheduleContinue( time(), (int) $job->id, (string) $job->next_step_id );
+		}
 	}
 
 	/**
@@ -219,6 +280,13 @@ class SendingFrequencyConfig {
 			}
 			$profile = empty( $matches ) ? $default : reset( $matches );
 		}
+		$limits = self::limits( $value['limits'] ?? array() );
+		if ( is_wp_error( $limits ) ) {
+			if ( $strict ) {
+				return $limits;
+			}
+			$limits = self::limits( array() );
+		}
 		$manual = $value['manualConfig'] ?? $value['effectiveConfig'] ?? $value['settings'] ?? $default['config'];
 		if ( ! is_array( $manual ) ) {
 			return self::error();
@@ -234,7 +302,13 @@ class SendingFrequencyConfig {
 			}
 			$manual = $default['config'];
 		}
-		$effective = 'manual' === $mode ? $manual : $profile['config'];
+		// The mode only sets the pace. Daily and monthly caps can hold deliveries for hours, so they come only from
+		// the limits the user sets on the Sending frequency screen (2.2.1+): profile quotas never cap volume.
+		if ( ! isset( $value['limits'] ) && 'manual' === $mode ) {
+			$limits = self::legacyManualLimits( $manual, $provider );
+		}
+		$manual    = array_merge( $manual, self::limits( array() ) );
+		$effective = array_merge( 'manual' === $mode ? $manual : $profile['config'], $limits );
 		if ( 'auto' === $mode ) {
 			$memory = wp_convert_hr_to_bytes( (string) ini_get( 'memory_limit' ) );
 			$time   = (int) ini_get( 'max_execution_time' );
@@ -249,7 +323,47 @@ class SendingFrequencyConfig {
 			'effectiveConfig' => $effective,
 			'espKey'          => $provider,
 			'catalogVersion'  => self::catalog()['metadata']['version'],
+			'limits'          => $limits,
 		);
+	}
+
+	/**
+	 * Validate the daily and monthly limits chosen by the user. Zero means no limit.
+	 *
+	 * @param mixed $limits Saved or incoming limits.
+	 * @return array|\WP_Error
+	 */
+	private static function limits( mixed $limits ): array|\WP_Error {
+		$limits = is_array( $limits ) ? $limits : array();
+		$valid  = array();
+		foreach ( array( 'daily_limit', 'monthly_limit' ) as $key ) {
+			$valid[ $key ] = filter_var( $limits[ $key ] ?? 0, FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 0 ) ) );
+			if ( false === $valid[ $key ] ) {
+				return self::error();
+			}
+		}
+		return $valid;
+	}
+
+	/**
+	 * Keep the daily and monthly limits typed in the manual mode of 2.2, saved before limits had their own fields.
+	 * 2.2 pre-filled that mode from a profile, so a value equal to a profile quota was not chosen by the user.
+	 *
+	 * @param array  $manual   Validated manual settings saved by 2.2.
+	 * @param string $provider ESP key.
+	 * @return array
+	 */
+	private static function legacyManualLimits( array $manual, string $provider ): array {
+		$catalog  = self::catalog();
+		$profiles = $catalog[ $provider ]['profiles'] ?? $catalog['smtp']['profiles'] ?? array();
+		$limits   = self::limits( array() );
+		foreach ( array_keys( $limits ) as $key ) {
+			$quotas = array_map( static fn( $profile ) => (int) ( $profile['config'][ $key ] ?? 0 ), $profiles );
+			if ( ! in_array( $manual[ $key ], $quotas, true ) ) {
+				$limits[ $key ] = $manual[ $key ];
+			}
+		}
+		return $limits;
 	}
 
 	/**

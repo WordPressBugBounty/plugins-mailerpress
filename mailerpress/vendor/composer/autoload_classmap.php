@@ -616,6 +616,7 @@ return array(
     'MailerPress\\Actions\\ActionScheduler\\Processors\\ChunkWorker' => $baseDir . '/src/Actions/ActionScheduler/Processors/ChunkWorker.php',
     'MailerPress\\Actions\\ActionScheduler\\Processors\\ConfirmationReminderTask' => $baseDir . '/src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php',
     'MailerPress\\Actions\\ActionScheduler\\Processors\\ContactEmailChunk' => $baseDir . '/src/Actions/ActionScheduler/Processors/ContactEmailChunk.php',
+    'MailerPress\\Actions\\ActionScheduler\\Processors\\DeferredWorkflowSends' => $baseDir . '/src/Actions/ActionScheduler/Processors/DeferredWorkflowSends.php',
     'MailerPress\\Actions\\ActionScheduler\\Processors\\EmailBatchesTask' => $baseDir . '/src/Actions/ActionScheduler/Processors/EmailBatchesTask.php',
     'MailerPress\\Actions\\ActionScheduler\\Processors\\ExportContact' => $baseDir . '/src/Actions/ActionScheduler/Processors/ExportContact.php',
     'MailerPress\\Actions\\ActionScheduler\\Processors\\ImportContactBatchTask' => $baseDir . '/src/Actions/ActionScheduler/Processors/ImportContactBatchTask.php',

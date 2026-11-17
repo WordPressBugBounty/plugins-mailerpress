@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.1
-Stable tag: 2.2
+Stable tag: 2.2.1
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -218,6 +218,14 @@ Use the [WordPress.org support forum](https://wordpress.org/support/plugin/maile
 15. Setup wizard.
 
 == Changelog ==
+= 2.2.1 =
+* IMPROVEMENT: Set your own daily and monthly sending limits to match your email provider plan.
+* IMPROVEMENT: See why sending is paused, when it resumes, and whether your limits will delay a campaign.
+* FIX: Remove automatic free-plan sending limits and resume emails delayed by them.
+* FIX: Automation emails now appear in contact activity as soon as they are sent.
+* FIX: Reopening your signup confirmation email now preserves its saved design.
+* FIX: Signup forms in Bricks templates now work correctly with MailerPress Pro.
+
 = 2.2 <a href="https://mailerpress.com/mailerpress-2-2/">Read the blog post update</a> =
 * IMPORTANT: Using MailerPress Pro? Update it to version 2.2 along with MailerPress to keep premium templates, WordPress emails and all your Pro features working. A notice reminds you if your Pro version is out of date.
 * NEW: A fresh new look — MailerPress now looks and feels like WordPress itself, with native WordPress components, your admin color scheme and a simpler menu where every screen is one click away.

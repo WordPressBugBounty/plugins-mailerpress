@@ -11,6 +11,7 @@ use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Core\Kernel;
 use MailerPress\Core\Migrations\Manager;
+use MailerPress\Services\SendingFrequencyConfig;
 
 class TableManager
 {
@@ -96,6 +97,26 @@ class TableManager
 
         // Add default data - delay to init to ensure translations are loaded
         add_action('init', [$this, 'addDefaultData'], 20);
+    }
+
+    /**
+     * Release once the sends postponed by the daily and monthly caps that 2.2 applied without the user's choice.
+     * Runs after Action Scheduler is ready; the atomic insert lets a single request do it.
+     */
+    #[Action('init', priority: 20)]
+    public function releaseUnchosenSendingCaps(): void
+    {
+        $option = 'mailerpress_sending_caps_released';
+        if (false !== get_option($option)) {
+            return;
+        }
+        global $wpdb;
+        $claimed = $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'yes')", $option, (string) time()));
+        wp_cache_delete('alloptions', 'options');
+        wp_cache_delete('notoptions', 'options');
+        if (1 === $claimed) {
+            SendingFrequencyConfig::releaseDeferredSends();
+        }
     }
 
     /**

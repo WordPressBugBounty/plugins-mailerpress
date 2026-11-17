@@ -321,6 +321,10 @@ class SendEmailStepHandler implements StepHandlerInterface
             $emailSentAt = current_time('mysql');
             $finalContactId = $contactResult->isContact ? $contactResult->contactId : $job->getUserId();
 
+            if ($contactResult->isContact && (int) $contactResult->contactId > 0) {
+                $this->recordContactSend((int) $contactResult->contactId, $templateId, $emailSentAt);
+            }
+
             return StepResult::success($step->getNextStepId(), [
                 'email_sent' => true,
                 'recipient' => $contactResult->email,
@@ -334,6 +338,34 @@ class SendEmailStepHandler implements StepHandlerInterface
         } catch (\Exception $e) {
             return StepResult::failed('Error sending email: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Create the contact_stats row for this contact/template, like a campaign send does,
+     * so the email appears in the contact's activity even if it is never opened.
+     * An existing row is left untouched: its opened/updated_at values drive the
+     * "email opened" workflow conditions.
+     */
+    private function recordContactSend(int $contactId, int $campaignId, string $sentAt): void
+    {
+        global $wpdb;
+
+        $table = Tables::get(Tables::MAILERPRESS_CONTACT_STATS);
+
+        $wpdb->query($wpdb->prepare(
+            "INSERT INTO {$table}
+             (contact_id, campaign_id, opened, clicked, click_count, last_click_at, revenue, status, created_at, updated_at)
+             SELECT %d, %d, 0, 0, 0, NULL, 0, 'neutral', %s, %s FROM DUAL
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM {$table} WHERE contact_id = %d AND campaign_id = %d
+             )",
+            $contactId,
+            $campaignId,
+            $sentAt,
+            $sentAt,
+            $contactId,
+            $campaignId
+        ));
     }
 
     private function replacePlaceholders(string $template, array $context): string

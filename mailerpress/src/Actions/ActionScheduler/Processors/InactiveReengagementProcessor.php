@@ -95,14 +95,7 @@ class InactiveReengagementProcessor
             return;
         }
 
-        $frequency = \MailerPress\Services\SendingFrequencyConfig::get();
-        $config = $frequency['effectiveConfig'];
-        $numberEmail = max(1, (int) ($config['numberEmail'] ?? 25));
-        $period = $config['frequency'] ?? $config['config'] ?? ['value' => 5, 'unit' => 'minutes'];
-        $multipliers = ['seconds' => 1, 'minutes' => MINUTE_IN_SECONDS, 'hours' => HOUR_IN_SECONDS];
-        $interval = max(1, (int) ($period['value'] ?? 5)) * ($multipliers[$period['unit'] ?? 'minutes'] ?? MINUTE_IN_SECONDS);
-        $rateLimit = (int) ($config['rate_limit'] ?? 10);
-        $interval = max($interval, $rateLimit > 0 ? (int) ceil($numberEmail / $rateLimit) : 0);
+        [$numberEmail, $interval, $rateLimit] = self::pace();
         $enabledAt = (string) get_option(InactiveContactManager::REENGAGEMENT_ENABLED_AT_OPTION, '');
 
         $contactIds = array_map(static fn($contact) => (int) $contact->contact_id, $contacts);
@@ -115,6 +108,55 @@ class InactiveReengagementProcessor
                     self::GROUP
                 );
             }
+        }
+    }
+
+    /**
+     * Get the batch size, interval and rate of the current sending settings.
+     *
+     * @return array{0: int, 1: int, 2: int}
+     */
+    private static function pace(): array
+    {
+        $config = \MailerPress\Services\SendingFrequencyConfig::get()['effectiveConfig'];
+        $numberEmail = max(1, (int) ($config['numberEmail'] ?? 25));
+        $period = $config['frequency'] ?? $config['config'] ?? ['value' => 5, 'unit' => 'minutes'];
+        $multipliers = ['seconds' => 1, 'minutes' => MINUTE_IN_SECONDS, 'hours' => HOUR_IN_SECONDS];
+        $interval = max(1, (int) ($period['value'] ?? 5)) * ($multipliers[$period['unit'] ?? 'minutes'] ?? MINUTE_IN_SECONDS);
+        $rateLimit = (int) ($config['rate_limit'] ?? 10);
+
+        return [$numberEmail, max($interval, $rateLimit > 0 ? (int) ceil($numberEmail / $rateLimit) : 0), $rateLimit];
+    }
+
+    /**
+     * Bring forward the chunks of a run that a sending limit postponed, keeping their contacts and spacing.
+     * Chunks due within the current pace were not postponed and keep their time.
+     */
+    public static function releasePostponedChunks(): void
+    {
+        if (!function_exists('as_get_scheduled_actions') || !class_exists('\ActionScheduler_Store')) {
+            return;
+        }
+        $pending = as_get_scheduled_actions([
+            'hook' => self::CHUNK_HOOK,
+            'group' => self::GROUP,
+            'status' => \ActionScheduler_Store::STATUS_PENDING,
+            'orderby' => 'date',
+            'order' => 'ASC',
+            'per_page' => -1,
+        ]);
+        $next = $pending ? reset($pending)->get_schedule()->get_date() : null;
+        if (!$next) {
+            return;
+        }
+        $delay = $next->getTimestamp() - time();
+        if ($delay <= self::pace()[1]) {
+            return;
+        }
+        foreach ($pending as $action) {
+            $args = $action->get_args();
+            as_unschedule_action(self::CHUNK_HOOK, $args, self::GROUP);
+            as_schedule_single_action((int) $action->get_schedule()->get_date()?->getTimestamp() - $delay, self::CHUNK_HOOK, $args, self::GROUP);
         }
     }
 

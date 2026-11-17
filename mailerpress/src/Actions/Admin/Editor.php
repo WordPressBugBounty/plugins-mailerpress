@@ -161,6 +161,8 @@ class Editor
                 'paletteColors' => (object) (get_option('mailerpress_palette_colors', []) ?: []),
                 'fontSizes' => (object) (get_option('mailerpress_font_sizes', []) ?: []),
                 'frequencySending' => get_option('mailerpress_frequency_sending', false),
+                // Lets screens explain a sending hold and warn before a campaign exceeds the user's limits.
+                'sendingLimits' => \MailerPress\Services\SendingFrequencyLimiter::status(),
                 'phpMemoryLimit' => ini_get('memory_limit'),
                 'phpMaxExecutionTime' => (int) ini_get('max_execution_time'),
                 'adminEmail' => get_bloginfo('admin_email'),
