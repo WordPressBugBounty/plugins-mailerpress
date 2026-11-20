@@ -107,7 +107,8 @@ class WorkflowManager
         $job = $this->jobRepo->create(
             $automationId,
             $userId,
-            $firstStep->getNextStepId()
+            $firstStep->getNextStepId(),
+            $context
         );
 
         if ($job) {

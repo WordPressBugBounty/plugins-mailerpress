@@ -321,7 +321,7 @@ class ContactCreated
         global $wpdb;
         $cfTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
         return $wpdb->get_var($wpdb->prepare(
-            "SELECT field_value FROM {$cfTable} WHERE contact_id = %d AND field_key = '_language'",
+            "SELECT field_value FROM {$cfTable} WHERE contact_id = %d AND field_key = '_language' ORDER BY field_id DESC LIMIT 1",
             $contactId
         ));
     }

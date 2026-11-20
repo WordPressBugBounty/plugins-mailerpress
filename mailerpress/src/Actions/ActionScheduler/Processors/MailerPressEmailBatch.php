@@ -498,11 +498,7 @@ class MailerPressEmailBatch
                                         esc_attr( $contact->access_token ),
                                         $batch_id
                                     ) ),
-                                    'MANAGE_SUB_LINK' => wp_unslash( sprintf(
-                                        '%s&cid=%s',
-                                        mailerpress_get_page( 'manage_page' ),
-                                        esc_attr( $contact->access_token )
-                                    ) ),
+                                    'MANAGE_SUB_LINK' => \MailerPress\Services\ManageSubscriptionLink::url((string) $contact->access_token),
                                     'CONTACT_NAME'        => esc_html( $contact->first_name ) . ' ' . esc_html( $contact->last_name ),
                                     'contact_name'        => esc_html( $contact->first_name ) . ' ' . esc_html( $contact->last_name ),
                                     'contact_email'       => esc_html( $contact->email ),

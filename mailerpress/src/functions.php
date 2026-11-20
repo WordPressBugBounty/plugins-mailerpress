@@ -64,6 +64,13 @@ function mailerpress_templates_importer(string $dir): void
  * allow_resubscribe is true after a new, explicit opt-in. The manual source is
  * reserved for trusted administrative actions that bypass signup confirmation.
  *
+ * Pass clear_custom_fields as a list of custom field keys to remove stored values,
+ * e.g. ['clear_custom_fields' => ['velo_offer_code']]. Clears take precedence over
+ * custom_fields and auto-mapped values. Omitted fields remain unchanged; empty
+ * or null custom_fields values keep their existing sanitization behavior.
+ * Cleared fields are reported in custom_fields_updated and emit the custom field
+ * updated hook with a null value only when a stored row was removed.
+ *
  * @param array $data Contact fields, lists/tags, opt_in_source and allow_resubscribe.
  * @param bool $apply_global_signup_confirmation Apply the global confirmation setting.
  *     Pass false only when a trusted caller has already resolved its own opt-in setting.

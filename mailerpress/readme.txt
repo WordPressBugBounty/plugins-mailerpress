@@ -5,7 +5,7 @@ Donate link: https://mailerpress.com/
 Tags: email marketing, newsletter, email automation, woocommerce emails, subscribers
 Requires at least: 6.5
 Tested up to: 7.1
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 Requires PHP: 8.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -218,6 +218,20 @@ Use the [WordPress.org support forum](https://wordpress.org/support/plugin/maile
 15. Setup wizard.
 
 == Changelog ==
+= 2.2.2 =
+* FIX: Signup confirmation emails now use the language of the signup form, including when a contact signs up again.
+* FIX: Automations now use the correct contact for conditions, personalization and delayed emails, even when a WordPress user and a MailerPress contact share the same numeric ID.
+* FIX: WooCommerce abandoned cart automations now stop sending reminders for a cart once it is emptied or recovered.
+* FIX: Contact updates through the API can now explicitly clear selected custom fields.
+* FIX: Removed an unused dashboard URL rule that could interfere with other WordPress routes.
+* FIX: Manage subscription links now expire after 30 days by default. Subscribers can request a fresh link by email or unsubscribe from the expired link page.
+* FIX: With MailerPress Pro, workflow custom field conditions and date waits now use the correct contact.
+* FIX: With MailerPress Pro, WooCommerce cart goals now distinguish between emptied and recovered carts.
+* FIX: With MailerPress Pro, the Newsletters tab in WooCommerce My account now uses the configured page title and appears correctly in breadcrumbs and account navigation.
+* FIX: With MailerPress Pro, EmailIt bounce tracking now processes batched webhook events.
+* FIX: With MailerPress Pro, A/B test statistics now show the unsubscribe count and rate for each variant.
+* IMPROVEMENT: With MailerPress Pro, you can set how many days a contact must wait before re-entering an automation.
+
 = 2.2.1 =
 * IMPROVEMENT: Set your own daily and monthly sending limits to match your email provider plan.
 * IMPROVEMENT: See why sending is paused, when it resumes, and whether your limits will delay a campaign.

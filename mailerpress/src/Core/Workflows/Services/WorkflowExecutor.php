@@ -103,7 +103,7 @@ class WorkflowExecutor
 
                 // Re-fetch job to get latest state (important after re-evaluation)
                 $job = $this->jobRepo->find($jobId);
-                if (!$job) {
+                if (!$job || !$job->isActive()) {
                     return false;
                 }
 
@@ -146,6 +146,11 @@ class WorkflowExecutor
                 $wpdb->query('START TRANSACTION');
 
                 try {
+                    $job = $this->jobRepo->findForUpdate($jobId);
+                    if (!$job || !$job->isActive()) {
+                        $wpdb->query('COMMIT');
+                        return false;
+                    }
                     $job->setStatus('PROCESSING');
                     $this->jobRepo->update($job);
 
@@ -186,6 +191,18 @@ class WorkflowExecutor
 
                     // Pass context to handler
                     $result = $handler->handle($step, $job, $context);
+
+                    if (null !== $result->getCompletionReason()) {
+                        $this->jobRepo->completeLive($jobId);
+                        $this->logRepo->log($job->getAutomationId(), $step->getStepId(), $job->getUserId(), 'EXITED', [
+                            '_job_id' => $jobId, 'reason' => $result->getCompletionReason(),
+                        ]);
+                        $wpdb->query('COMMIT');
+                        ActionSchedulerManager::cancelActionsForJob($jobId);
+                        $job = $this->jobRepo->find($jobId);
+                        do_action('mailerpress_workflow_job_completed', $job);
+                        return true;
+                    }
 
                     $missingFeature = $result->getMissingFeature();
                     if (null !== $missingFeature) {
@@ -308,11 +325,10 @@ class WorkflowExecutor
                 return true;
             }
 
-            $job->setStatus('FAILED');
-            $job->setLastError($e->getMessage());
-            $this->jobRepo->update($job);
-
-            do_action('mailerpress_workflow_job_failed', $job, $e->getMessage());
+            if ($this->jobRepo->failLive($jobId, $e->getMessage())) {
+                $job->setStatus('FAILED')->setLastError($e->getMessage());
+                do_action('mailerpress_workflow_job_failed', $job, $e->getMessage());
+            }
 
             return false;
         }
@@ -320,6 +336,14 @@ class WorkflowExecutor
 
     private function scheduleRetry(AutomationJob $job, string $error): void
     {
+        global $wpdb;
+        // A cart exit may have completed this run after the failed step committed/rolled back.
+        $wpdb->query('START TRANSACTION');
+        $job = $this->jobRepo->findForUpdate((int) $job->getId());
+        if (!$job || !in_array($job->getStatus(), ['ACTIVE', 'PROCESSING', 'WAITING'], true)) {
+            $wpdb->query('COMMIT');
+            return;
+        }
         $attempt = $job->getRetryCount() + 1;
         $job->setRetryCount($attempt);
         $job->setLastError($error);
@@ -332,26 +356,16 @@ class WorkflowExecutor
         $this->jobRepo->update($job);
 
         ActionSchedulerManager::scheduleContinue(time() + $delaySeconds, (int) $job->getId());
+        $wpdb->query('COMMIT');
 
         do_action('mailerpress_workflow_job_retry_scheduled', $job, $attempt);
     }
 
     public function continueWorkflow(int $jobId, ?string $nextStepId = null, array $context = []): bool
     {
-        $job = $this->jobRepo->find($jobId);
-
-        if (!$job) {
+        if (!$this->jobRepo->resume($jobId, $nextStepId)) {
             return false;
         }
-
-        $job->setScheduledAt(null);
-        $job->setStatus('ACTIVE');
-
-        if ($nextStepId) {
-            $job->setNextStepId($nextStepId);
-        }
-
-        $this->jobRepo->update($job);
 
         return $this->executeJob($jobId, $context);
     }

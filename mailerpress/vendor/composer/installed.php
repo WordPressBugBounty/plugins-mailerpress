@@ -3,7 +3,7 @@
         'name' => 'emilien/mailerpress',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'b60a92d1a10e0765585e5644e7242d756b540684',
+        'reference' => '7febf2f555d15c0bc03cd9661d82ba5bc5dc96b0',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -49,7 +49,7 @@
         'emilien/mailerpress' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'b60a92d1a10e0765585e5644e7242d756b540684',
+            'reference' => '7febf2f555d15c0bc03cd9661d82ba5bc5dc96b0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

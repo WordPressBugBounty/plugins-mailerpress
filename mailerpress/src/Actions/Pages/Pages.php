@@ -14,6 +14,7 @@ use MailerPress\Core\Kernel;
 use MailerPress\Core\TemplateRenderer;
 use MailerPress\Models\Contacts;
 use MailerPress\Services\InactiveContactManager;
+use MailerPress\Services\ManageSubscriptionLink;
 
 class Pages
 {
@@ -36,9 +37,6 @@ class Pages
     public function shortcodes(): void
     {
         add_shortcode('mailerpress_pages', [$this, 'renderMailerpressShortcode']);
-        add_rewrite_tag('%dashboard%', '([^&]+)');
-        add_rewrite_tag('%dashboard_page%', '([^&]+)');
-        add_rewrite_rule('dashboard/([a-z0-9-]+)[/]?$', 'index.php?dashboard=1&dashboard_page=$matches[1]', 'top');
     }
 
     public function render($atts): bool|string
@@ -175,8 +173,22 @@ class Pages
                 break;
 
             case self::ACTION_MANAGE:
+                $linkParams = ManageSubscriptionLink::params($_GET);
                 if ( ! $is_preview ) {
-                    $contact = isset($_GET['cid']) ? $this->contacts->getByAccessToken(sanitize_text_field(wp_unslash($_GET['cid']))) : null;
+                    $contact = '' !== $linkParams['cid'] ? $this->contacts->getByAccessToken($linkParams['cid']) : null;
+
+                    // The page shows personal data: only a signed, unexpired link opens it.
+                    if (
+                        null === $contact
+                        || ManageSubscriptionLink::VALID !== ManageSubscriptionLink::check($linkParams['cid'], $linkParams['exp'], $linkParams['sig'])
+                    ) {
+                        $content = $renderer->render('manage-subscription-expired', [
+                            'linkParams' => $linkParams,
+                            'notice' => isset($_GET['mp_notice']) ? sanitize_key(wp_unslash($_GET['mp_notice'])) : '',
+                            'ttlDays' => max(1, (int) round(ManageSubscriptionLink::ttl() / DAY_IN_SECONDS)),
+                        ]);
+                        break;
+                    }
                 } else {
                     $admin_email = get_option('admin_email');
                     $user = get_user_by('email', $admin_email);
@@ -195,6 +207,7 @@ class Pages
 
                 $content = $renderer->render('manage-subscription', [
                     'contact' => $contact,
+                    'linkParams' => $linkParams,
                     'disableListManagement' => $disableListManagement,
                 ]);
                 break;

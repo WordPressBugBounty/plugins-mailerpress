@@ -10,6 +10,7 @@ class StepResult
     private ?string $error;
     private bool $retryable;
     private ?string $missingFeature = null;
+    private ?string $completionReason = null;
 
     public function __construct(
         bool $success,
@@ -29,6 +30,16 @@ class StepResult
     {
         return new self(true, $nextStepId, $data);
     }
+
+    /** Finish the run normally, without executing subsequent steps. */
+    public static function completed(string $reason): self
+    {
+        $result = new self(true);
+        $result->completionReason = $reason;
+        return $result;
+    }
+
+    public function getCompletionReason(): ?string { return $this->completionReason; }
 
     public static function failed(string $error, bool $retryable = true): self
     {

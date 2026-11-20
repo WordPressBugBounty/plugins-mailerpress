@@ -190,9 +190,10 @@ class AbandonedCartTrigger
 
             // Find active cart for this user and mark it as emptied
             $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
-            $activeCart = $cartRepo->getActiveCartByUserId($workflowUserId);
+            $cartHash = WC()->session ? (string) WC()->session->get('mailerpress_last_cart_hash') : '';
+            $activeCart = $cartHash ? $cartRepo->getCartByHash($cartHash) : null;
 
-            if ($activeCart) {
+            if ($activeCart && (int) $activeCart['user_id'] === $workflowUserId) {
                 $cartRepo->markCartEmptied($activeCart['cart_hash']);
             }
 
@@ -235,19 +236,12 @@ class AbandonedCartTrigger
             $customerId = $order->get_customer_id();
             $workflowUserId = self::resolveWorkflowUserId($customerId, $customerEmail);
 
-            // Find all active carts for this user
-            global $wpdb;
-            $table = $wpdb->prefix . 'mailerpress_track_cart';
-            $carts = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT cart_hash FROM {$table} WHERE user_id = %d AND status = 'ACTIVE'",
-                    $workflowUserId
-                ),
-                ARRAY_A
-            );
-
-            foreach ($carts as $cart) {
-                $cartRepo->markCartCompleted($cart['cart_hash']);
+            // Recovery means order creation (including an unpaid order), not payment.
+            // Only consume this checkout session's cart, never every cart of the contact.
+            $cartHash = WC()->session ? (string) WC()->session->get('mailerpress_last_cart_hash') : '';
+            $cart = $cartHash ? $cartRepo->getCartByHash($cartHash) : null;
+            if ($cart && (int) $cart['user_id'] === $workflowUserId) {
+                $cartRepo->markCartCompleted($cartHash);
             }
         } catch (\Exception $e) {
         }
@@ -441,6 +435,7 @@ class AbandonedCartTrigger
             // This ensures we have the correct hash even if it was updated
             $currentCart = $cartRepo->getActiveCartByUserId($workflowUserId);
             $sessionCartHash = $currentCart ? $currentCart['cart_hash'] : $cartHash;
+            $cartHash = $sessionCartHash;
 
             // Store cart_hash in session so we can use it when cart is emptied
             $session = WC()->session;
@@ -473,7 +468,8 @@ class AbandonedCartTrigger
                 'cart_subtotal' => $cart->get_subtotal(),
                 'cart_currency' => get_woocommerce_currency(),
                 'cart_item_count' => $cart->get_cart_contents_count(),
-                'cart_hash' => $cartHash,
+                'cart_hash' => $sessionCartHash,
+                'cart_user_id' => $workflowUserId,
                 'cart_recovery_url' => $cartRecoveryUrl,
                 'cart_updated_at' => current_time('mysql'),
                 'is_new_cart' => $isNewCart, // Indicates if this is the first time this cart is detected

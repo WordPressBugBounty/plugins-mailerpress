@@ -2,23 +2,11 @@
 
 defined('ABSPATH') || exit;
 global $wpdb;
-$accessToken = isset($_GET['cid']) ? sanitize_text_field(wp_unslash($_GET['cid'])) : '';
 
+// The contact and the signed link parameters are checked by Pages before this template renders.
 $contact = isset($contact) && is_object($contact) ? $contact : null;
 $contactId = isset($contact->contact_id) ? (int) $contact->contact_id : null;
-
-if ($accessToken) {
-    $contactTable = $wpdb->prefix . 'mailerpress_contact';
-    $contact = $wpdb->get_row($wpdb->prepare("
-        SELECT * FROM {$contactTable}
-        WHERE access_token = %s
-        LIMIT 1
-    ", $accessToken));
-
-    if ($contact) {
-        $contactId = $contact->contact_id;
-    }
-}
+$linkParams = isset($linkParams) && is_array($linkParams) ? $linkParams : ['cid' => '', 'exp' => '', 'sig' => ''];
 
 $listTable = $wpdb->prefix . 'mailerpress_lists';
 $allLists = $wpdb->get_results("SELECT list_id, name FROM {$listTable}");
@@ -118,7 +106,9 @@ if (! in_array( $currentStatus, [ 'subscribed', 'unsubscribed' ], true ) ) {
     <?php if (!$isPreview): ?>
         <div class="mailerpress-form-line">
             <input type="hidden" name="action" value="update_mailerpress_contact">
-            <input type="hidden" name="mailerpress_cid" value="<?php echo esc_attr($accessToken ?? ''); ?>">
+            <input type="hidden" name="mailerpress_cid" value="<?php echo esc_attr($linkParams['cid']); ?>">
+            <input type="hidden" name="mailerpress_exp" value="<?php echo esc_attr($linkParams['exp']); ?>">
+            <input type="hidden" name="mailerpress_sig" value="<?php echo esc_attr($linkParams['sig']); ?>">
             <?php if ($disableListManagement) : ?>
                 <input type="hidden" name="skip_lists" value="1">
             <?php endif; ?>

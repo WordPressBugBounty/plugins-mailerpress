@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv3 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: MailerPress 2.2.1\n"
+"Project-Id-Version: MailerPress 2.2.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/mailerpress\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T15:20:29+00:00\n"
+"POT-Creation-Date: 2026-11-19T10:33:49+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: mailerpress\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: mailerpress.php
 #: src/Actions/Admin/AdminMenu.php:272
 #: src/Actions/ThirdParty/ContactForm7/Setup.php:33
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "MailerPress"
 msgstr ""
 
@@ -46,13 +46,14 @@ msgid "No campaigns found."
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ConfirmationReminderTask.php:126
-#: src/Api/Contacts.php:3355
-#: src/functions.php:1043
+#: src/Api/Contacts.php:3359
+#: src/functions.php:1050
 #: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
 msgid "Confirm your subscription to [site:title]"
 msgstr ""
 
 #: src/Actions/ActionScheduler/Processors/ExportContact.php:382
+#: src/Actions/Frontend/ManageSubscriptionLinkRequest.php:97
 msgid "Hello,"
 msgstr ""
 
@@ -84,7 +85,7 @@ msgstr ""
 #: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:18
 #: build/html-email-editor.e337ff0240e81615f544.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Unsubscribe"
 msgstr ""
 
@@ -113,7 +114,7 @@ msgstr ""
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:3
 #: build/dist/js/mailerpress-pro-workflow.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #: packages/gutenberg/mailerpress-form/edit.js:127
 msgid "Loading..."
 msgstr ""
@@ -129,7 +130,7 @@ msgstr ""
 #: src/Core/Migration/Sources/NewsletterMigrationSource.php:101
 #: build/dist/js/mail-editor.js:1
 #: build/dist/js/mail-editor.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Campaigns"
 msgstr ""
 
@@ -174,7 +175,7 @@ msgstr ""
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:18
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Settings"
 msgstr ""
 
@@ -298,32 +299,36 @@ msgstr ""
 msgid "Notice dismissed."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:37
+#: src/Actions/Ajax/ManageSubscription.php:38
 msgid "Security check failed."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:44
+#: src/Actions/Ajax/ManageSubscription.php:46
 msgid "Invalid contact token."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:56
-#: src/Api/Contacts.php:3338
-#: src/Api/Contacts.php:3474
+#: src/Actions/Ajax/ManageSubscription.php:53
+msgid "This link has expired. Reload the page to request a new one."
+msgstr ""
+
+#: src/Actions/Ajax/ManageSubscription.php:65
+#: src/Api/Contacts.php:3342
+#: src/Api/Contacts.php:3478
 #: src/Api/ContactTabs.php:48
 #: build/dist/js/mail-editor.js:2
 msgid "Contact not found."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:63
+#: src/Actions/Ajax/ManageSubscription.php:72
 msgid "This contact is no longer active."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:78
+#: src/Actions/Ajax/ManageSubscription.php:87
 #: src/Api/MyLists.php:157
 msgid "Invalid subscription status."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:138
+#: src/Actions/Ajax/ManageSubscription.php:147
 #: src/Actions/Shortcodes/MyLists.php:77
 #: src/Actions/Shortcodes/MyLists.php:636
 #: src/Api/MyLists.php:114
@@ -331,13 +336,35 @@ msgstr ""
 msgid "Your subscription preferences have been updated successfully."
 msgstr ""
 
-#: src/Actions/Ajax/ManageSubscription.php:143
+#: src/Actions/Ajax/ManageSubscription.php:152
 msgid "We couldn’t update your subscription preferences. Please try again later."
 msgstr ""
 
 #: src/Actions/Campaigns/Campaigns.php:65
 #, php-format
 msgid "All %d emails failed to send."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Actions/Frontend/ManageSubscriptionLinkRequest.php:91
+#, php-format
+msgid "Your link to manage your subscription to %s"
+msgstr ""
+
+#. translators: 1: site name, 2: number of days the link stays valid
+#: src/Actions/Frontend/ManageSubscriptionLinkRequest.php:100
+#, php-format
+msgid "Here is your new link to manage your subscription to %1$s. It is valid for %2$d day."
+msgid_plural "Here is your new link to manage your subscription to %1$s. It is valid for %2$d days."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Actions/Frontend/ManageSubscriptionLinkRequest.php:110
+msgid "Manage my subscription"
+msgstr ""
+
+#: src/Actions/Frontend/ManageSubscriptionLinkRequest.php:111
+msgid "If you did not ask for this link, you can ignore this email."
 msgstr ""
 
 #: src/Actions/Gutenberg/Init.php:118
@@ -352,48 +379,48 @@ msgstr ""
 msgid "Unexpected error. Please try again later."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:47
-#: src/Actions/Pages/Pages.php:52
+#: src/Actions/Pages/Pages.php:45
+#: src/Actions/Pages/Pages.php:50
 msgid "The unsubscribe link is invalid."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:138
-#: src/Actions/Pages/Pages.php:150
+#: src/Actions/Pages/Pages.php:136
+#: src/Actions/Pages/Pages.php:148
 msgid "We have added you to our list. You will receive our next newsletter."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:162
-#: src/Actions/Pages/Pages.php:172
-#: src/Actions/Pages/Pages.php:580
+#: src/Actions/Pages/Pages.php:160
+#: src/Actions/Pages/Pages.php:170
+#: src/Actions/Pages/Pages.php:593
 msgid "Your subscription has been confirmed."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:173
-#: src/Actions/Pages/Pages.php:581
+#: src/Actions/Pages/Pages.php:171
+#: src/Actions/Pages/Pages.php:594
 msgid "This re-engagement link is invalid or has expired."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:206
-#: src/Actions/Pages/Pages.php:220
+#: src/Actions/Pages/Pages.php:219
+#: src/Actions/Pages/Pages.php:233
 msgid "You have successfully unsubscribed from our emails."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:246
-#: src/Actions/Pages/Pages.php:264
+#: src/Actions/Pages/Pages.php:259
+#: src/Actions/Pages/Pages.php:277
 msgid "Just click this link to unsubscribe from our emails."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:314
+#: src/Actions/Pages/Pages.php:327
 msgid "Subscription confirmed"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:315
+#: src/Actions/Pages/Pages.php:328
 #: src/Actions/Shortcodes/MyLists.php:86
 #: src/Actions/Workflows/MailerPress/Triggers/ContactOptinTrigger.php:78
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:143
 #: src/Api/Workflows.php:218
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:126
-#: templates/manage-subscription.php:66
+#: templates/manage-subscription.php:54
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/8594.4b700fc2850579437909.js:1
 #: build/8594.4b700fc2850579437909.js:3
@@ -407,11 +434,11 @@ msgstr ""
 msgid "Unsubscribed"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:316
+#: src/Actions/Pages/Pages.php:329
 msgid "Confirm unsubscribe"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:317
+#: src/Actions/Pages/Pages.php:330
 #: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
@@ -419,27 +446,27 @@ msgstr ""
 msgid "Manage subscription"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:336
+#: src/Actions/Pages/Pages.php:349
 msgid "MailerPress Dynamic Page — Preview mode"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:337
+#: src/Actions/Pages/Pages.php:350
 msgid "This shortcode renders different content depending on the URL parameters sent in email links. Click a state below to preview it:"
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:574
+#: src/Actions/Pages/Pages.php:587
 msgid "You have successfully subscribed."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:586
+#: src/Actions/Pages/Pages.php:599
 msgid "You have successfully unsubscribed."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:591
+#: src/Actions/Pages/Pages.php:604
 msgid "Confirm your unsubscribe request."
 msgstr ""
 
-#: src/Actions/Pages/Pages.php:596
+#: src/Actions/Pages/Pages.php:609
 msgid "Manage your email subscription."
 msgstr ""
 
@@ -512,11 +539,11 @@ msgstr ""
 msgid "Authentication required."
 msgstr ""
 
-#: src/Actions/Setup/Init.php:285
+#: src/Actions/Setup/Init.php:299
 msgid "Marketing communication"
 msgstr ""
 
-#: src/Actions/Setup/Init.php:288
+#: src/Actions/Setup/Init.php:302
 #: src/Blocks/TemplatesCategories.php:154
 msgid "Ecommerce"
 msgstr ""
@@ -553,7 +580,7 @@ msgstr ""
 
 #: src/Actions/Shortcodes/MyLists.php:75
 #: src/Actions/Shortcodes/MyLists.php:638
-#: templates/manage-subscription.php:200
+#: templates/manage-subscription.php:190
 #: build/8125.76accc088934599705bf.js:1
 #: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
@@ -562,7 +589,7 @@ msgstr ""
 #: build/screen-RateLimitingSettings.9a328b7e5b4c5ffc99b6.js:1
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Saving…"
 msgstr ""
 
@@ -600,7 +627,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:640
 #: src/Core/Workflows/Services/TriggerManager.php:682
 #: src/Core/Workflows/Services/TriggerManager.php:713
-#: templates/manage-subscription.php:72
+#: templates/manage-subscription.php:60
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
@@ -628,7 +655,7 @@ msgstr ""
 #: src/Core/Workflows/Services/TriggerManager.php:641
 #: src/Core/Workflows/Services/TriggerManager.php:683
 #: src/Core/Workflows/Services/TriggerManager.php:714
-#: templates/manage-subscription.php:78
+#: templates/manage-subscription.php:66
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/8594.4b700fc2850579437909.js:1
 #: build/dist/js/editor-blocks.js:1
@@ -658,7 +685,7 @@ msgstr ""
 #: src/Api/Workflows.php:216
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:62
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:120
-#: templates/manage-subscription.php:60
+#: templates/manage-subscription.php:48
 msgid "Subscription status"
 msgstr ""
 
@@ -667,8 +694,8 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:141
 #: src/Api/Workflows.php:217
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:124
-#: templates/manage-subscription.php:63
-#: templates/manage-subscription.php:104
+#: templates/manage-subscription.php:51
+#: templates/manage-subscription.php:92
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/8594.4b700fc2850579437909.js:1
 #: build/screen-AddContact.9a394086921cd8fe0465.js:3
@@ -709,7 +736,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/ProductPurchased.php:110
 #: src/Core/Workflows/Handlers/CreateContactStepHandler.php:86
 #: src/Core/Workflows/Handlers/CreateWordPressUserStepHandler.php:64
-#: templates/manage-subscription.php:55
+#: templates/manage-subscription.php:43
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/8594.4b700fc2850579437909.js:1
 #: build/8594.4b700fc2850579437909.js:9
@@ -788,7 +815,7 @@ msgstr ""
 
 #: src/Actions/ThirdParty/ContactForm7/Setup.php:268
 #: build/dist/js/editor-blocks.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #: packages/gutenberg/mailerpress-form/edit.js:127
 msgid "Select a list"
 msgstr ""
@@ -799,7 +826,7 @@ msgid "Contact tag"
 msgstr ""
 
 #: src/Actions/ThirdParty/ContactForm7/Setup.php:280
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a tag"
 msgstr ""
 
@@ -844,7 +871,7 @@ msgstr ""
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:3
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Upgrade to Pro"
 msgstr ""
 
@@ -1073,7 +1100,7 @@ msgstr ""
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:7
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 #: build/screen-MigrationsView.64ab5a34d6ad2532a644.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Pending"
 msgstr ""
 
@@ -1085,7 +1112,7 @@ msgstr ""
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:2
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Error"
 msgid_plural "Errors"
 msgstr[0] ""
@@ -1103,9 +1130,9 @@ msgstr[1] ""
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Active"
 msgstr ""
 
@@ -1121,7 +1148,7 @@ msgstr ""
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:7
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Inactive"
 msgstr ""
 
@@ -1154,14 +1181,14 @@ msgstr ""
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Failed"
 msgstr ""
 
 #: src/Actions/Workflows/FluentCart/OrderCreated.php:34
 #: src/Core/DynamicOrderRenderer.php:810
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Refunded"
 msgstr ""
 
@@ -1179,7 +1206,7 @@ msgstr ""
 #: build/8594.4b700fc2850579437909.js:4
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Processing"
 msgstr ""
 
@@ -1193,8 +1220,8 @@ msgstr ""
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Completed"
 msgstr ""
 
@@ -1213,7 +1240,7 @@ msgstr ""
 #: build/screen-MigrationsView.64ab5a34d6ad2532a644.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Cancelled"
 msgstr ""
 
@@ -1241,7 +1268,7 @@ msgstr ""
 #: build/dist/js/mail-editor.js:8
 #: build/dist/js/mail-editor.js:18
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Order status"
 msgstr ""
 
@@ -1675,7 +1702,7 @@ msgstr ""
 #: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Automation"
 msgstr ""
 
@@ -1706,7 +1733,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/RemoveFromListStepHandler.php:31
 #: build/dist/js/editor-blocks.js:1
 #: build/dist/js/mail-editor.js:18
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 #: packages/gutenberg/mailerpress-form/edit.js:121
 msgid "List"
 msgstr ""
@@ -1856,7 +1883,7 @@ msgstr ""
 #: src/Core/Workflows/Handlers/RemoveTagStepHandler.php:31
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Tag"
 msgstr ""
 
@@ -2302,7 +2329,7 @@ msgstr ""
 #: src/Actions/Workflows/WooCommerce/SubscriptionStatusChanged.php:63
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:55
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Expired"
 msgstr ""
 
@@ -2361,13 +2388,13 @@ msgid "%d actions processed"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:132
-#: src/Api/Contacts.php:2280
-#: src/Api/Contacts.php:2944
+#: src/Api/Contacts.php:2284
+#: src/Api/Contacts.php:2948
 msgid "Batch ID is required"
 msgstr ""
 
 #: src/Api/ActionSchedulerDiagnostic.php:146
-#: src/Api/Contacts.php:2362
+#: src/Api/Contacts.php:2366
 #: src/Api/Recovery.php:344
 msgid "Batch not found"
 msgstr ""
@@ -2620,9 +2647,9 @@ msgid "Invalid IDs provided"
 msgstr ""
 
 #: src/Api/Campaigns.php:823
-#: src/Api/Contacts.php:2345
-#: src/Api/Contacts.php:2415
-#: src/Api/Contacts.php:2481
+#: src/Api/Contacts.php:2349
+#: src/Api/Contacts.php:2419
+#: src/Api/Contacts.php:2485
 #: src/Api/Recovery.php:143
 #: src/Api/Recovery.php:328
 msgid "Invalid batch ID"
@@ -2647,7 +2674,7 @@ msgid "Invalid tracking filter."
 msgstr ""
 
 #: src/Api/Campaigns.php:1865
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create campaign."
 msgstr ""
 
@@ -3007,173 +3034,173 @@ msgstr ""
 msgid "Too many submission attempts. Please try again later."
 msgstr ""
 
-#: src/Api/Contacts.php:1083
-#: src/Api/Contacts.php:1158
-#: src/Api/Contacts.php:1234
+#: src/Api/Contacts.php:1084
+#: src/Api/Contacts.php:1150
+#: src/Api/Contacts.php:1226
 msgid "Contact added successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1100
+#: src/Api/Contacts.php:1101
 #: src/Services/ContactUpsertService.php:39
 msgid "A valid email address is required."
 msgstr ""
 
-#: src/Api/Contacts.php:1136
+#: src/Api/Contacts.php:1140
 msgid "Unable to save contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1159
-#: src/Api/Contacts.php:1193
-#: src/Api/Contacts.php:1897
-#: src/functions.php:389
+#: src/Api/Contacts.php:1151
+#: src/Api/Contacts.php:1185
+#: src/Api/Contacts.php:1901
+#: src/functions.php:396
 msgid "Contact updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1539
+#: src/Api/Contacts.php:1532
 msgid "This email address is already in use by another contact."
 msgstr ""
 
-#: src/Api/Contacts.php:1659
+#: src/Api/Contacts.php:1657
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
 msgid "Contacts updated successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:1692
-#: src/functions.php:281
+#: src/Api/Contacts.php:1691
+#: src/functions.php:288
 msgid "Missing contact ID."
 msgstr ""
 
-#: src/Api/Contacts.php:1917
+#: src/Api/Contacts.php:1921
 msgid "Contact IDs must be an array and cannot be empty"
 msgstr ""
 
-#: src/Api/Contacts.php:1934
+#: src/Api/Contacts.php:1938
 msgid "One or more contacts were not found."
 msgstr ""
 
-#: src/Api/Contacts.php:1950
+#: src/Api/Contacts.php:1954
 msgid "Contacts deleted successfully"
 msgstr ""
 
-#: src/Api/Contacts.php:1957
+#: src/Api/Contacts.php:1961
 msgid "Failed to delete the contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:1980
+#: src/Api/Contacts.php:1984
 msgid "Missing contact_id or list_id."
 msgstr ""
 
-#: src/Api/Contacts.php:2001
-#: src/Api/Contacts.php:2071
+#: src/Api/Contacts.php:2005
+#: src/Api/Contacts.php:2075
 msgid "Database error occurred."
 msgstr ""
 
-#: src/Api/Contacts.php:2008
-#: src/Api/Contacts.php:2078
+#: src/Api/Contacts.php:2012
+#: src/Api/Contacts.php:2082
 msgid "No matching record found."
 msgstr ""
 
-#: src/Api/Contacts.php:2019
+#: src/Api/Contacts.php:2023
 msgid "List removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:2050
+#: src/Api/Contacts.php:2054
 msgid "Missing contact_id or tag_id."
 msgstr ""
 
-#: src/Api/Contacts.php:2089
+#: src/Api/Contacts.php:2093
 msgid "Tag removed from contact."
 msgstr ""
 
-#: src/Api/Contacts.php:2121
+#: src/Api/Contacts.php:2125
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 msgid "Failed to delete contacts."
 msgstr ""
 
-#: src/Api/Contacts.php:2126
+#: src/Api/Contacts.php:2130
 msgid "All contacts have been deleted successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:2148
+#: src/Api/Contacts.php:2152
 msgid "Failed to create delete batch."
 msgstr ""
 
-#: src/Api/Contacts.php:2201
+#: src/Api/Contacts.php:2205
 msgid "Delete batch created successfully. Deletion in progress..."
 msgstr ""
 
-#: src/Api/Contacts.php:2294
+#: src/Api/Contacts.php:2298
 msgid "Delete batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:2328
+#: src/Api/Contacts.php:2332
 msgid "Delete batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:2432
+#: src/Api/Contacts.php:2436
 msgid "No failed chunks to retry"
 msgstr ""
 
-#: src/Api/Contacts.php:2463
+#: src/Api/Contacts.php:2467
 #, php-format
 msgid "Retrying %d failed chunks"
 msgstr ""
 
-#: src/Api/Contacts.php:2532
+#: src/Api/Contacts.php:2536
 #, php-format
 msgid "Reset %d stuck chunks and scheduled %d chunks for processing"
 msgstr ""
 
-#: src/Api/Contacts.php:2610
+#: src/Api/Contacts.php:2614
 msgid "No contacts to export."
 msgstr ""
 
-#: src/Api/Contacts.php:2660
+#: src/Api/Contacts.php:2664
 msgid "Export started"
 msgstr ""
 
-#: src/Api/Contacts.php:2770
+#: src/Api/Contacts.php:2774
 msgid "Failed to create import batch"
 msgstr ""
 
-#: src/Api/Contacts.php:2805
+#: src/Api/Contacts.php:2809
 msgid "Batch ID and chunk data are required"
 msgstr ""
 
-#: src/Api/Contacts.php:2819
-#: src/Api/Contacts.php:2958
+#: src/Api/Contacts.php:2823
+#: src/Api/Contacts.php:2962
 msgid "Import batch not found"
 msgstr ""
 
-#: src/Api/Contacts.php:3026
+#: src/Api/Contacts.php:3030
 msgid "Import batch and all related data have been cleaned up"
 msgstr ""
 
-#: src/Api/Contacts.php:3269
+#: src/Api/Contacts.php:3273
 #: src/Api/MyLists.php:142
 msgid "Invalid email address."
 msgstr ""
 
-#: src/Api/Contacts.php:3346
-#: src/Api/Contacts.php:3482
+#: src/Api/Contacts.php:3350
+#: src/Api/Contacts.php:3486
 msgid "This contact is not in pending status."
 msgstr ""
 
-#: src/Api/Contacts.php:3438
-#: src/Api/Contacts.php:3446
+#: src/Api/Contacts.php:3442
+#: src/Api/Contacts.php:3450
 msgid "Failed to send confirmation reminder email."
 msgstr ""
 
-#: src/Api/Contacts.php:3453
+#: src/Api/Contacts.php:3457
 msgid "Confirmation reminder email sent successfully."
 msgstr ""
 
-#: src/Api/Contacts.php:3493
+#: src/Api/Contacts.php:3497
 msgid "Failed to confirm contact."
 msgstr ""
 
-#: src/Api/Contacts.php:3500
+#: src/Api/Contacts.php:3504
 msgid "Contact confirmed successfully."
 msgstr ""
 
@@ -4031,8 +4058,8 @@ msgstr ""
 
 #: src/Api/Workflows.php:854
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "New Workflow"
 msgstr ""
 
@@ -4174,7 +4201,7 @@ msgstr ""
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/8594.4b700fc2850579437909.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Condition"
 msgstr ""
 
@@ -4182,7 +4209,7 @@ msgstr ""
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Delay"
 msgstr ""
 
@@ -4271,33 +4298,33 @@ msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1868
 #: src/Core/Workflows/Services/EmailContentRenderer.php:516
-#: src/Core/Workflows/Services/MergeTagBuilder.php:271
+#: src/Core/Workflows/Services/MergeTagBuilder.php:265
 #: build/dist/js/mail-editor.js:18
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Product"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1874
 #: src/Core/Workflows/Services/EmailContentRenderer.php:517
-#: src/Core/Workflows/Services/MergeTagBuilder.php:272
+#: src/Core/Workflows/Services/MergeTagBuilder.php:266
 #: build/dist/js/mail-editor.js:18
 msgid "Quantity"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1880
 #: src/Core/Workflows/Services/EmailContentRenderer.php:518
-#: src/Core/Workflows/Services/MergeTagBuilder.php:273
+#: src/Core/Workflows/Services/MergeTagBuilder.php:267
 #: build/dist/js/mail-editor.js:18
 msgid "Price"
 msgstr ""
 
 #: src/Core/DynamicOrderRenderer.php:1886
 #: src/Core/Workflows/Services/EmailContentRenderer.php:519
-#: src/Core/Workflows/Services/MergeTagBuilder.php:274
+#: src/Core/Workflows/Services/MergeTagBuilder.php:268
 #: build/dist/js/mail-editor.js:18
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Total"
 msgstr ""
 
@@ -4489,7 +4516,7 @@ msgstr ""
 #: src/Core/EmailManager/services/WordPressService.php:143
 #: build/dist/js/mail-editor.js:18
 #: build/screen-SendingFrequency.de5b3116b2ea90ab288c.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "WordPress"
 msgstr ""
 
@@ -4586,7 +4613,7 @@ msgstr ""
 #: build/8594.4b700fc2850579437909.js:5
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Statistics"
 msgstr ""
 
@@ -4827,7 +4854,7 @@ msgstr ""
 #: src/Core/Notifications/Messages/PrimaryProviderUnavailableNotification.php:49
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:5
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Configure"
 msgstr ""
 
@@ -4838,7 +4865,7 @@ msgstr ""
 
 #: src/Core/Notifications/Messages/PluginNotActivatedNotification.php:43
 #: build/8594.4b700fc2850579437909.js:15
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Activate"
 msgstr ""
 
@@ -4962,35 +4989,35 @@ msgid "Check the status of the WooCommerce subscription"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:76
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check the next payment date of the subscription"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:86
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check the billing period of the subscription (day, week, month, year)"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:90
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Day"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:91
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Week"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:92
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Month"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:93
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Year"
 msgstr ""
 
@@ -5003,7 +5030,7 @@ msgid "Has Trial Period"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:112
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check if the subscription has a trial period"
 msgstr ""
 
@@ -5012,7 +5039,7 @@ msgstr ""
 #: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Yes"
 msgstr ""
 
@@ -5021,7 +5048,7 @@ msgstr ""
 #: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ProvidersScreen.20a394877c2994d45aed.js:4
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No"
 msgstr ""
 
@@ -5030,12 +5057,12 @@ msgid "Trial End Date"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:126
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check the trial end date of the subscription"
 msgstr ""
 
 #: src/Core/Workflows/Conditions/WooCommerceSubscriptionsConditionProvider.php:136
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check the total amount of the subscription"
 msgstr ""
 
@@ -5270,26 +5297,26 @@ msgid "Pause the workflow for a specified duration before continuing. Perfect fo
 msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:29
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Duration"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:36
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:57
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Unit"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:41
 #: build/dist/js/mail-editor.js:18
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Minutes"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:42
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:62
 #: build/dist/js/mail-editor.js:18
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Hours"
 msgstr ""
 
@@ -5298,14 +5325,14 @@ msgstr ""
 #: build/dist/js/mail-editor.js:18
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
 #: build/screen-SignUpConfirmation.c84acb9fc0178f779573.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Days"
 msgstr ""
 
 #: src/Core/Workflows/Handlers/DelayStepHandler.php:44
 #: src/Core/Workflows/Handlers/WaitUntilDateStepHandler.php:64
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Weeks"
 msgstr ""
 
@@ -5433,12 +5460,12 @@ msgstr ""
 msgid "Override template subject (leave empty to use template default)"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/SendEmailStepHandler.php:116
+#: src/Core/Workflows/Handlers/SendEmailStepHandler.php:141
 #, php-format
 msgid "Invalid recipient email address: %s"
 msgstr ""
 
-#: src/Core/Workflows/Handlers/SendEmailStepHandler.php:139
+#: src/Core/Workflows/Handlers/SendEmailStepHandler.php:164
 msgid "Notification"
 msgstr ""
 
@@ -5534,8 +5561,8 @@ msgid "Expires %s"
 msgstr ""
 
 #: src/Core/Workflows/Services/EmailContentRenderer.php:1051
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Customer"
 msgstr ""
 
@@ -5565,7 +5592,7 @@ msgstr ""
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Status"
 msgstr ""
 
@@ -5817,17 +5844,17 @@ msgstr ""
 msgid "Unable to load this contact tab."
 msgstr ""
 
-#: src/functions.php:84
+#: src/functions.php:91
 msgid "Missing contactEmail"
 msgstr ""
 
-#: src/functions.php:92
+#: src/functions.php:99
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 msgid "Invalid email format"
 msgstr ""
 
-#: src/functions.php:199
+#: src/functions.php:206
 #: src/Services/DatabaseDiagnostic.php:116
 #: src/Services/DatabaseDiagnostic.php:1074
 #: src/Services/DatabaseDiagnostic.php:1212
@@ -5836,11 +5863,11 @@ msgstr ""
 #: build/4209.ea75bd1636fda9af39d9.js:1
 #: build/dist/js/mail-editor.js:10
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Unknown error"
 msgstr ""
 
-#: src/functions.php:1044
+#: src/functions.php:1051
 msgid ""
 "Hello [contact:firstName] [contact:lastName],\n"
 "\n"
@@ -5855,7 +5882,7 @@ msgid ""
 "<a target=\"_blank\" href=\"[site:homeURL]\">[site:title]</a>"
 msgstr ""
 
-#: src/functions.php:1307
+#: src/functions.php:1314
 msgid "Confirm my subscription"
 msgstr ""
 
@@ -6198,23 +6225,60 @@ msgstr ""
 msgid "Yes, unsubscribe me"
 msgstr ""
 
-#: templates/manage-subscription.php:50
+#: templates/manage-subscription-expired.php:19
+msgid "We have sent a new link to your email address. Check your inbox."
+msgstr ""
+
+#: templates/manage-subscription-expired.php:20
+msgid "A new link was sent a few minutes ago. Check your inbox and your spam folder."
+msgstr ""
+
+#: templates/manage-subscription-expired.php:21
+msgid "You have been unsubscribed from our emails."
+msgstr ""
+
+#: templates/manage-subscription-expired.php:22
+#: templates/manage-subscription.php:202
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#. translators: %d: number of days a link stays valid
+#: templates/manage-subscription-expired.php:38
+#, php-format
+msgid "This link has expired. To protect your personal information, links to manage your subscription are valid for %d day."
+msgid_plural "This link has expired. To protect your personal information, links to manage your subscription are valid for %d days."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/manage-subscription-expired.php:59
+msgid "Email me a new link"
+msgstr ""
+
+#: templates/manage-subscription-expired.php:63
+msgid "Just want to stop receiving our emails?"
+msgstr ""
+
+#: templates/manage-subscription-expired.php:65
+msgid "Unsubscribe from all emails"
+msgstr ""
+
+#: templates/manage-subscription.php:38
 msgid "Uncheck lists to unsubscribe from them, then save your preferences."
 msgstr ""
 
-#: templates/manage-subscription.php:87
+#: templates/manage-subscription.php:75
 msgid "Manage your subscriptions"
 msgstr ""
 
-#: templates/manage-subscription.php:105
+#: templates/manage-subscription.php:93
 msgid "Not subscribed"
 msgstr ""
 
-#: templates/manage-subscription.php:114
+#: templates/manage-subscription.php:102
 msgid "No mailing lists available."
 msgstr ""
 
-#: templates/manage-subscription.php:128
+#: templates/manage-subscription.php:118
 #: build/8594.4b700fc2850579437909.js:5
 #: build/9385.51802016d5200578ab7a.js:1
 #: build/dist/js/mail-editor.js:1
@@ -6229,20 +6293,16 @@ msgstr ""
 #: build/screen-ContactTagsView.11267ef2ebe85cd9a4a5.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Save"
 msgstr ""
 
-#: templates/manage-subscription.php:133
+#: templates/manage-subscription.php:123
 msgid "You can change the values, but submitting the form is not possible — this is for preview purposes only."
 msgstr ""
 
-#: templates/manage-subscription.php:206
+#: templates/manage-subscription.php:196
 msgid "Unexpected response"
-msgstr ""
-
-#: templates/manage-subscription.php:212
-msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: templates/my-lists-form.php:173
@@ -6378,7 +6438,7 @@ msgstr ""
 #. translators: %d: number of workflow steps.
 #: build/1882.400447e56bff80d8e74e.js:2
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 #, js-format
 msgid "%d step"
 msgid_plural "%d steps"
@@ -6406,7 +6466,7 @@ msgstr ""
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:1
 #: build/screen-RateLimitingSettings.9a328b7e5b4c5ffc99b6.js:1
 #: build/screen-WizardSetup.2356ed7b26104e7c52d5.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Retry"
 msgstr ""
 
@@ -6415,59 +6475,59 @@ msgid "Loading preview…"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s is required"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s cannot be empty"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s must be a number greater than or equal to %s"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s must be a positive number"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s must be a valid email"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%s must be a valid URL"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "This file is not a valid MailerPress workflow export."
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "The workflow file contains no steps."
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Imported Workflow"
 msgstr ""
 
 #. translators: %d: number of email steps.
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 #, js-format
 msgid "%d email step references a template that may not exist on this site. You will need to reconfigure it."
 msgid_plural "%d email steps reference templates that may not exist on this site. You will need to reconfigure them."
@@ -6475,20 +6535,20 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Invalid JSON file. Please check the file format."
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/screen-InactiveContactsSettings.7dbf99959a26d75b3c28.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "days"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "rule"
 msgid_plural "rules"
 msgstr[0] ""
@@ -6498,63 +6558,63 @@ msgstr[1] ""
 #: build/9385.51802016d5200578ab7a.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Template"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Trigger must be selected"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Trigger type must be selected"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Action type must be selected"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Email template is required"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Selected tag does not exist in available options"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Action settings must be configured"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Delay duration must be greater than 0"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Delay unit must be selected"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "At least one condition rule must be defined"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Condition must be configured"
 msgstr ""
 
 #: build/1882.400447e56bff80d8e74e.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Condition must have at least one branch (Yes or No)"
 msgstr ""
 
@@ -6632,7 +6692,7 @@ msgid "Previous step"
 msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Next step"
 msgstr ""
 
@@ -6761,7 +6821,7 @@ msgstr ""
 
 #: build/2137.c8937e56d76895beb6d9.js:4
 #: build/dist/js/mail-editor.js:18
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Subscription"
 msgstr ""
 
@@ -6818,7 +6878,7 @@ msgid "Apply"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Configuration required"
 msgstr ""
 
@@ -6851,21 +6911,21 @@ msgstr ""
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
 #: build/screen-SettingView.3cf821f4b827c187d661.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Delete"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Action"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/9385.51802016d5200578ab7a.js:6
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Send newsletter"
 msgstr ""
 
@@ -6919,7 +6979,7 @@ msgid "weeks"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Goal"
 msgstr ""
 
@@ -6927,13 +6987,13 @@ msgstr ""
 #: build/dist/js/mail-editor.js:2
 #: build/dist/js/mail-editor.js:3
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Pro"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Trigger"
 msgstr ""
 
@@ -6946,18 +7006,18 @@ msgid "after"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Timing"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Choose a trigger"
 msgstr ""
 
 #: build/4321.51744d217b0c3c37b4fd.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Add step"
 msgstr ""
 
@@ -7056,8 +7116,8 @@ msgstr ""
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:3
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Cancel"
 msgstr ""
 
@@ -7070,7 +7130,7 @@ msgid "Save and apply"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Equals"
 msgstr ""
 
@@ -7079,7 +7139,7 @@ msgid "Does not equal"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Contains"
 msgstr ""
 
@@ -7088,7 +7148,7 @@ msgid "After"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Greater than"
 msgstr ""
 
@@ -7097,7 +7157,7 @@ msgid "Before"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Less than"
 msgstr ""
 
@@ -7110,12 +7170,12 @@ msgid "Is not empty"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Value"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a value"
 msgstr ""
 
@@ -7265,14 +7325,14 @@ msgstr ""
 #: build/screen-ApiKeysSettings.517318699abd25fab4e9.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Never"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:1
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Contact"
 msgstr ""
 
@@ -7465,7 +7525,7 @@ msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:4
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Actions"
 msgstr ""
 
@@ -7845,7 +7905,7 @@ msgid "Are you sure you want to deactivate this automated campaign?"
 msgstr ""
 
 #: build/8594.4b700fc2850579437909.js:15
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Deactivate"
 msgstr ""
 
@@ -8454,8 +8514,8 @@ msgstr ""
 
 #: build/9385.51802016d5200578ab7a.js:1
 #: build/dataview.492e3cfb35cacc7c7ed5.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select"
 msgstr ""
 
@@ -8519,8 +8579,8 @@ msgstr ""
 #: build/screen-CreateCampaign.62c1737beb8dad4fbd76.js:1
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Creating…"
 msgstr ""
 
@@ -8769,7 +8829,7 @@ msgstr ""
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
 #: build/email-editor.80c07c12ee0792aec5d8.js:9
 #: build/html-email-editor.e337ff0240e81615f544.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Email preview"
 msgstr ""
 
@@ -8785,7 +8845,7 @@ msgstr ""
 #: build/9385.51802016d5200578ab7a.js:2
 #: build/dist/js/mail-editor.js:2
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "WooCommerce"
 msgstr ""
 
@@ -9864,8 +9924,8 @@ msgid "Set to -1 to show all campaigns"
 msgstr ""
 
 #: build/dist/js/editor-blocks.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #: packages/gutenberg/mailerpress-archive/edit.js:124
 msgid "Order"
 msgstr ""
@@ -10068,7 +10128,7 @@ msgid "Automatically add customers to your newsletter when they complete a purch
 msgstr ""
 
 #: build/dist/js/mail-editor.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Fluent Cart"
 msgstr ""
 
@@ -10109,7 +10169,7 @@ msgid "Page builders"
 msgstr ""
 
 #: build/dist/js/mail-editor.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "E-commerce"
 msgstr ""
 
@@ -10436,7 +10496,7 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:5
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
@@ -11642,7 +11702,7 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:4
 #: build/dist/js/mail-editor.js:5
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "More options"
 msgstr ""
 
@@ -11691,7 +11751,7 @@ msgstr[1] ""
 #: build/dist/js/mail-editor.js:6
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Search"
 msgstr ""
 
@@ -13134,7 +13194,7 @@ msgstr ""
 
 #: build/dist/js/mail-editor.js:18
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Data"
 msgstr ""
 
@@ -14542,7 +14602,7 @@ msgid "Close styles"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Close settings"
 msgstr ""
 
@@ -14702,7 +14762,7 @@ msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/email-editor.80c07c12ee0792aec5d8.js:7
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "No results found."
 msgstr ""
 
@@ -14789,23 +14849,23 @@ msgid "Block inserter"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Undo"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Redo"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
 #: build/html-email-editor.e337ff0240e81615f544.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Saved"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Prepare newsletter"
 msgstr ""
 
@@ -14883,7 +14943,7 @@ msgid "MailerPress & Plugins"
 msgstr ""
 
 #: build/email-editor.80c07c12ee0792aec5d8.js:7
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "User"
 msgstr ""
 
@@ -15510,7 +15570,7 @@ msgstr ""
 
 #: build/screen-ContactListsView.23a7eaa962efebbc321a.js:2
 #: build/screen-ContactTagsView.11267ef2ebe85cd9a4a5.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Copy code"
 msgstr ""
 
@@ -15668,7 +15728,7 @@ msgid "Icon"
 msgstr ""
 
 #: build/screen-ContactView.2812c3fd6498a696feeb.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Activity"
 msgstr ""
 
@@ -16364,7 +16424,7 @@ msgid "Workflow"
 msgstr ""
 
 #: build/screen-DashboardView.9cb53bad2b45c011cc3b.js:5
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Jobs"
 msgstr ""
 
@@ -16799,12 +16859,12 @@ msgid "Critical issues"
 msgstr ""
 
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Errors"
 msgstr ""
 
 #: build/screen-DatabaseRepairScreen.1d7aefd12283ed28f843.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Warnings"
 msgstr ""
 
@@ -19324,7 +19384,7 @@ msgid "This contact has no workflow interactions yet."
 msgstr ""
 
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Step"
 msgstr ""
 
@@ -19355,13 +19415,13 @@ msgstr ""
 
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Workflow name is required"
 msgstr ""
 
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Automation name"
 msgstr ""
 
@@ -19449,7 +19509,7 @@ msgid "Track executions, completion rates, and contacts across your automations.
 msgstr ""
 
 #: build/screen-WorkflowDashboard.cc72d4211bffb3045d3a.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Start from scratch"
 msgstr ""
 
@@ -19598,7 +19658,7 @@ msgstr ""
 
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Import failed"
 msgstr ""
 
@@ -19616,7 +19676,7 @@ msgid "An error occurred while renaming the workflow."
 msgstr ""
 
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Automation name is required"
 msgstr ""
 
@@ -19625,7 +19685,7 @@ msgid "Renaming..."
 msgstr ""
 
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "(Copy)"
 msgstr ""
 
@@ -19741,7 +19801,7 @@ msgid "AI workflow generation is a premium feature. Upgrade to MailerPress Pro t
 msgstr ""
 
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Import from JSON"
 msgstr ""
 
@@ -19827,7 +19887,7 @@ msgid "Duplicate workflow"
 msgstr ""
 
 #: build/screen-WorkflowListing.1ad5b39841686390c1d7.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Export as JSON"
 msgstr ""
 
@@ -20144,7 +20204,7 @@ msgid "This workflow requires MailerPress Pro. Please upgrade to use this workfl
 msgstr ""
 
 #: build/screen-WorkflowTemplates.3cb20bfad32de0c5873b.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Steps"
 msgstr ""
 
@@ -20172,897 +20232,897 @@ msgstr ""
 msgid "Select a workflow to preview it."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Workflow must have at least one step"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Workflow must start with at least one trigger"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Communication"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Contact management"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Logic & conditions"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Goals & benchmarks"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Testing"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Other"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create a separate newsletter for each published post, using the normal campaign audience, delivery and statistics."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Add a step"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Search actions..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 #, js-format
 msgid "No actions found for \"%s\""
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "No actions available"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Measure whether contacts reach an outcome. A goal can hold them until it happens, or just record the conversion."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "User events"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Content events"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Search triggers..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 #, js-format
 msgid "No triggers found for \"%s\""
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "No triggers available"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Start your workflow"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Insert step"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "You cannot add a new step to the automation. Please purchase MailerPress Pro."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Actions and triggers"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Triggers"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Close inserter"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Search actions and triggers"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Drag onto the canvas, or click to add or replace the trigger."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Drag to an insertion point, or click to add after the selected step."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Workflow errors"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Close errors"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 #, js-format
 msgid "Configure %s"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 #, js-format
 msgid "%d error"
 msgid_plural "%d errors"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:1
+#: build/workflow-editor.4c4a6c797e3be3915599.js:1
 msgid "Select a step or drag to an insertion point to choose where to add this action."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Add a trigger first before adding an action."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 #, js-format
 msgid "Delete %d step"
 msgid_plural "Delete %d steps"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Are you sure you want to delete this step?"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 #, js-format
 msgid "Are you sure you want to delete %d steps?"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "This step has two paths. Deleting it also deletes every step below it, on both paths."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Change trigger"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Replace action"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Premium feature"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Type to search posts..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Search and select posts"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter a value or {{placeholder}}"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Billing"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Shipping"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "-- Select a field --"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Custom value..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter custom value or {{placeholder}}"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Loading options..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "No options available"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "About custom data"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Custom Data is an array that allows you to pass any additional information to your workflow. Use the following format:"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "All custom data values will be available in your workflow context and can be used in email templates with merge tags like {{key1}}, {{key2}}, etc."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "This trigger has no additional configuration options."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Trigger definition not found. Please select a trigger from the available options."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Choose a date"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Your logo"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "New on the blog"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Read the article"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Published Post Newsletter"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Create your email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "or choose a template"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Search templates..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "No templates found."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "No templates available yet. Start from scratch and save your email as a template later."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "The tag \"{{tagName}}\" does not exist in your MailerPress database."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:2
+#: build/workflow-editor.4c4a6c797e3be3915599.js:2
 msgid "Create tag \"{{tagName}}\""
 msgstr ""
 
 #. translators: %s: email campaign ID
-#: build/workflow-editor.fde90fdb3953b896143f.js:3
-#: build/workflow-editor.fde90fdb3953b896143f.js:4
-#: build/workflow-editor.fde90fdb3953b896143f.js:5
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:3
+#: build/workflow-editor.4c4a6c797e3be3915599.js:4
+#: build/workflow-editor.4c4a6c797e3be3915599.js:5
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #, js-format
 msgid "Email #%s"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create tag. Please try again."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Loading tags..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create new tag"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter tag name"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create a new tag and select it immediately"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create and select tag"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create new list"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter list name"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create a new list and select it immediately"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create list. Please try again."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create and select list"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an email from this workflow to create a copy"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "This email is from the current workflow. You can create a copy to modify it independently."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Creating copy..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create copy of this email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Edit original email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Configure newsletter"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Edit email design"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Create new email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #, js-format
 msgid "Insert a value for %s"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Insert..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Type to search..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Cart"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Trigger:"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Please add a trigger to your workflow first to enable field mapping."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter email address or {{placeholder}}"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Workflow Email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create email. Please try again."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create campaign. Please try again."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create email copy"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to create email copy. Please try again."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Edit email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Design your email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Fill in the name and subject below, then create your email to design its content."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Please fill in the email name and subject first."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "This action has no additional settings."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Subject (Optional)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Override template subject"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Leave empty to use template default"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a tag to add to the contact"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "How long to wait (whole numbers only)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Action definition not found. Please select an action from the available options."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Not equals"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Greater or equal"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Less or equal"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Does not contain"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Starts with"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Ends with"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Is"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Is not"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "In"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Not in"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a tag to check"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a list to check"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a subscription status"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an email campaign to check if it was opened"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an email campaign to check if a link was clicked"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "On hold"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Yes (Order Created)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No (No Order - Cart Abandoned)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Yes (Review Submitted)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No (No Review Yet)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a product category to check if the customer has purchased a product in this category"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a product to check if the customer has purchased it"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an order status to check"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check if an order was created after the cart was updated. Use \"equals false\" to detect abandoned carts."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check if the customer has left a product review for products in the current order. Use \"equals false\" to check if no review has been submitted yet."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Pending cancellation"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a subscription status to check"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check the billing interval (e.g., 1 for monthly, 2 for bi-monthly)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Check if the subscription contains a specific product ID"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter product ID"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter amount"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter interval (e.g., 1, 2, 3)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to load condition fields"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Match conditions"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Every condition must match."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "At least one condition must match."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "All (AND)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Any (OR)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 #, js-format
 msgid "Remove condition %d"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Loading fields..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Field"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Operator"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a single value"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select one or more values"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Type to search or add values"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No email campaigns found in workflow. Add a \"Send Email\" action first."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select a campaign"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select an email campaign from this workflow"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Yes - Cart is Abandoned"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No - Order was Created"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Select if the cart is abandoned or if an order was created"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "✓ Workflow will continue to send recovery email"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "✓ Workflow will stop (no email sent)"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Enter a value"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Add condition"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No conditions added yet. Click \"Add condition\" to get started."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Are you sure you want to delete this node?"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "No step selected"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Click on a step in the workflow to view and edit its properties"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Step configuration"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Connections"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Connected"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Not connected"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Timed out step"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Alternative step"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:6
+#: build/workflow-editor.4c4a6c797e3be3915599.js:6
 msgid "Failed to load statistics"
 msgstr ""
 
 #. translators: %d: number of retried jobs
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 #, js-format
 msgid "%d job retried"
 msgid_plural "%d jobs retried"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Failed to retry jobs"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:7
+#: build/workflow-editor.4c4a6c797e3be3915599.js:7
 msgid "Loading statistics…"
 msgstr ""
 
 #. translators: %d: number of failed jobs
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 #, js-format
 msgid "%d job failed. Fix the issue, then retry it."
 msgid_plural "%d jobs failed. Fix the issue, then retry them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Retry failed job"
 msgid_plural "Retry failed jobs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Unique users"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Last execution"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Retry all failed jobs for this workflow? Make sure you have fixed the issue first."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Workflow must have a trigger before it can be enabled. Please add a trigger first."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Workflow not loaded"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Unknown error occurred"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Failed to save workflow"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Cannot activate workflow:"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Cannot activate workflow without a valid trigger."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Automation editor top bar"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Back to workflows"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Add actions and triggers"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Workflow tools"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Create new workflow"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Deactivating..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Activating..."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Failed to import workflow"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Workflow settings"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Workflow details"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Date created"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Not saved yet"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "step"
 msgid_plural "steps"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Automation settings"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Run once per subscriber"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:8
+#: build/workflow-editor.4c4a6c797e3be3915599.js:8
 msgid "Prevent this workflow from running multiple times for the same subscriber"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Workflow must have a trigger"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "This automation has a trigger but no actions. It will not perform any actions when triggered."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 #, js-format
 msgid "Found %1$d unreachable %2$s. All steps must be connected to the trigger."
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Condition step has no \"Yes\" branch"
 msgstr ""
 
-#: build/workflow-editor.fde90fdb3953b896143f.js:9
+#: build/workflow-editor.4c4a6c797e3be3915599.js:9
 msgid "Condition step has no \"No\" branch"
 msgstr ""
 

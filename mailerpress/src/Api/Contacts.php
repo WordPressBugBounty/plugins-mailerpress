@@ -1049,6 +1049,7 @@ class Contacts
         $optinSource = sanitize_text_field($request->get_param('opt_in_source') ?? 'unknown');
         $optinDetails = $request->get_param('optin_details') ?? '';
         $customFields = $request->get_param('custom_fields') ?? [];
+        $clearCustomFields = $request->get_param('clear_custom_fields');
         $lang = sanitize_text_field($request->get_param('lang') ?? '');
 
         $isTrustedSubmission = !empty($GLOBALS['mailerpress_internal_php_call'])
@@ -1122,6 +1123,9 @@ class Contacts
             'opt_in_source' => $optinSource,
             'optin_details' => $optinDetails,
             'custom_fields' => $customFields,
+            'clear_custom_fields' => is_array($clearCustomFields) && $isTrustedSubmission && ApiAuthentication::hasPermission($request, 'contacts:write')
+                ? $clearCustomFields
+                : [],
             'lang' => $lang,
             'update_existing' => true,
             'update_contact_fields' => $isTrustedSubmission,
@@ -1139,18 +1143,6 @@ class Contacts
         }
 
         $contactId = (int) ($result['contact_id'] ?? 0);
-        if ($contactId && !empty($lang)) {
-            $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
-            $wpdb->replace(
-                $customFieldsTable,
-                [
-                    'contact_id' => $contactId,
-                    'field_key' => '_language',
-                    'field_value' => $lang,
-                ],
-                ['%d', '%s', '%s']
-            );
-        }
 
         return new \WP_REST_Response([
             'success' => true,
@@ -1423,6 +1415,7 @@ class Contacts
         $removeTags = $request->get_param('removeTags') ?? [];
         $removeLists = $request->get_param('removeLists') ?? [];
         $customFields = $request->get_param('custom_fields') ?? [];
+        $clearCustomFields = ContactUpsertService::normalizeCustomFieldKeysToClear($request->get_param('clear_custom_fields'));
 
         $firstName = $request->get_param('first_name');
         $lastName = $request->get_param('last_name');
@@ -1620,8 +1613,13 @@ class Contacts
                     do_action('mailerpress_contact_list_removed', $id, $list['id']);
                 }
 
+                ContactUpsertService::clearCustomFields($id, $clearCustomFields);
+
                 // Update custom fields
                 foreach ($customFields as $field) {
+                    if (in_array(sanitize_key($field['field_key'] ?? ''), $clearCustomFields, true)) {
+                        continue;
+                    }
                     $existing = $wpdb->get_var($wpdb->prepare(
                         "SELECT field_id FROM {$customFieldsTable} WHERE contact_id = %d AND field_key = %s",
                         $id,
@@ -1685,6 +1683,7 @@ class Contacts
         $firstName = $request->get_param('first_name');
         $lastName = $request->get_param('last_name');
         $customFields = $request->get_param('custom_fields') ?? [];
+        $clearCustomFields = ContactUpsertService::normalizeCustomFieldKeysToClear($request->get_param('clear_custom_fields'));
 
         if (empty($id)) {
             return new \WP_REST_Response([
@@ -1824,6 +1823,8 @@ class Contacts
             do_action('mailerpress_contact_list_removed', $id, $list['id']);
         }
 
+        $contactUpdated = !empty(ContactUpsertService::clearCustomFields($id, $clearCustomFields)) || $contactUpdated;
+
         // Gérer les custom fields
         if (!empty($customFields) && is_array($customFields)) {
             $customFieldsTable = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
@@ -1834,6 +1835,9 @@ class Contacts
                 }
 
                 $fieldKey = sanitize_text_field($field['field_key']);
+                if (in_array(sanitize_key($fieldKey), $clearCustomFields, true)) {
+                    continue;
+                }
                 $fieldValue = isset($field['value']) ? $field['value'] : '';
 
                 // Sanitize value according to field type (if available)

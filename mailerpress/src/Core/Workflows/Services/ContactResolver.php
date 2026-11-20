@@ -19,6 +19,20 @@ class ContactResolver
             return $this->resolveFromCustomEmail($customRecipientEmail, $contactsModel, $context);
         }
 
+        $contextEmail = $this->getContextEmail($context);
+
+        // Older send results stored the WordPress user ID as contact_id even without a contact.
+        // Resume those runs from their known email, never from a newly imported namesake contact.
+        if ($userId > 0 && (int) ($context['contact_id'] ?? 0) === $userId
+            && false === ($context['is_contact'] ?? null) && !empty($context['email_sent'])) {
+            $email = $contextEmail ?: \sanitize_email((string) ($context['recipient'] ?? ''));
+            if ($email !== '' && \is_email($email)) {
+                return $this->resolveFromCustomEmail($email, $contactsModel, $context);
+            }
+
+            return $this->resolveFromUserId($userId, $contactsModel, $context);
+        }
+
         // Priority: contact_id from context (set by a preceding step like CreateContact)
         if (!empty($context['contact_id'])) {
             $contact = $contactsModel->get((int) $context['contact_id']);
@@ -33,9 +47,11 @@ class ContactResolver
                     contact: $contact
                 );
             }
+
+            // An explicit contact must never fall back to another identity.
+            return null;
         }
 
-        $contextEmail = $this->getContextEmail($context);
         if ($contextEmail !== '') {
             return $this->resolveFromCustomEmail($contextEmail, $contactsModel, $context);
         }
@@ -83,26 +99,11 @@ class ContactResolver
 
     private function resolveFromUserId(int $userId, ContactsModel $contactsModel, array $context): ?ContactResult
     {
-        if (!$userId) {
+        if ($userId <= 0) {
             return null;
         }
 
-        // Check if userId is actually a contact_id
-        $contactById = $contactsModel->get($userId);
-
-        if ($contactById) {
-            return new ContactResult(
-                email: $contactById->email ?? '',
-                contactId: (int) $contactById->contact_id,
-                isContact: true,
-                displayName: \trim(($contactById->first_name ?? '') . ' ' . ($contactById->last_name ?? '')) ?: ($contactById->email ?? ''),
-                firstName: $contactById->first_name ?? '',
-                lastName: $contactById->last_name ?? '',
-                contact: $contactById
-            );
-        }
-
-        // Check if userId is a WordPress user
+        // Contact-based runs provide contact_id in context; userId alone is a WordPress user.
         $user = \get_userdata($userId);
 
         if ($user && $user->user_email) {
@@ -115,26 +116,6 @@ class ContactResolver
                 displayName: $user->display_name ?? '',
                 firstName: $user->first_name ?? '',
                 lastName: $user->last_name ?? '',
-                contact: $contact ?: null
-            );
-        }
-
-        // Guest user from checkout or abandoned cart.
-        if ($userId < 0) {
-            $email = $this->getContextEmail($context);
-            if ($email === '') {
-                return null;
-            }
-
-            $contact = $contactsModel->getContactByEmail($email);
-
-            return new ContactResult(
-                email: $email,
-                contactId: $contact ? (int) $contact->contact_id : null,
-                isContact: (bool) $contact,
-                displayName: \trim(($context['customer_first_name'] ?? '') . ' ' . ($context['customer_last_name'] ?? '')) ?: $email,
-                firstName: $context['customer_first_name'] ?? '',
-                lastName: $context['customer_last_name'] ?? '',
                 contact: $contact ?: null
             );
         }

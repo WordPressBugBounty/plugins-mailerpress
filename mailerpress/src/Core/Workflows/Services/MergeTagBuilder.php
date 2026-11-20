@@ -58,13 +58,7 @@ class MergeTagBuilder
                         mailerpress_get_page('unsub_page')
                     )
                 ) : '',
-                'MANAGE_SUB_LINK' => $canManageSubscription ? \wp_unslash(
-                    \sprintf(
-                        '%s&cid=%s',
-                        mailerpress_get_page('manage_page'),
-                        \esc_attr($accessToken)
-                    )
-                ) : '',
+                'MANAGE_SUB_LINK' => $canManageSubscription ? \MailerPress\Services\ManageSubscriptionLink::url((string) $accessToken) : '',
                 'MAILERPRESS_CONTACT_SUBSCRIBED' => $canManageSubscription ? '1' : '0',
                 'CONTACT_NAME' => \esc_html($contactName),
                 'TRACK_OPEN' => $this->buildTrackOpenUrl($contactResult->contactId, $templateId, $batchId, $job, $step),

@@ -7,6 +7,7 @@ namespace MailerPress\Actions\Ajax;
 use MailerPress\Core\Attributes\Action;
 use MailerPress\Core\Enums\Tables;
 use MailerPress\Models\Contacts;
+use MailerPress\Services\ManageSubscriptionLink;
 
 class ManageSubscription
 {
@@ -38,11 +39,19 @@ class ManageSubscription
             ], 403);
         }
 
-        $accessToken = isset($_POST['mailerpress_cid']) ? sanitize_text_field(wp_unslash($_POST['mailerpress_cid'])) : '';
+        $linkParams = ManageSubscriptionLink::params($_POST, 'mailerpress_');
+        $accessToken = $linkParams['cid'];
         if (empty($accessToken)) {
             wp_send_json_error([
                 'message' => __('Invalid contact token.', 'mailerpress'),
             ], 400);
+        }
+
+        if (ManageSubscriptionLink::VALID !== ManageSubscriptionLink::check($accessToken, $linkParams['exp'], $linkParams['sig'])) {
+            wp_send_json_error([
+                'code' => 'link_expired',
+                'message' => __('This link has expired. Reload the page to request a new one.', 'mailerpress'),
+            ], 403);
         }
 
         // Validate and sanitize names

@@ -2,7 +2,7 @@
 
 namespace MailerPress\Core\Workflows\Conditions;
 
-use MailerPress\Models\Contacts as ContactsModel;
+use MailerPress\Core\Workflows\Services\ContactResolver;
 use MailerPress\Core\Enums\Tables;
 use function add_filter;
 use function get_userdata;
@@ -25,23 +25,9 @@ class MailerPressConditionProvider
 		\add_filter('mailerpress/condition/evaluate_rule', [$this, 'evaluateRule'], 10, 4);
 	}
 
-	private function getContactByUserId(int $userId)
+	private function getContactByUserId(int $userId, array $context): ?object
 	{
-		$model = new ContactsModel();
-
-		// First, try to get contact directly by contact_id (userId might be a contact_id)
-		$contact = $model->get($userId);
-		if ($contact) {
-			return $contact;
-		}
-
-		// Fallback: try to get WordPress user and find contact by email
-		$user = \get_userdata($userId);
-		if (!$user) {
-			return null;
-		}
-
-		return $model->getContactByEmail($user->user_email);
+		return (new ContactResolver())->resolve($userId, null, $context)?->contact;
 	}
 
 	public function getFieldValue($provided, string $field, int $userId, array $context)
@@ -50,7 +36,7 @@ class MailerPressConditionProvider
 			return $provided;
 		}
 
-		$contact = $this->getContactByUserId($userId);
+		$contact = $this->getContactByUserId($userId, $context);
 		if (!$contact) {
 			return null;
 		}
@@ -78,7 +64,7 @@ class MailerPressConditionProvider
 		}
 
 		global $wpdb;
-		$contact = $this->getContactByUserId($userId);
+		$contact = $this->getContactByUserId($userId, $context);
 
 		// For mp_email_opened and mp_email_clicked, we allow contact_id = 0 for non-subscribers
 		// The tracking uses user_id from the workflow job instead

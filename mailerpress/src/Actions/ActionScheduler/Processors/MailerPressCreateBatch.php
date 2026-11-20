@@ -80,13 +80,7 @@ class MailerPressCreateBatch
                             esc_attr($batch_id)
                         )
                     ),
-                    'MANAGE_SUB_LINK' => wp_unslash(
-                        \sprintf(
-                            '%s&cid=%s',
-                            mailerpress_get_page('manage_page'),
-                            esc_attr($contactEntity->access_token)
-                        )
-                    ),
+                    'MANAGE_SUB_LINK' => \MailerPress\Services\ManageSubscriptionLink::url((string) $contactEntity->access_token),
                     'CONTACT_NAME' => esc_html($contactEntity->first_name) . ' ' . esc_html($contactEntity->last_name),
                     'TRACK_OPEN' => \MailerPress\Core\HtmlParser::generateTrackOpenUrl(
                         (int) $contactEntity->contact_id,

@@ -39,7 +39,7 @@ class CartTrackingRepository
         );
 
         $data = [
-            'cart_hash' => $cartHash,
+            'cart_hash' => $existing['cart_hash'] ?? $cartHash,
             'user_id' => $userId,
             'customer_email' => $customerEmail,
             'cart_data' => json_encode($cartData),
@@ -77,6 +77,10 @@ class CartTrackingRepository
      */
     public function markCartEmptied(string $cartHash): bool
     {
+        $cart = $this->getCartByHash($cartHash);
+        if (!$cart || 'ACTIVE' !== $cart['status']) {
+            return false;
+        }
         $result = $this->wpdb->update(
             $this->table,
             [
@@ -84,11 +88,14 @@ class CartTrackingRepository
                 'emptied_at' => current_time('mysql'),
                 'updated_at' => current_time('mysql'),
             ],
-            ['cart_hash' => $cartHash],
+            ['cart_hash' => $cartHash, 'status' => 'ACTIVE'],
             ['%s', '%s', '%s'],
-            ['%s']
+            ['%s', '%s']
         );
-        return $result !== false;
+        if (1 === $result) {
+            \MailerPress\Core\Workflows\Services\CartWorkflowExit::finish($cart, 'EMPTIED');
+        }
+        return 1 === $result;
     }
 
     /**
@@ -99,17 +106,24 @@ class CartTrackingRepository
      */
     public function markCartCompleted(string $cartHash): bool
     {
+        $cart = $this->getCartByHash($cartHash);
+        if (!$cart || 'ACTIVE' !== $cart['status']) {
+            return false;
+        }
         $result = $this->wpdb->update(
             $this->table,
             [
                 'status' => 'COMPLETED',
                 'updated_at' => current_time('mysql'),
             ],
-            ['cart_hash' => $cartHash],
+            ['cart_hash' => $cartHash, 'status' => 'ACTIVE'],
             ['%s', '%s'],
-            ['%s']
+            ['%s', '%s']
         );
-        return $result !== false;
+        if (1 === $result) {
+            \MailerPress\Core\Workflows\Services\CartWorkflowExit::finish($cart, 'COMPLETED');
+        }
+        return 1 === $result;
     }
 
     /**
@@ -161,6 +175,9 @@ class CartTrackingRepository
             ),
             ARRAY_A
         );
+        if ($this->wpdb->last_error) {
+            throw new \RuntimeException('Unable to read tracked cart: ' . $this->wpdb->last_error);
+        }
         return $result ?: null;
     }
 

@@ -25,8 +25,70 @@ class AutomationJobRepository
         return $result ? new AutomationJob($result) : null;
     }
 
-    public function create(int $automationId, int $userId, ?string $nextStepId = null): ?AutomationJob
+    /** Lock a run while executing a step so an external exit cannot be overwritten. */
+    public function findForUpdate(int $id): ?AutomationJob
     {
+        $row = $this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d FOR UPDATE", $id), ARRAY_A);
+        return $row ? new AutomationJob($row) : null;
+    }
+
+    /** Atomically resume only a live run; stale scheduled callbacks cannot revive it. */
+    public function resume(int $id, ?string $nextStepId): bool
+    {
+        $step = null === $nextStepId ? 'next_step_id' : $this->wpdb->prepare('%s', $nextStepId);
+        return 1 === $this->wpdb->query($this->wpdb->prepare(
+            "UPDATE {$this->table} SET status = 'ACTIVE', scheduled_at = NULL, next_step_id = {$step}, updated_at = %s
+             WHERE id = %d AND status IN ('ACTIVE', 'WAITING')",
+            current_time('mysql'), $id
+        ));
+        $job = false !== $result ? $this->find($id) : null;
+        return $job && $job->isActive();
+    }
+
+    /** Runs are linked through their own log id, never another run of the same contact. */
+    public function findLiveByCart(int $userId, string $cartHash): array
+    {
+        $logs = $this->wpdb->prefix . Tables::MAILERPRESS_AUTOMATIONS_LOG;
+        $steps = $this->wpdb->prefix . Tables::MAILERPRESS_AUTOMATIONS_STEPS;
+        $rows = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT DISTINCT j.* FROM {$this->table} j INNER JOIN {$logs} l
+             ON j.id = CAST(JSON_UNQUOTE(JSON_EXTRACT(l.data, '$._job_id')) AS UNSIGNED)
+             WHERE j.status IN ('ACTIVE', 'PROCESSING', 'WAITING', 'PAUSED')
+             AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.cart_user_id')), JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.user_id'))) = %s
+             AND JSON_UNQUOTE(JSON_EXTRACT(l.data, '$.cart_hash')) = %s
+             AND EXISTS (SELECT 1 FROM {$steps} s WHERE s.automation_id = j.automation_id
+                         AND s.type = 'TRIGGER' AND s.`key` = 'woocommerce_abandoned_cart')",
+            (string) $userId, $cartHash
+        ), ARRAY_A);
+        return array_map(static fn($row) => new AutomationJob($row), $rows);
+    }
+
+    public function completeLive(int $id): bool
+    {
+        return 1 === $this->wpdb->query($this->wpdb->prepare(
+            "UPDATE {$this->table} SET status = 'COMPLETED', next_step_id = NULL,
+             scheduled_at = NULL, last_error = NULL, updated_at = %s
+             WHERE id = %d AND status IN ('ACTIVE', 'PROCESSING', 'WAITING', 'PAUSED')",
+            current_time('mysql'), $id
+        ));
+    }
+
+    public function failLive(int $id, string $error): bool
+    {
+        return 1 === $this->wpdb->query($this->wpdb->prepare(
+            "UPDATE {$this->table} SET status = 'FAILED', last_error = %s, updated_at = %s
+             WHERE id = %d AND status IN ('ACTIVE', 'PROCESSING', 'WAITING')",
+            $error, current_time('mysql'), $id
+        ));
+    }
+
+    public function create(int $automationId, int $userId, ?string $nextStepId = null, array $context = []): ?AutomationJob
+    {
+        // Entry policies also apply to callers that create a run directly.
+        if (!apply_filters('mailerpress_workflow_job_can_create', true, $automationId, $userId, $context)) {
+            return null;
+        }
+
         $data = [
             'automation_id' => $automationId,
             'user_id' => $userId,
@@ -44,7 +106,9 @@ class AutomationJobRepository
 
         if ($result) {
             $data['id'] = $this->wpdb->insert_id;
-            return new AutomationJob($data);
+            $job = new AutomationJob($data);
+            do_action('mailerpress_workflow_job_created', $job, $context);
+            return $job;
         }
 
         return null;

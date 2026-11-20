@@ -224,7 +224,34 @@ class ContactUpsertService
         if (!empty($data['auto_map_custom_fields'])) {
             $customFields = array_merge($this->autoMapCustomFields($data), $customFields);
         }
-        $customFieldChanges = $this->syncCustomFields($contactId, $customFields);
+        $clearCustomFields = self::normalizeCustomFieldKeysToClear($data['clear_custom_fields'] ?? null);
+        $customFieldChanges = $this->syncCustomFields($contactId, $customFields, $clearCustomFields);
+
+        // Store the sign-up language before the hooks below: the confirmation
+        // email they send is translated with it.
+        $lang = sanitize_text_field((string) ($data['lang'] ?? ''));
+        if ($lang !== '') {
+            $table = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
+            // Older signups may have left multiple language rows for the same contact.
+            $updated = $wpdb->update(
+                $table,
+                ['field_value' => $lang],
+                ['contact_id' => $contactId, 'field_key' => '_language'],
+                ['%s'],
+                ['%d', '%s']
+            );
+            if (0 === $updated) {
+                // An unchanged row also yields zero affected rows.
+                $wpdb->query($wpdb->prepare(
+                    "INSERT INTO {$table} (contact_id, field_key, field_value)
+                    SELECT %d, '_language', %s FROM DUAL
+                    WHERE NOT EXISTS (SELECT 1 FROM {$table} WHERE contact_id = %d AND field_key = '_language')",
+                    $contactId,
+                    $lang,
+                    $contactId
+                ));
+            }
+        }
 
         if (!$suppressContactHooks) {
             if ($isNew) {
@@ -623,13 +650,52 @@ class ContactUpsertService
         return $normalized;
     }
 
-    private function syncCustomFields(int $contactId, array $customFields): array
+    public static function normalizeCustomFieldKeysToClear(mixed $keys): array
+    {
+        if (!is_array($keys)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($keys as $fieldKey) {
+            if (!is_string($fieldKey)) {
+                continue;
+            }
+            $fieldKey = sanitize_key($fieldKey);
+            if ('' !== $fieldKey && !in_array($fieldKey, self::STANDARD_CUSTOM_FIELD_KEYS, true)) {
+                $normalized[$fieldKey] = $fieldKey;
+            }
+        }
+        return array_values($normalized);
+    }
+
+    /** Remove values for normalized keys and report the fields that changed. */
+    public static function clearCustomFields(int $contactId, array $keys): array
+    {
+        global $wpdb;
+
+        $table = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
+        $updated = [];
+        foreach ($keys as $fieldKey) {
+            $deleted = $wpdb->delete($table, ['contact_id' => $contactId, 'field_key' => $fieldKey], ['%d', '%s']);
+            if (false !== $deleted && $deleted > 0) {
+                $updated[] = $fieldKey;
+                do_action('mailerpress_contact_custom_field_updated', $contactId, $fieldKey, null);
+            }
+        }
+        return $updated;
+    }
+
+    private function syncCustomFields(int $contactId, array $customFields, array $clearCustomFields): array
     {
         global $wpdb;
 
         $table = Tables::get(Tables::MAILERPRESS_CONTACT_CUSTOM_FIELDS);
         $added = [];
-        $updated = [];
+        $updated = self::clearCustomFields($contactId, $clearCustomFields);
+
+        // Explicit clears take precedence over supplied values, including auto-mapped fields.
+        $customFields = array_diff_key($customFields, array_flip($clearCustomFields));
 
         foreach ($customFields as $fieldKey => $fieldValue) {
             $sanitizedValue = CustomFields::sanitizeValue($fieldKey, $fieldValue);

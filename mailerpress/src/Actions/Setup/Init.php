@@ -122,6 +122,20 @@ class Init
     }
 
     /**
+     * Regenerate persisted rules only when the unused dashboard route is still present.
+     */
+    #[Action('init', priority: 5)]
+    public function removeLegacyDashboardRewriteRule(): void
+    {
+		$rules = get_option('rewrite_rules');
+
+		if (is_array($rules) && 'index.php?dashboard=1&dashboard_page=$matches[1]' === ($rules['dashboard/([a-z0-9-]+)[/]?$'] ?? null)) {
+			// WordPress regenerates the rules on demand when it resolves the request.
+			delete_option('rewrite_rules');
+		}
+    }
+
+    /**
      * Keep current_user_can() working with former capability names.
      */
     #[Filter('map_meta_cap', acceptedArgs: 2)]

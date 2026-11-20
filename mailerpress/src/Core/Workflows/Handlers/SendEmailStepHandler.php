@@ -91,6 +91,31 @@ class SendEmailStepHandler implements StepHandlerInterface
 			return ( new \MailerPress\Core\Workflows\Services\PostPublishedNewsletter() )->handle( $step, $job, $context );
 		}
 
+        // Verify active cart for abandoned cart emails
+        if (!empty($context['cart_hash']) && !empty($context['user_id'])) {
+            $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
+            $activeCart = $cartRepo->getCartByHash($context['cart_hash']);
+            if (!$activeCart || 'ACTIVE' !== $activeCart['status'] || (int) $activeCart['user_id'] !== (int) ($context['cart_user_id'] ?? $context['user_id'])) {
+                return StepResult::completed($activeCart && 'COMPLETED' === $activeCart['status'] ? 'Cart recovered' : 'Cart emptied');
+            }
+
+            $context['cart_hash'] = $activeCart['cart_hash'];
+            $context['cart_recovery_url'] = $this->buildCartRecoveryUrl($activeCart['cart_hash']);
+
+            if (!empty($activeCart['cart_data'])) {
+                $cartData = json_decode($activeCart['cart_data'], true);
+                if (is_array($cartData)) {
+                    $context = array_merge($context, array_intersect_key($cartData, array_flip([
+                        'cart_items',
+                        'cart_total',
+                        'cart_subtotal',
+                        'cart_currency',
+                        'cart_item_count',
+                    ])));
+                }
+            }
+        }
+
         $settings = $step->getSettings();
         $templateId = $settings['template_id'] ?? null;
 
@@ -137,34 +162,6 @@ class SendEmailStepHandler implements StepHandlerInterface
         }
 
         $subject = !empty($settings['subject']) ? $settings['subject'] : ($campaign->subject ?? \__('Notification', 'mailerpress'));
-
-        // Verify active cart for abandoned cart emails
-        if (!empty($context['cart_hash']) && !empty($context['user_id'])) {
-            $cartRepo = new \MailerPress\Core\Workflows\Repositories\CartTrackingRepository();
-            $activeCart = $cartRepo->getActiveCartByUserId((int) $context['user_id']);
-            if (!$activeCart) {
-                $job->setStatus('CANCELLED');
-                $jobRepo = new \MailerPress\Core\Workflows\Repositories\AutomationJobRepository();
-                $jobRepo->update($job);
-                return StepResult::failed('Cart is not active - abandoned cart email cancelled');
-            }
-
-            $context['cart_hash'] = $activeCart['cart_hash'];
-            $context['cart_recovery_url'] = $this->buildCartRecoveryUrl($activeCart['cart_hash']);
-
-            if (!empty($activeCart['cart_data'])) {
-                $cartData = json_decode($activeCart['cart_data'], true);
-                if (is_array($cartData)) {
-                    $context = array_merge($context, array_intersect_key($cartData, array_flip([
-                        'cart_items',
-                        'cart_total',
-                        'cart_subtotal',
-                        'cart_currency',
-                        'cart_item_count',
-                    ])));
-                }
-            }
-        }
 
         // Build merge tag variables
         $variables = $this->mergeTagBuilder->build($contactResult, $step, $job, $templateId, $context);
@@ -319,7 +316,7 @@ class SendEmailStepHandler implements StepHandlerInterface
             }
 
             $emailSentAt = current_time('mysql');
-            $finalContactId = $contactResult->isContact ? $contactResult->contactId : $job->getUserId();
+            $finalContactId = $contactResult->isContact ? $contactResult->contactId : null;
 
             if ($contactResult->isContact && (int) $contactResult->contactId > 0) {
                 $this->recordContactSend((int) $contactResult->contactId, $templateId, $emailSentAt);
